@@ -176,13 +176,16 @@ export default function SharePage() {
               width: "100%",
               height: "100%",
               objectFit: "cover",
-              filter: "blur(30px) brightness(0.5)",
+              filter: "blur(18px) brightness(0.7)",
               transform: "scale(1.5)",
               pointerEvents: "none",
               userSelect: "none",
             }}
           />
-          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.25)" }} />
+          <div style={{
+            position: "absolute", inset: 0,
+            background: "linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.55) 60%, rgba(0,0,0,0.75) 100%)",
+          }} />
         </>
       )}
 
