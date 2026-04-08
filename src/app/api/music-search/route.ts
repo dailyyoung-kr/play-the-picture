@@ -21,18 +21,32 @@ async function getSpotifyToken(): Promise<string | null> {
 }
 
 // Spotify Track ID 검색
-async function searchSpotifyTrack(query: string): Promise<string | null> {
+async function searchSpotifyTrack(song: string, artist: string): Promise<string | null> {
   const token = await getSpotifyToken();
   if (!token) return null;
 
-  const res = await fetch(
-    `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=1`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
+  async function doSearch(q: string): Promise<string | null> {
+    const res = await fetch(
+      `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=1`,
+      { headers: { Authorization: `Bearer ${token!}` } }
+    );
+    if (!res.ok) {
+      console.log("[music-search] Spotify 응답 오류:", res.status, await res.text());
+      return null;
+    }
+    const data = await res.json();
+    console.log("[music-search] Spotify 검색 쿼리:", q, "/ 결과:", JSON.stringify(data.tracks?.items?.map((t: { name: string; artists: { name: string }[]; id: string }) => ({ name: t.name, artist: t.artists[0]?.name, id: t.id }))));
+    return data.tracks?.items?.[0]?.id ?? null;
+  }
 
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data.tracks?.items?.[0]?.id ?? null;
+  // 1차: track:/artist: 필드 검색
+  const fieldQuery = artist ? `track:${song} artist:${artist}` : `track:${song}`;
+  const result = await doSearch(fieldQuery);
+  if (result) return result;
+
+  // 2차 fallback: 일반 키워드 검색
+  const fallbackQuery = `${song} ${artist}`.trim();
+  return await doSearch(fallbackQuery);
 }
 
 // YouTube Video ID 검색
@@ -61,7 +75,7 @@ export async function GET(req: NextRequest) {
 
   // 병렬로 두 플랫폼 검색
   const [spotifyId, youtubeId] = await Promise.all([
-    searchSpotifyTrack(query),
+    searchSpotifyTrack(song, artist),
     searchYouTubeVideo(query),
   ]);
 
