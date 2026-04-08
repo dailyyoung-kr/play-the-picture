@@ -18,6 +18,7 @@ interface AnalysisResult {
   vibe_type?: string;
   vibe_description?: string;
   background?: { from: string; to: string };
+  spotifyTrackId?: string | null;
 }
 
 const EMOTION_LABELS = [
@@ -392,8 +393,10 @@ export default function ResultPage() {
           },
           {
             name: "Spotify에서 듣기",
-            url: musicLinks?.spotifyUrl ?? musicLinks?.spotifyFallback ?? `https://open.spotify.com/search/${encodeURIComponent(`${songName} ${artistName}`)}`,
-            isDirect: !!musicLinks?.spotifyUrl,
+            url: result.spotifyTrackId
+              ? `https://open.spotify.com/track/${result.spotifyTrackId}`
+              : (musicLinks?.spotifyUrl ?? musicLinks?.spotifyFallback ?? `https://open.spotify.com/search/${encodeURIComponent(`${songName} ${artistName}`)}`),
+            isDirect: !!(result.spotifyTrackId || musicLinks?.spotifyUrl),
             iconBg: "#1DB954",
             icon: (
               <svg width="18" height="18" viewBox="0 0 24 24" fill="white">

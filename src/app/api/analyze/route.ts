@@ -8,40 +8,45 @@ function getMediaType(dataUrl: string): "image/jpeg" | "image/png" | "image/webp
   return "image/jpeg";
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "API 키가 설정되지 않았어요. .env.local을 확인해주세요." }, { status: 500 });
-    }
-    const client = new Anthropic({ apiKey });
+async function getSpotifyToken(): Promise<string | null> {
+  const clientId = process.env.SPOTIFY_CLIENT_ID;
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
 
-    const { photos, genre, mood, listeningStyle } = await req.json();
+  const res = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: "Basic " + Buffer.from(`${clientId}:${clientSecret}`).toString("base64"),
+    },
+    body: "grant_type=client_credentials",
+  });
 
-    if (!photos || photos.length === 0) {
-      return NextResponse.json({ error: "사진이 없어요" }, { status: 400 });
-    }
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.access_token ?? null;
+}
 
-    const imageBlocks = photos.map((dataUrl: string) => ({
-      type: "image" as const,
-      source: {
-        type: "base64" as const,
-        media_type: getMediaType(dataUrl),
-        data: dataUrl.split(",")[1],
-      },
-    }));
+async function verifySpotifyTrack(query: string): Promise<string | null> {
+  const token = await getSpotifyToken();
+  if (!token) return null;
 
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1024,
-      messages: [
-        {
-          role: "user",
-          content: [
-            ...imageBlocks,
-            {
-              type: "text",
-              text: `다음 정보를 모두 종합해서 실제로 존재하는 노래 1곡만 추천해줘.
+  const res = await fetch(
+    `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=1`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.tracks?.items?.[0]?.id ?? null;
+}
+
+function buildPrompt(genre: string, mood: string, listeningStyle: string, rejectedSong?: string): string {
+  const retryPrefix = rejectedSong
+    ? `앞서 추천한 ${rejectedSong}는 Spotify에 존재하지 않아. 다른 곡으로 추천해줘.\n\n`
+    : "";
+
+  return `${retryPrefix}다음 정보를 모두 종합해서 실제로 존재하는 노래 1곡만 추천해줘.
 반드시 실제 존재하는 곡인지 확인하고 추천해.
 
 [사진 분석]
@@ -97,18 +102,74 @@ POP → 글로벌 팝 계열
 - 설레는 곡 → from: #0d1218, to: #1a1408
 - 위로 발라드 → from: #1a0d0d, to: #0d0d1a
 - 신나는 곡 → from: #1a1208, to: #081a12
-반드시 어두운 톤(밝기 10-15% 이하)으로 설정해줘.`,
-            },
-          ],
-        },
-      ],
-    });
+반드시 어두운 톤(밝기 10-15% 이하)으로 설정해줘.`;
+}
 
-    const text = response.content[0].type === "text" ? response.content[0].text : "";
-    const cleaned = text.replace(/```json\n?|\n?```/g, "").trim();
-    const result = JSON.parse(cleaned);
+export async function POST(req: NextRequest) {
+  try {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: "API 키가 설정되지 않았어요. .env.local을 확인해주세요." }, { status: 500 });
+    }
+    const client = new Anthropic({ apiKey });
 
-    return NextResponse.json(result);
+    const { photos, genre, mood, listeningStyle } = await req.json();
+
+    if (!photos || photos.length === 0) {
+      return NextResponse.json({ error: "사진이 없어요" }, { status: 400 });
+    }
+
+    const imageBlocks = photos.map((dataUrl: string) => ({
+      type: "image" as const,
+      source: {
+        type: "base64" as const,
+        media_type: getMediaType(dataUrl),
+        data: dataUrl.split(",")[1],
+      },
+    }));
+
+    const MAX_RETRIES = 3;
+    let result = null;
+    let spotifyTrackId: string | null = null;
+    let rejectedSong: string | undefined;
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      const response = await client.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1024,
+        messages: [
+          {
+            role: "user",
+            content: [
+              ...imageBlocks,
+              {
+                type: "text",
+                text: buildPrompt(genre, mood, listeningStyle, rejectedSong),
+              },
+            ],
+          },
+        ],
+      });
+
+      const text = response.content[0].type === "text" ? response.content[0].text : "";
+      const cleaned = text.replace(/```json\n?|\n?```/g, "").trim();
+      result = JSON.parse(cleaned);
+
+      // Spotify 존재 여부 검증
+      const songParts = (result.song as string).split(" - ");
+      const songName = songParts[0] ?? result.song;
+      const artistName = songParts.slice(1).join(" - ");
+      const query = `${songName} ${artistName}`.trim();
+
+      spotifyTrackId = await verifySpotifyTrack(query);
+
+      if (spotifyTrackId) break;
+
+      // 검증 실패 시 다음 시도에서 재요청
+      rejectedSong = result.song;
+    }
+
+    return NextResponse.json({ ...result, spotifyTrackId });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("분석 오류:", message);
