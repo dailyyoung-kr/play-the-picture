@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface AnalysisResult {
@@ -36,6 +36,45 @@ export default function ResultPage() {
   const router = useRouter();
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [photos, setPhotos] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const handleSave = async () => {
+    if (!cardRef.current) return;
+    setSaving(true);
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(cardRef.current, {
+        backgroundColor: null,
+        useCORS: true,
+        scale: 2, // 고해상도
+      });
+
+      const today = new Date().toISOString().slice(0, 10); // 2026-04-08
+      const fileName = `play-the-picture-${today}.png`;
+
+      // 모바일: 새 탭에서 이미지 열기 (길게 눌러 저장)
+      // 데스크탑: 자동 다운로드
+      const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        const dataUrl = canvas.toDataURL("image/png");
+        const newTab = window.open();
+        if (newTab) {
+          newTab.document.write(`<img src="${dataUrl}" style="max-width:100%" />`);
+          newTab.document.title = fileName;
+        }
+      } else {
+        const link = document.createElement("a");
+        link.download = fileName;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+      }
+    } catch (e) {
+      console.error("저장 오류:", e);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   useEffect(() => {
     const raw = localStorage.getItem("ptp_result");
@@ -67,6 +106,9 @@ export default function ResultPage() {
           : "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)"
       }}
     >
+      {/* 캡처 영역 시작 */}
+      <div ref={cardRef}>
+
       {/* 상단 앱 이름 */}
       <div
         className="text-center pt-12 pb-3"
@@ -209,6 +251,9 @@ export default function ResultPage() {
           </p>
         </div>
 
+      </div>
+      {/* 캡처 영역 끝 */}
+
         {/* 버튼들 */}
         <button
           className="w-full"
@@ -232,9 +277,11 @@ export default function ResultPage() {
 
         <button
           className="w-full font-medium mb-2"
-          style={{ background: "#C4687A", border: "none", borderRadius: 24, padding: 14, color: "#fff", fontSize: 14, cursor: "pointer" }}
+          onClick={handleSave}
+          disabled={saving}
+          style={{ background: saving ? "rgba(196,104,122,0.5)" : "#C4687A", border: "none", borderRadius: 24, padding: 14, color: "#fff", fontSize: 14, cursor: saving ? "default" : "pointer" }}
         >
-          저장하기
+          {saving ? "저장 중..." : "저장하기"}
         </button>
 
         <button
