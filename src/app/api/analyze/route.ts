@@ -39,10 +39,7 @@ function artistMatches(spotifyArtist: string, claudeArtist: string): boolean {
 
 type SpotifyTrackInfo = { id: string; albumArt: string | null } | null;
 
-async function verifySpotifyTrack(songName: string, artistName: string): Promise<SpotifyTrackInfo> {
-  const token = await getSpotifyToken();
-  if (!token) return null;
-
+async function verifySpotifyTrack(songName: string, artistName: string, token: string): Promise<SpotifyTrackInfo> {
   const query = artistName
     ? `track:${songName} artist:${artistName}`
     : `track:${songName}`;
@@ -85,8 +82,9 @@ async function getITunesAlbumArt(song: string, artist: string): Promise<string |
       return artwork ? artwork.replace("100x100bb", "600x600bb") : null;
     }
 
-    // 미국 스토어 먼저 시도, 없으면 한국 스토어
-    const result = (await searchItunes("us")) ?? (await searchItunes("kr"));
+    // US + KR 스토어 동시 검색
+    const [us, kr] = await Promise.all([searchItunes("us"), searchItunes("kr")]);
+    const result = us ?? kr;
     console.log("[analyze] iTunes albumArt:", result ? result.slice(0, 60) + "..." : null);
     return result;
   } catch (e) {
@@ -95,12 +93,8 @@ async function getITunesAlbumArt(song: string, artist: string): Promise<string |
   }
 }
 
-function buildPrompt(genre: string, mood: string, listeningStyle: string, rejectedSong?: string): string {
-  const retryPrefix = rejectedSong
-    ? `앞서 추천한 ${rejectedSong}는 Spotify에 존재하지 않아. 다른 곡으로 추천해줘.\n\n`
-    : "";
-
-  return `${retryPrefix}다음 정보를 모두 종합해서 실제로 존재하는 노래 1곡만 추천해줘.
+function buildPrompt(genre: string, mood: string, listeningStyle: string): string {
+  return `다음 정보를 모두 종합해서 실제로 존재하는 노래 1곡만 추천해줘.
 반드시 실제 존재하는 곡인지 확인하고 추천해.
 
 [사진 분석]
@@ -182,57 +176,41 @@ export async function POST(req: NextRequest) {
       },
     }));
 
-    const MAX_RETRIES = 3;
-    let result = null;
-    let spotifyTrackId: string | null = null;
-    let albumArt: string | null = null;
-    let rejectedSong: string | undefined;
-
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-      const response = await client.messages.create({
+    // ① Claude 분석 + Spotify 토큰 발급을 동시에 시작
+    const [response, spotifyToken] = await Promise.all([
+      client.messages.create({
         model: "claude-sonnet-4-6",
-        max_tokens: 1024,
+        max_tokens: 800,
         messages: [
           {
             role: "user",
             content: [
               ...imageBlocks,
-              {
-                type: "text",
-                text: buildPrompt(genre, mood, listeningStyle, rejectedSong),
-              },
+              { type: "text", text: buildPrompt(genre, mood, listeningStyle) },
             ],
           },
         ],
-      });
+      }),
+      getSpotifyToken(),
+    ]);
 
-      const text = response.content[0].type === "text" ? response.content[0].text : "";
-      const cleaned = text.replace(/```json\n?|\n?```/g, "").trim();
-      result = JSON.parse(cleaned);
+    const text = response.content[0].type === "text" ? response.content[0].text : "";
+    const cleaned = text.replace(/```json\n?|\n?```/g, "").trim();
+    const result = JSON.parse(cleaned);
 
-      // Spotify 존재 여부 검증 (곡명 + 아티스트 매칭)
-      const songParts = (result.song as string).split(" - ");
-      const songName = songParts[0]?.trim() ?? result.song;
-      const artistName = songParts.slice(1).join(" - ").trim();
+    const songParts = (result.song as string).split(" - ");
+    const songName = songParts[0]?.trim() ?? result.song;
+    const artistName = songParts.slice(1).join(" - ").trim();
 
-      const verified = await verifySpotifyTrack(songName, artistName);
-      if (verified) {
-        spotifyTrackId = verified.id;
-        albumArt = verified.albumArt;
-        break;
-      }
+    // ② Spotify 검색 + iTunes 검색을 동시에 실행
+    const [spotifyInfo, itunesArt] = await Promise.all([
+      spotifyToken ? verifySpotifyTrack(songName, artistName, spotifyToken) : Promise.resolve(null),
+      getITunesAlbumArt(songName, artistName),
+    ]);
 
-      // 검증 실패 시 다음 시도에서 재요청
-      rejectedSong = result.song;
-    }
-
-    // Spotify에서 앨범아트 못 가져왔으면 iTunes로 fallback
-    if (!albumArt && result) {
-      const songParts = (result.song as string).split(" - ");
-      const songName = songParts[0]?.trim() ?? result.song;
-      const artistName = songParts.slice(1).join(" - ").trim();
-      albumArt = await getITunesAlbumArt(songName, artistName);
-    }
+    const spotifyTrackId = spotifyInfo?.id ?? null;
+    // Spotify 앨범아트 우선, 없으면 iTunes
+    const albumArt = spotifyInfo?.albumArt ?? itunesArt;
 
     console.log("[analyze] spotifyTrackId:", spotifyTrackId, "/ albumArt:", albumArt ? albumArt.slice(0, 60) + "..." : null);
     return NextResponse.json({ ...result, spotifyTrackId, albumArt });
