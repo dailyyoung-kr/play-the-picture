@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, Entry } from "@/lib/supabase";
+import { getDeviceId } from "@/lib/device";
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -54,11 +55,14 @@ export default function JournalPage() {
     const from = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-01`;
     const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
     const to = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    const deviceId = getDeviceId();
     supabase
       .from("entries")
       .select("*")
       .gte("date", from)
       .lte("date", to)
+      .not("device_id", "is", null)
+      .eq("device_id", deviceId)
       .order("created_at", { ascending: false })
       .then(({ data }) => setEntries(data ?? []));
   }, [currentYear, currentMonth]);

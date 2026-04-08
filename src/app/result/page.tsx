@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { getDeviceId } from "@/lib/device";
 
 interface AnalysisResult {
   song: string; // "곡명 - 아티스트명" 형식
@@ -81,6 +82,7 @@ export default function ResultPage() {
         vibe_description: result.vibe_description ?? "",
         photos,
         album_art: result.albumArt ?? null,
+        device_id: getDeviceId(),
       })
       .select("id")
       .single();
