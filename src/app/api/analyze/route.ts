@@ -52,7 +52,10 @@ async function verifySpotifyTrack(songName: string, artistName: string): Promise
     { headers: { Authorization: `Bearer ${token}` } }
   );
 
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.log("[analyze] Spotify 검색 실패:", res.status);
+    return null;
+  }
   const data = await res.json();
   const tracks: { id: string; artists: { name: string }[]; album: { images: { url: string }[] } }[] = data.tracks?.items ?? [];
 
@@ -61,11 +64,27 @@ async function verifySpotifyTrack(songName: string, artistName: string): Promise
     return track ? { id: track.id, albumArt: track.album.images[0]?.url ?? null } : null;
   }
 
-  // 아티스트 이름 매칭 확인
   const matched = tracks.find((track) =>
     track.artists.some((a) => artistMatches(a.name, artistName))
   );
   return matched ? { id: matched.id, albumArt: matched.album.images[0]?.url ?? null } : null;
+}
+
+// iTunes Search API로 앨범아트 가져오기 (무료, 인증 불필요)
+async function getITunesAlbumArt(song: string, artist: string): Promise<string | null> {
+  try {
+    const query = `${song} ${artist}`.trim();
+    const res = await fetch(
+      `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&entity=song&limit=1`
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const artwork: string | undefined = data.results?.[0]?.artworkUrl100;
+    // 100x100 → 600x600 으로 고해상도 요청
+    return artwork ? artwork.replace("100x100bb", "600x600bb") : null;
+  } catch {
+    return null;
+  }
 }
 
 function buildPrompt(genre: string, mood: string, listeningStyle: string, rejectedSong?: string): string {
@@ -197,6 +216,14 @@ export async function POST(req: NextRequest) {
 
       // 검증 실패 시 다음 시도에서 재요청
       rejectedSong = result.song;
+    }
+
+    // Spotify에서 앨범아트 못 가져왔으면 iTunes로 fallback
+    if (!albumArt && result) {
+      const songParts = (result.song as string).split(" - ");
+      const songName = songParts[0]?.trim() ?? result.song;
+      const artistName = songParts.slice(1).join(" - ").trim();
+      albumArt = await getITunesAlbumArt(songName, artistName);
     }
 
     console.log("[analyze] spotifyTrackId:", spotifyTrackId, "/ albumArt:", albumArt ? albumArt.slice(0, 60) + "..." : null);
