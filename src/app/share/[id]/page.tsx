@@ -176,13 +176,13 @@ export default function SharePage() {
               width: "100%",
               height: "100%",
               objectFit: "cover",
-              filter: "blur(40px) brightness(0.3)",
+              filter: "blur(30px) brightness(0.5)",
               transform: "scale(1.5)",
               pointerEvents: "none",
               userSelect: "none",
             }}
           />
-          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)" }} />
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.25)" }} />
         </>
       )}
 
