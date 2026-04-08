@@ -176,7 +176,7 @@ export default function SharePage() {
               width: "100%",
               height: "100%",
               objectFit: "cover",
-              filter: "blur(18px) brightness(0.7)",
+              filter: "blur(12px) brightness(0.85)",
               transform: "scale(1.5)",
               pointerEvents: "none",
               userSelect: "none",
@@ -184,7 +184,7 @@ export default function SharePage() {
           />
           <div style={{
             position: "absolute", inset: 0,
-            background: "linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.55) 60%, rgba(0,0,0,0.75) 100%)",
+            background: "linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.45) 50%, rgba(0,0,0,0.7) 100%)",
           }} />
         </>
       )}
