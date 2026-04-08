@@ -27,18 +27,40 @@ async function getSpotifyToken(): Promise<string | null> {
   return data.access_token ?? null;
 }
 
-async function verifySpotifyTrack(query: string): Promise<string | null> {
+function normalizeArtist(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, "");
+}
+
+function artistMatches(spotifyArtist: string, claudeArtist: string): boolean {
+  const a = normalizeArtist(spotifyArtist);
+  const b = normalizeArtist(claudeArtist);
+  return a.includes(b) || b.includes(a);
+}
+
+async function verifySpotifyTrack(songName: string, artistName: string): Promise<string | null> {
   const token = await getSpotifyToken();
   if (!token) return null;
 
+  const query = artistName
+    ? `track:${songName} artist:${artistName}`
+    : `track:${songName}`;
+
   const res = await fetch(
-    `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=1`,
+    `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
 
   if (!res.ok) return null;
   const data = await res.json();
-  return data.tracks?.items?.[0]?.id ?? null;
+  const tracks: { id: string; artists: { name: string }[] }[] = data.tracks?.items ?? [];
+
+  if (!artistName) return tracks[0]?.id ?? null;
+
+  // 아티스트 이름 매칭 확인
+  const matched = tracks.find((track) =>
+    track.artists.some((a) => artistMatches(a.name, artistName))
+  );
+  return matched?.id ?? null;
 }
 
 function buildPrompt(genre: string, mood: string, listeningStyle: string, rejectedSong?: string): string {
@@ -155,13 +177,12 @@ export async function POST(req: NextRequest) {
       const cleaned = text.replace(/```json\n?|\n?```/g, "").trim();
       result = JSON.parse(cleaned);
 
-      // Spotify 존재 여부 검증
+      // Spotify 존재 여부 검증 (곡명 + 아티스트 매칭)
       const songParts = (result.song as string).split(" - ");
-      const songName = songParts[0] ?? result.song;
-      const artistName = songParts.slice(1).join(" - ");
-      const query = `${songName} ${artistName}`.trim();
+      const songName = songParts[0]?.trim() ?? result.song;
+      const artistName = songParts.slice(1).join(" - ").trim();
 
-      spotifyTrackId = await verifySpotifyTrack(query);
+      spotifyTrackId = await verifySpotifyTrack(songName, artistName);
 
       if (spotifyTrackId) break;
 
