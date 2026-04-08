@@ -44,10 +44,20 @@ export default function ResultPage() {
     setSaving(true);
     try {
       const html2canvas = (await import("html2canvas")).default;
+      const bgFrom = result?.background?.from ?? "#0d1a10";
+      const bgTo = result?.background?.to ?? "#1a1408";
       const canvas = await html2canvas(cardRef.current, {
-        backgroundColor: null,
+        backgroundColor: "#0d1218",
         useCORS: true,
-        scale: 2, // 고해상도
+        allowTaint: true,
+        scale: 2,
+        logging: false,
+        foreignObjectRendering: false,
+        imageTimeout: 15000,
+        onclone: (clonedDoc: Document) => {
+          const el = clonedDoc.querySelector("#result-card") as HTMLElement;
+          if (el) el.style.background = `linear-gradient(158deg, ${bgFrom} 0%, ${bgTo} 100%)`;
+        },
       });
 
       const today = new Date().toISOString().slice(0, 10); // 2026-04-08
@@ -107,7 +117,7 @@ export default function ResultPage() {
       }}
     >
       {/* 캡처 영역 시작 */}
-      <div ref={cardRef}>
+      <div ref={cardRef} id="result-card">
 
       {/* 상단 앱 이름 */}
       <div
