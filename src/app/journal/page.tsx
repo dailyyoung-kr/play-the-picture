@@ -32,6 +32,23 @@ export default function JournalPage() {
     today.toISOString().slice(0, 10)
   );
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Entry | null>(null);
+  const [toast, setToast] = useState("");
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 1500);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const { error } = await supabase.from("entries").delete().eq("id", deleteTarget.id);
+    if (!error) {
+      setEntries(prev => prev.filter(e => e.id !== deleteTarget.id));
+      showToast("기록이 삭제됐어요");
+    }
+    setDeleteTarget(null);
+  };
 
   useEffect(() => {
     const from = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-01`;
@@ -220,10 +237,24 @@ export default function JournalPage() {
                       </p>
                     </div>
 
-                    {/* 시간 */}
-                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", flexShrink: 0 }}>
-                      {formatTime(entry.created_at)}
-                    </span>
+                    {/* 시간 + 삭제 */}
+                    <div className="flex flex-col items-end gap-2" style={{ flexShrink: 0 }}>
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
+                        {formatTime(entry.created_at)}
+                      </span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(entry); }}
+                        style={{
+                          background: "none", border: "none", cursor: "pointer",
+                          fontSize: 14, color: "rgba(255,255,255,0.30)",
+                          padding: "2px 4px", lineHeight: 1,
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,100,100,0.7)")}
+                        onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.30)")}
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -231,6 +262,52 @@ export default function JournalPage() {
           </>
         )}
       </div>
+
+      {/* 토스트 */}
+      {toast && (
+        <div style={{
+          position: "fixed", bottom: 100, left: "50%", transform: "translateX(-50%)",
+          background: "rgba(30,30,30,0.95)", border: "1px solid rgba(255,255,255,0.15)",
+          color: "#fff", fontSize: 13, padding: "10px 20px", borderRadius: 24,
+          zIndex: 200, whiteSpace: "nowrap",
+        }}>
+          {toast}
+        </div>
+      )}
+
+      {/* 삭제 확인 다이얼로그 */}
+      {deleteTarget && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 32px" }}
+          onClick={() => setDeleteTarget(null)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: "#1a1a2a", borderRadius: 18, padding: "24px 20px", width: "100%", border: "1px solid rgba(255,255,255,0.12)" }}
+          >
+            <p className="font-semibold text-center" style={{ fontSize: 15, color: "#fff", marginBottom: 8 }}>
+              이 기록을 삭제할까요?
+            </p>
+            <p className="text-center" style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 20 }}>
+              {deleteTarget.song} · {formatTime(deleteTarget.created_at)}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                style={{ flex: 1, padding: "12px", borderRadius: 12, background: "transparent", border: "1px solid rgba(255,255,255,0.25)", color: "rgba(255,255,255,0.75)", fontSize: 14, cursor: "pointer" }}
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDelete}
+                style={{ flex: 1, padding: "12px", borderRadius: 12, background: "rgba(220,60,60,0.85)", border: "none", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 하단 네비게이션 */}
       <div style={{ background: "rgba(0,0,0,0.45)", borderTop: "0.5px solid rgba(255,255,255,0.08)", display: "flex", padding: "10px 0 24px", flexShrink: 0 }}>
