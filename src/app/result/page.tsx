@@ -39,6 +39,7 @@ export default function ResultPage() {
   const [photos, setPhotos] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
+  const [showListenSheet, setShowListenSheet] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const showToast = (msg: string) => {
@@ -334,12 +335,126 @@ export default function ResultPage() {
         <button
           className="w-full font-medium mb-5"
           style={{ background: "#fff", border: "none", borderRadius: 24, padding: 14, color: "#0d1218", fontSize: 14, cursor: "pointer" }}
-          onClick={() => router.push("/")}
+          onClick={() => setShowListenSheet(true)}
         >
           ▶  지금 바로 듣기
         </button>
 
       </div>
+
+      {/* 듣기 바텀시트 */}
+      {showListenSheet && result && (() => {
+        const songName = result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song;
+        const artistName = result.song.includes(" - ") ? result.song.split(" - ").slice(1).join(" - ") : "";
+        const q = encodeURIComponent(`${songName} ${artistName}`);
+        const platforms = [
+          {
+            name: "YouTube Music에서 듣기",
+            url: `https://music.youtube.com/search?q=${q}`,
+            iconBg: "#FF0000",
+            icon: (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                <polygon points="9,6 20,12 9,18" />
+              </svg>
+            ),
+          },
+          {
+            name: "Spotify에서 듣기",
+            url: `https://open.spotify.com/search/${q}`,
+            iconBg: "#1DB954",
+            icon: (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424a.622.622 0 01-.857.207c-2.348-1.435-5.304-1.76-8.785-.964a.623.623 0 01-.277-1.215c3.809-.87 7.077-.496 9.713 1.115a.623.623 0 01.206.857zm1.223-2.722a.78.78 0 01-1.072.257c-2.687-1.652-6.786-2.131-9.965-1.166a.78.78 0 01-.973-.519.781.781 0 01.519-.973c3.632-1.102 8.147-.568 11.234 1.329a.78.78 0 01.257 1.072zm.105-2.835C14.692 8.95 9.375 8.775 6.297 9.71a.937.937 0 11-.543-1.794c3.532-1.072 9.404-.865 13.115 1.338a.937.937 0 01-.955 1.613z"/>
+              </svg>
+            ),
+          },
+        ];
+
+        return (
+          <>
+            {/* 딤 배경 */}
+            <div
+              style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 60 }}
+              onClick={() => setShowListenSheet(false)}
+            />
+            {/* 바텀시트 */}
+            <div style={{
+              position: "fixed", bottom: 0, left: 0, right: 0,
+              background: "rgba(13,18,24,0.98)",
+              borderRadius: "20px 20px 0 0",
+              padding: "12px 20px 40px",
+              zIndex: 61,
+              border: "1px solid rgba(255,255,255,0.08)",
+            }}>
+              {/* 핸들바 */}
+              <div style={{ width: 36, height: 4, background: "rgba(255,255,255,0.25)", borderRadius: 2, margin: "0 auto 20px" }} />
+
+              {/* 제목 */}
+              <p className="font-medium text-center" style={{ fontSize: 16, color: "#fff", marginBottom: 10 }}>
+                어디서 들을까?
+              </p>
+
+              {/* 곡명 pill */}
+              <div className="flex justify-center mb-5">
+                <span style={{
+                  background: "rgba(196,104,122,0.18)",
+                  border: "1px solid rgba(196,104,122,0.4)",
+                  color: "#C4687A",
+                  fontSize: 12,
+                  padding: "4px 14px",
+                  borderRadius: 20,
+                }}>
+                  {songName}{artistName ? ` — ${artistName}` : ""}
+                </span>
+              </div>
+
+              {/* 플랫폼 rows */}
+              <div className="flex flex-col" style={{ gap: 8, marginBottom: 20 }}>
+                {platforms.map((p) => (
+                  <a
+                    key={p.name}
+                    href={p.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 14,
+                      height: 60,
+                      background: "rgba(255,255,255,0.06)",
+                      borderRadius: 12,
+                      padding: "0 16px",
+                      textDecoration: "none",
+                    }}
+                  >
+                    {/* 아이콘 */}
+                    <div style={{
+                      width: 40, height: 40, borderRadius: "50%",
+                      background: p.iconBg,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0,
+                    }}>
+                      {p.icon}
+                    </div>
+                    {/* 텍스트 */}
+                    <span style={{ flex: 1, fontSize: 14, color: "#fff" }}>{p.name}</span>
+                    {/* 화살표 */}
+                    <span style={{ fontSize: 18, color: "rgba(255,255,255,0.35)" }}>›</span>
+                  </a>
+                ))}
+              </div>
+
+              {/* 나중에 듣기 */}
+              <button
+                onClick={() => setShowListenSheet(false)}
+                style={{ width: "100%", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "rgba(255,255,255,0.35)", textAlign: "center", padding: "4px 0" }}
+              >
+                나중에 듣기
+              </button>
+            </div>
+          </>
+        );
+      })()}
 
       {/* 토스트 메시지 */}
       {toast && (
