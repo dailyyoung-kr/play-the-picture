@@ -45,6 +45,7 @@ export default function ResultPage() {
   const [savedEntryId, setSavedEntryId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const [showListenSheet, setShowListenSheet] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [musicLinks, setMusicLinks] = useState<{
     spotifyUrl: string | null;
     youtubeUrl: string | null;
@@ -117,15 +118,29 @@ export default function ResultPage() {
       const songName = result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song;
       const artistName = result.song.includes(" - ") ? result.song.split(" - ").slice(1).join(" - ") : "";
 
+      // 1) Web Share API 시도
       if (navigator.share) {
-        await navigator.share({
-          title: "Play the Picture",
-          text: `${songName} — ${artistName}`,
-          url,
-        });
-      } else {
+        try {
+          await navigator.share({
+            title: "Play the Picture",
+            text: `${songName} — ${artistName}`,
+            url,
+          });
+          return; // 성공 시 종료
+        } catch (shareErr) {
+          const msg = shareErr instanceof Error ? shareErr.message : "";
+          if (msg.includes("abort") || msg === "AbortError") return; // 사용자가 취소
+          // share 실패 → 클립보드로 fallback
+        }
+      }
+
+      // 2) 클립보드 복사 시도
+      try {
         await navigator.clipboard.writeText(url);
-        showToast("링크가 복사됐어요 ✦");
+        showToast("링크 복사됐어요! 카카오톡에 붙여넣기해서 공유하세요 ✦");
+      } catch {
+        // 3) 클립보드도 안 되면 URL 직접 보여주기
+        setShareUrl(url);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
@@ -596,6 +611,63 @@ export default function ResultPage() {
           </>
         );
       })()}
+
+      {/* URL 직접 보여주기 모달 (클립보드 fallback 실패 시) */}
+      {shareUrl && (
+        <div style={{
+          position: "fixed", inset: 0,
+          background: "rgba(0,0,0,0.65)",
+          zIndex: 90,
+          display: "flex", alignItems: "flex-end",
+        }} onClick={() => setShareUrl(null)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              background: "#1a1f2b",
+              borderRadius: "20px 20px 0 0",
+              padding: "20px 20px 40px",
+              border: "1px solid rgba(255,255,255,0.1)",
+            }}
+          >
+            <div style={{ width: 36, height: 4, background: "rgba(255,255,255,0.25)", borderRadius: 2, margin: "0 auto 20px" }} />
+            <p style={{ fontSize: 15, color: "#fff", fontWeight: 600, marginBottom: 6 }}>공유 링크</p>
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 14 }}>
+              아래 링크를 길게 눌러 복사한 뒤 카카오톡에 보내세요
+            </p>
+            <div style={{
+              background: "rgba(255,255,255,0.08)",
+              borderRadius: 10,
+              padding: "12px 14px",
+              fontSize: 12,
+              color: "rgba(255,255,255,0.7)",
+              wordBreak: "break-all",
+              lineHeight: 1.6,
+              marginBottom: 16,
+              userSelect: "all",
+            }}>
+              {shareUrl}
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(shareUrl);
+                  showToast("링크 복사됐어요! 카카오톡에 붙여넣기해서 공유하세요 ✦");
+                  setShareUrl(null);
+                } catch {
+                  showToast("위 링크를 길게 눌러 복사하세요");
+                }
+              }}
+              style={{
+                width: "100%", background: "#C4687A", border: "none",
+                borderRadius: 24, padding: 14, color: "#fff", fontSize: 14, cursor: "pointer",
+              }}
+            >
+              링크 복사하기
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 토스트 메시지 */}
       {toast && (
