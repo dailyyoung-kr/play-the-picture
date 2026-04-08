@@ -74,15 +74,23 @@ async function verifySpotifyTrack(songName: string, artistName: string): Promise
 async function getITunesAlbumArt(song: string, artist: string): Promise<string | null> {
   try {
     const query = `${song} ${artist}`.trim();
-    const res = await fetch(
-      `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&entity=song&limit=1`
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const artwork: string | undefined = data.results?.[0]?.artworkUrl100;
-    // 100x100 → 600x600 으로 고해상도 요청
-    return artwork ? artwork.replace("100x100bb", "600x600bb") : null;
-  } catch {
+
+    async function searchItunes(country: string): Promise<string | null> {
+      const res = await fetch(
+        `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&entity=song&limit=3&country=${country}`
+      );
+      if (!res.ok) return null;
+      const data = await res.json();
+      const artwork: string | undefined = data.results?.[0]?.artworkUrl100;
+      return artwork ? artwork.replace("100x100bb", "600x600bb") : null;
+    }
+
+    // 미국 스토어 먼저 시도, 없으면 한국 스토어
+    const result = (await searchItunes("us")) ?? (await searchItunes("kr"));
+    console.log("[analyze] iTunes albumArt:", result ? result.slice(0, 60) + "..." : null);
+    return result;
+  } catch (e) {
+    console.log("[analyze] iTunes 오류:", e);
     return null;
   }
 }

@@ -162,17 +162,24 @@ export default function SharePage() {
   return (
     <div style={{ position: "relative", minHeight: "100vh", overflow: "hidden" }}>
 
-      {/* 앨범아트 배경 */}
+      {/* 앨범아트 배경 - img 태그 사용 (Safari 호환) */}
       {entry.album_art && (
         <>
-          <div style={{
-            position: "absolute",
-            top: "-10%", left: "-10%", width: "120%", height: "120%",
-            backgroundImage: `url(${entry.album_art})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            filter: "blur(50px) brightness(0.25)",
-          }} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={entry.album_art}
+            alt=""
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              top: "-10%", left: "-10%",
+              width: "120%", height: "120%",
+              objectFit: "cover",
+              filter: "blur(50px) brightness(0.25)",
+              pointerEvents: "none",
+              userSelect: "none",
+            }}
+          />
           <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)" }} />
         </>
       )}
