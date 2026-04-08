@@ -428,38 +428,17 @@ export default function ResultPage() {
 
       <div className="px-5 pb-2">
 
-        {/* 다른 사진으로 다시 해보기 — 메인 CTA */}
-        <button
-          className="w-full font-semibold mb-3"
-          onClick={() => {
-            localStorage.removeItem("ptp_photos");
-            localStorage.removeItem("ptp_result");
-            router.push("/");
-          }}
-          style={{
-            background: "#fff",
-            border: "none",
-            borderRadius: 24,
-            padding: 15,
-            color: "#0d1218",
-            fontSize: 15,
-            cursor: "pointer",
-          }}
-        >
-          다른 사진으로 다시 해보기
-        </button>
-
         {/* 저장하기 + 친구에게 공유 — 나란히 */}
-        <div className="flex gap-2 mb-3">
+        <div className="flex gap-2 mb-2">
           <button
             className="flex-1 font-medium"
             onClick={handleSaveToSupabase}
             disabled={saving}
             style={{
-              background: "rgba(255,255,255,0.07)",
-              border: "1px solid rgba(255,255,255,0.15)",
-              borderRadius: 24, padding: "13px 0",
-              color: saving ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.7)",
+              background: "rgba(196,104,122,0.22)",
+              border: "1px solid rgba(196,104,122,0.45)",
+              borderRadius: 24, padding: "14px 0",
+              color: saving ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.85)",
               fontSize: 14, cursor: saving ? "default" : "pointer",
             }}
           >
@@ -471,9 +450,9 @@ export default function ResultPage() {
             disabled={sharing}
             style={{
               background: "rgba(255,255,255,0.07)",
-              border: "1px solid rgba(255,255,255,0.15)",
-              borderRadius: 24, padding: "13px 0",
-              color: sharing ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.7)",
+              border: "1px solid rgba(255,255,255,0.18)",
+              borderRadius: 24, padding: "14px 0",
+              color: sharing ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.75)",
               fontSize: 14, cursor: sharing ? "default" : "pointer",
             }}
           >
@@ -483,17 +462,38 @@ export default function ResultPage() {
 
         {/* 지금 바로 듣기 */}
         <button
-          className="w-full font-medium mb-5"
+          className="w-full font-medium mb-3"
           onClick={handleListenClick}
           style={{
-            background: "rgba(255,255,255,0.10)",
-            border: "1px solid rgba(255,255,255,0.20)",
+            background: "rgba(255,255,255,0.92)",
+            border: "none",
             borderRadius: 24, padding: 14,
-            color: "rgba(255,255,255,0.85)",
+            color: "#0d1218",
             fontSize: 14, cursor: "pointer",
           }}
         >
           ▶  지금 바로 듣기
+        </button>
+
+        {/* 다른 사진으로 다시 해보기 — 텍스트 링크 */}
+        <button
+          className="w-full mb-4"
+          onClick={() => {
+            localStorage.removeItem("ptp_photos");
+            localStorage.removeItem("ptp_result");
+            router.push("/");
+          }}
+          style={{
+            background: "none",
+            border: "none",
+            color: "rgba(255,255,255,0.55)",
+            fontSize: 13,
+            cursor: "pointer",
+            padding: "6px 0",
+            textAlign: "center",
+          }}
+        >
+          다른 사진으로 다시 해보기
         </button>
       </div>
 
