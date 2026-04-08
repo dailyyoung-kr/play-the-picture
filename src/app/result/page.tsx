@@ -209,7 +209,27 @@ export default function ResultPage() {
           </p>
         </div>
 
-        {/* 버튼 3개 */}
+        {/* 버튼들 */}
+        <button
+          className="w-full"
+          onClick={() => {
+            localStorage.removeItem("ptp_photos");
+            localStorage.removeItem("ptp_result");
+            router.push("/");
+          }}
+          style={{
+            background: "none",
+            border: "none",
+            color: "rgba(255,255,255,0.45)",
+            fontSize: 13,
+            cursor: "pointer",
+            padding: "8px 0",
+            textAlign: "center",
+          }}
+        >
+          다른 사진으로 다시 해볼게
+        </button>
+
         <button
           className="w-full font-medium mb-2"
           style={{ background: "#C4687A", border: "none", borderRadius: 24, padding: 14, color: "#fff", fontSize: 14, cursor: "pointer" }}
