@@ -271,26 +271,10 @@ export default function ResultPage() {
               </p>
             )}
           </div>
-
-          {/* 인사이트 */}
-          <p
-            className="text-center"
-            style={{
-              fontSize: 12,
-              color: "rgba(255,255,255,0.40)",
-              lineHeight: 1.6,
-              marginTop: 12,
-              paddingTop: 12,
-              borderTop: "0.5px solid rgba(255,255,255,0.08)",
-              fontStyle: "italic",
-            }}
-          >
-            {result.reason}
-          </p>
         </div>
 
         {/* 왜 이 노래? */}
-        <div className="mb-5" style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "14px 16px" }}>
+        <div className="mb-5" style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "14px 16px", marginTop: 12 }}>
           <p className="font-medium mb-2" style={{ fontSize: 10, color: "#f0d080", letterSpacing: "0.05em" }}>
             왜 이 노래?
           </p>
