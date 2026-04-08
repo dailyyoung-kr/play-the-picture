@@ -317,7 +317,6 @@ export default function JournalPage() {
       <div style={{ background: "rgba(0,0,0,0.45)", borderTop: "0.5px solid rgba(255,255,255,0.08)", display: "flex", padding: "10px 0 24px", flexShrink: 0 }}>
         {[
           { icon: "📓", label: "JOURNAL", active: true, path: "/journal" },
-          { icon: "🖼", label: "GALLERY", active: false, path: "/" },
           { icon: "+", label: "UPLOAD", active: false, isCenter: true, path: "/" },
           { icon: "⚙️", label: "SETTINGS", active: false, path: "/" },
         ].map((item) => (

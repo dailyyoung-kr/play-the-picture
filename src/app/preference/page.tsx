@@ -254,7 +254,6 @@ export default function PreferencePage() {
       >
         {[
           { icon: "📓", label: "JOURNAL", active: false, path: "/journal" },
-          { icon: "🖼", label: "GALLERY", active: false, path: "/" },
           { icon: "+", label: "UPLOAD", active: true, isCenter: true, path: "/" },
           { icon: "⚙️", label: "SETTINGS", active: false, path: "/" },
         ].map((item) => (
