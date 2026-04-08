@@ -267,13 +267,14 @@ export default function UploadPage() {
         }}
       >
         {[
-          { icon: "📓", label: "JOURNAL", active: false },
-          { icon: "🖼", label: "GALLERY", active: false },
-          { icon: "+", label: "UPLOAD", active: true, isCenter: true },
-          { icon: "⚙️", label: "SETTINGS", active: false },
+          { icon: "📓", label: "JOURNAL", active: false, path: "/journal" },
+          { icon: "🖼", label: "GALLERY", active: false, path: "/" },
+          { icon: "+", label: "UPLOAD", active: true, isCenter: true, path: "/" },
+          { icon: "⚙️", label: "SETTINGS", active: false, path: "/" },
         ].map((item) => (
           <div
             key={item.label}
+            onClick={() => item.path && router.push(item.path)}
             className="flex-1 flex flex-col items-center gap-1"
             style={{
               fontSize: 10,
