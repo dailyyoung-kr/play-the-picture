@@ -242,10 +242,12 @@ export default function ResultPage() {
             aria-hidden="true"
             style={{
               position: "absolute",
-              top: "-10%", left: "-10%",
-              width: "120%", height: "120%",
+              inset: 0,
+              width: "100%",
+              height: "100%",
               objectFit: "cover",
-              filter: "blur(50px) brightness(0.25)",
+              filter: "blur(40px) brightness(0.3)",
+              transform: "scale(1.5)",
               pointerEvents: "none",
               userSelect: "none",
             }}
