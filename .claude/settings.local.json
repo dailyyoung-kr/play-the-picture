@@ -6,7 +6,15 @@
       "Bash(export PATH=\"/usr/local/bin:$PATH\")",
       "Bash(npm -v)",
       "Bash(npx --version)",
-      "Bash(npx create-next-app@latest . --typescript --eslint --tailwind --src-dir --app --import-alias \"@/*\" --no-turbopack)"
+      "Bash(npx create-next-app@latest . --typescript --eslint --tailwind --src-dir --app --import-alias \"@/*\" --no-turbopack)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(open http://localhost:3000)",
+      "Bash(curl -s http://localhost:3000/preference)",
+      "Bash(curl -s -X POST http://localhost:3000/api/analyze -H 'Content-Type: application/json' -d '{\"photos\":[\"data:image/jpeg;base64,/9j/4AAQSkZJRgAB\"],\"genre\":\"장르 발견하기\",\"mood\":\"좀 지쳐\",\"listeningStyle\":\"아직 모르겠어\"}')",
+      "Bash(node -e ':*)",
+      "Bash(node -e \"console.log\\(process.env.ANTHROPIC_API_KEY\\)\")"
     ]
   }
 }
