@@ -39,6 +39,8 @@ export default function ResultPage() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [photos, setPhotos] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [savedEntryId, setSavedEntryId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const [showListenSheet, setShowListenSheet] = useState(false);
   const [musicLinks, setMusicLinks] = useState<{
@@ -55,16 +57,19 @@ export default function ResultPage() {
     setTimeout(() => setToast(""), 3000);
   };
 
-  const handleSaveToSupabase = async () => {
-    if (!result) return;
-    setSaving(true);
-    try {
-      const songParts = result.song.split(" - ");
-      const song = songParts[0] ?? result.song;
-      const artist = songParts.slice(1).join(" - ") ?? "";
-      const today = new Date().toISOString().slice(0, 10);
+  // 저장 후 id 반환 (이미 저장돼 있으면 캐시된 id 반환)
+  const saveEntry = async (): Promise<string | null> => {
+    if (savedEntryId) return savedEntryId;
+    if (!result) return null;
 
-      const { error } = await supabase.from("entries").insert({
+    const songParts = result.song.split(" - ");
+    const song = songParts[0] ?? result.song;
+    const artist = songParts.slice(1).join(" - ") ?? "";
+    const today = new Date().toISOString().slice(0, 10);
+
+    const { data, error } = await supabase
+      .from("entries")
+      .insert({
         date: today,
         song,
         artist,
@@ -74,15 +79,57 @@ export default function ResultPage() {
         vibe_type: result.vibe_type ?? "",
         vibe_description: result.vibe_description ?? "",
         photos,
-      });
+      })
+      .select("id")
+      .single();
 
-      if (error) throw error;
+    if (error) throw error;
+    setSavedEntryId(data.id);
+    return data.id;
+  };
+
+  const handleSaveToSupabase = async () => {
+    if (!result) return;
+    setSaving(true);
+    try {
+      await saveEntry();
       showToast("오늘의 기록이 저장됐어요 ✦");
     } catch (e) {
       console.error("저장 오류:", e);
       showToast("저장에 실패했어요. 다시 시도해주세요.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!result) return;
+    setSharing(true);
+    try {
+      const entryId = await saveEntry();
+      if (!entryId) throw new Error("저장 실패");
+
+      const url = `https://play-the-picture.vercel.app/share/${entryId}`;
+      const songName = result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song;
+      const artistName = result.song.includes(" - ") ? result.song.split(" - ").slice(1).join(" - ") : "";
+
+      if (navigator.share) {
+        await navigator.share({
+          title: "Play the Picture",
+          text: `${songName} — ${artistName}`,
+          url,
+        });
+      } else {
+        await navigator.clipboard.writeText(url);
+        showToast("링크가 복사됐어요 ✦");
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      if (msg !== "AbortError" && !msg.includes("abort")) {
+        showToast("공유에 실패했어요. 다시 시도해주세요.");
+      }
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -352,17 +399,19 @@ export default function ResultPage() {
         {/* 친구에게 공유 */}
         <button
           className="w-full flex items-center justify-center gap-2 mb-2"
+          onClick={handleShare}
+          disabled={sharing}
           style={{
             background: "rgba(255,255,255,0.07)",
             border: "1px solid rgba(255,255,255,0.18)",
             borderRadius: 24,
             padding: 14,
-            color: "rgba(255,255,255,0.75)",
+            color: sharing ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.75)",
             fontSize: 14,
-            cursor: "pointer",
+            cursor: sharing ? "default" : "pointer",
           }}
         >
-          친구에게 공유
+          {sharing ? "공유 준비 중..." : "친구에게 공유"}
         </button>
 
         {/* 지금 바로 듣기 */}
