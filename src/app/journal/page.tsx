@@ -35,10 +35,29 @@ export default function JournalPage() {
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Entry | null>(null);
   const [toast, setToast] = useState("");
+  const [showListenSheet, setShowListenSheet] = useState(false);
+  const [musicLinks, setMusicLinks] = useState<{
+    spotifyUrl: string | null;
+    youtubeUrl: string | null;
+    spotifyFallback: string;
+    youtubeFallback: string;
+  } | null>(null);
+  const [loadingLinks, setLoadingLinks] = useState(false);
 
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(""), 1500);
+  };
+
+  const handleListenClick = (entry: Entry) => {
+    setMusicLinks(null);
+    setShowListenSheet(true);
+    setLoadingLinks(true);
+    fetch(`/api/music-search?${new URLSearchParams({ song: entry.song, artist: entry.artist })}`)
+      .then((r) => r.json())
+      .then((data) => setMusicLinks(data))
+      .catch(() => setMusicLinks(null))
+      .finally(() => setLoadingLinks(false));
   };
 
   const handleDelete = async () => {
@@ -407,13 +426,136 @@ export default function JournalPage() {
             </div>
 
             {/* 왜 이 노래 */}
-            <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "14px" }}>
+            <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "14px", marginBottom: 16 }}>
               <p style={{ fontSize: 10, color: "#f0d080", marginBottom: 8 }}>왜 이 노래?</p>
               <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.8 }}>{selectedEntry.reason}</p>
             </div>
+
+            {/* 다시 듣기 버튼 */}
+            <button
+              onClick={() => handleListenClick(selectedEntry)}
+              style={{
+                width: "100%", background: "#fff", border: "none",
+                borderRadius: 24, padding: 14,
+                color: "#0d1218", fontSize: 14, fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              ▶  다시 듣기
+            </button>
           </div>
         </div>
       )}
+
+      {/* 듣기 바텀시트 */}
+      {showListenSheet && selectedEntry && (() => {
+        const platforms = [
+          {
+            name: "YouTube Music에서 듣기",
+            url: musicLinks?.youtubeUrl ?? musicLinks?.youtubeFallback ?? `https://music.youtube.com/search?q=${encodeURIComponent(`${selectedEntry.song} ${selectedEntry.artist}`)}`,
+            isDirect: !!musicLinks?.youtubeUrl,
+            iconBg: "#FF0000",
+            icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><polygon points="9,6 20,12 9,18" /></svg>,
+          },
+          {
+            name: "Spotify에서 듣기",
+            url: musicLinks?.spotifyUrl ?? musicLinks?.spotifyFallback ?? `https://open.spotify.com/search/${encodeURIComponent(`${selectedEntry.song} ${selectedEntry.artist}`)}`,
+            isDirect: !!musicLinks?.spotifyUrl,
+            iconBg: "#1DB954",
+            icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424a.622.622 0 01-.857.207c-2.348-1.435-5.304-1.76-8.785-.964a.623.623 0 01-.277-1.215c3.809-.87 7.077-.496 9.713 1.115a.623.623 0 01.206.857zm1.223-2.722a.78.78 0 01-1.072.257c-2.687-1.652-6.786-2.131-9.965-1.166a.78.78 0 01-.973-.519.781.781 0 01.519-.973c3.632-1.102 8.147-.568 11.234 1.329a.78.78 0 01.257 1.072zm.105-2.835C14.692 8.95 9.375 8.775 6.297 9.71a.937.937 0 11-.543-1.794c3.532-1.072 9.404-.865 13.115 1.338a.937.937 0 01-.955 1.613z"/></svg>,
+          },
+        ];
+
+        return (
+          <>
+            <div
+              style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 110 }}
+              onClick={() => setShowListenSheet(false)}
+            />
+            <div style={{
+              position: "fixed", bottom: 0, left: 0, right: 0,
+              background: "rgba(13,18,24,0.98)",
+              borderRadius: "20px 20px 0 0",
+              padding: "12px 20px 40px",
+              zIndex: 111,
+              border: "1px solid rgba(255,255,255,0.08)",
+            }}>
+              <div style={{ width: 36, height: 4, background: "rgba(255,255,255,0.25)", borderRadius: 2, margin: "0 auto 20px" }} />
+
+              <p className="font-medium text-center" style={{ fontSize: 16, color: "#fff", marginBottom: 10 }}>어디서 들을까?</p>
+
+              <div className="flex justify-center mb-5">
+                <span style={{
+                  background: "rgba(196,104,122,0.18)",
+                  border: "1px solid rgba(196,104,122,0.4)",
+                  color: "#C4687A", fontSize: 12,
+                  padding: "4px 14px", borderRadius: 20,
+                }}>
+                  {selectedEntry.song}{selectedEntry.artist ? ` — ${selectedEntry.artist}` : ""}
+                </span>
+              </div>
+
+              {loadingLinks && (
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 12, marginBottom: 12 }}>
+                  🎵 링크 찾는 중...
+                </div>
+              )}
+
+              <div className="flex flex-col" style={{ gap: 8, marginBottom: 14 }}>
+                {platforms.map((p) => (
+                  <a key={p.name} href={p.url} target="_blank" rel="noopener noreferrer"
+                    style={{
+                      display: "flex", alignItems: "center", gap: 14,
+                      height: 60, background: "rgba(255,255,255,0.06)",
+                      borderRadius: 12, padding: "0 16px",
+                      textDecoration: "none",
+                      opacity: loadingLinks ? 0.5 : 1,
+                    }}
+                  >
+                    <div style={{ width: 40, height: 40, borderRadius: "50%", background: p.iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {p.icon}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontSize: 14, color: "#fff", display: "block" }}>{p.name}</span>
+                      {!loadingLinks && (
+                        <span style={{ fontSize: 10, color: p.isDirect ? "rgba(100,200,100,0.7)" : "rgba(255,255,255,0.3)" }}>
+                          {p.isDirect ? "▶ 바로 재생" : "검색 화면으로 이동"}
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 18, color: "rgba(255,255,255,0.35)" }}>›</span>
+                  </a>
+                ))}
+              </div>
+
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8,
+                background: "rgba(255,255,255,0.05)",
+                borderRadius: 10, padding: "10px 14px", marginBottom: 14,
+              }}>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>🎵</span>
+                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.6, margin: 0 }}>
+                  앱이 설치·로그인되어 있으면<br />추천 곡이 바로 재생돼요
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowListenSheet(false)}
+                style={{
+                  width: "100%", cursor: "pointer",
+                  background: "rgba(255,255,255,0.07)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  borderRadius: 24, padding: "12px 0",
+                  fontSize: 14, color: "rgba(255,255,255,0.55)",
+                  textAlign: "center",
+                }}
+              >
+                닫기
+              </button>
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }
