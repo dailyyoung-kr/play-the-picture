@@ -230,27 +230,27 @@ export default function ResultPage() {
     : "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)";
 
   return (
-    <div
-      className="min-h-screen flex flex-col"
-      style={{ position: "relative", background: result.albumArt ? "transparent" : bgGradient }}
-    >
-      {/* 앨범아트 배경 */}
+    <div style={{ position: "relative", minHeight: "100vh", overflow: "hidden" }}>
+
+      {/* 앨범아트 배경 (absolute로 클리핑) */}
       {result.albumArt && (
         <>
           <div style={{
-            position: "fixed", inset: 0, zIndex: -1,
+            position: "absolute",
+            top: "-10%", left: "-10%", width: "120%", height: "120%",
             backgroundImage: `url(${result.albumArt})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
-            filter: "blur(40px) brightness(0.28)",
-            transform: "scale(1.1)",
+            filter: "blur(50px) brightness(0.25)",
           }} />
-          <div style={{
-            position: "fixed", inset: 0, zIndex: -1,
-            background: "rgba(0,0,0,0.35)",
-          }} />
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)" }} />
         </>
       )}
+
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ position: "relative", zIndex: 1, background: result.albumArt ? "transparent" : bgGradient }}
+    >
       {/* 캡처 영역 시작 */}
       <div ref={cardRef} id="result-card">
 
@@ -623,6 +623,8 @@ export default function ResultPage() {
             {item.label}
           </div>
         ))}
+      </div>
+    </div>
     </div>
   );
 }

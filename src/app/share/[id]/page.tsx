@@ -160,26 +160,27 @@ export default function SharePage() {
   ];
 
   return (
-    <div
-      className="min-h-screen flex flex-col"
-      style={{ position: "relative", background: entry.album_art ? "transparent" : "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)" }}
-    >
+    <div style={{ position: "relative", minHeight: "100vh", overflow: "hidden" }}>
+
+      {/* 앨범아트 배경 */}
       {entry.album_art && (
         <>
           <div style={{
-            position: "fixed", inset: 0, zIndex: -1,
+            position: "absolute",
+            top: "-10%", left: "-10%", width: "120%", height: "120%",
             backgroundImage: `url(${entry.album_art})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
-            filter: "blur(40px) brightness(0.28)",
-            transform: "scale(1.1)",
+            filter: "blur(50px) brightness(0.25)",
           }} />
-          <div style={{
-            position: "fixed", inset: 0, zIndex: -1,
-            background: "rgba(0,0,0,0.35)",
-          }} />
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)" }} />
         </>
       )}
+
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ position: "relative", zIndex: 1, background: entry.album_art ? "transparent" : "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)" }}
+    >
       {/* 상단 앱 이름 */}
       <div
         className="text-center pt-12 pb-3"
@@ -429,6 +430,7 @@ export default function SharePage() {
           </div>
         </>
       )}
+    </div>
     </div>
   );
 }
