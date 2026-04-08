@@ -147,7 +147,8 @@ export default function ResultPage() {
 
   const handleListenClick = () => {
     setShowListenSheet(true);
-    if (!musicLinks && result) {
+    // spotifyTrackId가 이미 있으면 music-search 호출 불필요
+    if (!musicLinks && result && !result.spotifyTrackId) {
       const songName = result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song;
       const artistName = result.song.includes(" - ") ? result.song.split(" - ").slice(1).join(" - ") : "";
       fetchMusicLinks(songName, artistName);
@@ -439,7 +440,7 @@ export default function ResultPage() {
                 </span>
               </div>
 
-              {loadingLinks && (
+              {loadingLinks && !result.spotifyTrackId && (
                 <div style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 12, marginBottom: 12 }}>
                   🎵 링크 찾는 중...
                 </div>
@@ -461,7 +462,7 @@ export default function ResultPage() {
                       borderRadius: 12,
                       padding: "0 16px",
                       textDecoration: "none",
-                      opacity: loadingLinks ? 0.5 : 1,
+                      opacity: (loadingLinks && !result.spotifyTrackId) ? 0.5 : 1,
                     }}
                   >
                     <div style={{
@@ -474,7 +475,7 @@ export default function ResultPage() {
                     </div>
                     <div style={{ flex: 1 }}>
                       <span style={{ fontSize: 14, color: "#fff", display: "block" }}>{p.name}</span>
-                      {!loadingLinks && (
+                      {(!loadingLinks || result.spotifyTrackId) && (
                         <span style={{ fontSize: 10, color: p.isDirect ? "rgba(100,200,100,0.7)" : "rgba(255,255,255,0.3)" }}>
                           {p.isDirect ? "▶ 바로 재생" : "검색 화면으로 이동"}
                         </span>
