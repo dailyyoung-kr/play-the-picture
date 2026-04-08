@@ -597,13 +597,27 @@ export default function ResultPage() {
                 ))}
               </div>
 
-              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center", marginBottom: 12 }}>
-                앱이 설치되어 있고 로그인되어 있으면, 추천 곡이 바로 재생돼요 🎵
-              </p>
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8,
+                background: "rgba(255,255,255,0.05)",
+                borderRadius: 10, padding: "10px 14px", marginBottom: 14,
+              }}>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>🎵</span>
+                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.6, margin: 0 }}>
+                  앱이 설치·로그인되어 있으면<br />추천 곡이 바로 재생돼요
+                </p>
+              </div>
 
               <button
                 onClick={() => setShowListenSheet(false)}
-                style={{ width: "100%", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "rgba(255,255,255,0.35)", textAlign: "center", padding: "4px 0" }}
+                style={{
+                  width: "100%", cursor: "pointer",
+                  background: "rgba(255,255,255,0.07)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  borderRadius: 24, padding: "12px 0",
+                  fontSize: 14, color: "rgba(255,255,255,0.55)",
+                  textAlign: "center",
+                }}
               >
                 나중에 듣기
               </button>
