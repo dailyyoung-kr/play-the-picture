@@ -11,6 +11,17 @@ const notoSansKR = Noto_Sans_KR({
 export const metadata: Metadata = {
   title: "Play the Picture",
   description: "사진으로 오늘의 노래를 찾아드려요",
+  openGraph: {
+    title: "Play the Picture",
+    description: "사진으로 오늘의 노래를 찾아드려요",
+    url: "https://play-the-picture.vercel.app",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Play the Picture",
+    description: "사진으로 오늘의 노래를 찾아드려요",
+  },
 };
 
 export default function RootLayout({
