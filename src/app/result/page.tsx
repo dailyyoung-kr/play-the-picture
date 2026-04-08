@@ -700,7 +700,7 @@ export default function ResultPage() {
         }}
       >
         {[
-          { icon: "📓", label: "JOURNAL", active: false, path: "/journal" },
+          { icon: "📓", label: "ARCHIVE", active: false, path: "/journal" },
           { icon: "+", label: "UPLOAD", active: true, isCenter: true, path: "/" },
           { icon: "⚙️", label: "SETTINGS", active: false, path: "/" },
         ].map((item) => (
