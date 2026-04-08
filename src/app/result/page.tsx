@@ -486,6 +486,10 @@ export default function ResultPage() {
                 ))}
               </div>
 
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center", marginBottom: 12 }}>
+                앱이 설치되어 있고 로그인되어 있으면, 추천 곡이 바로 재생돼요 🎵
+              </p>
+
               <button
                 onClick={() => setShowListenSheet(false)}
                 style={{ width: "100%", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "rgba(255,255,255,0.35)", textAlign: "center", padding: "4px 0" }}
