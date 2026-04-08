@@ -232,29 +232,43 @@ export default function ResultPage() {
   return (
     <div style={{ position: "relative", minHeight: "100vh", overflow: "hidden" }}>
 
-      {/* 앨범아트 배경 - img 태그 사용 (Safari 호환) */}
+      {/* 앨범아트 배경 */}
       {result.albumArt && (
         <>
+          {/* 레이어 1: 화면 채우기용 강블러 */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={result.albumArt}
             alt=""
             aria-hidden="true"
             style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
+              position: "absolute", inset: 0,
+              width: "100%", height: "100%",
               objectFit: "cover",
-              filter: "blur(12px) brightness(0.85)",
+              filter: "blur(40px) brightness(0.55)",
               transform: "scale(1.5)",
               pointerEvents: "none",
-              userSelect: "none",
             }}
           />
+          {/* 레이어 2: 전체 앨범아트 표시 */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={result.albumArt}
+            alt=""
+            aria-hidden="true"
+            style={{
+              position: "absolute", inset: 0,
+              width: "100%", height: "100%",
+              objectFit: "contain",
+              objectPosition: "center 25%",
+              filter: "blur(6px) brightness(0.9)",
+              pointerEvents: "none",
+            }}
+          />
+          {/* 그라디언트 오버레이 */}
           <div style={{
             position: "absolute", inset: 0,
-            background: "linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.45) 50%, rgba(0,0,0,0.7) 100%)",
+            background: "linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.75) 100%)",
           }} />
         </>
       )}
