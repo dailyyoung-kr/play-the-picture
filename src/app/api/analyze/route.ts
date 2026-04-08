@@ -199,6 +199,7 @@ export async function POST(req: NextRequest) {
       rejectedSong = result.song;
     }
 
+    console.log("[analyze] spotifyTrackId:", spotifyTrackId, "/ albumArt:", albumArt ? albumArt.slice(0, 60) + "..." : null);
     return NextResponse.json({ ...result, spotifyTrackId, albumArt });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

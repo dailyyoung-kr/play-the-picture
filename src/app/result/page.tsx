@@ -232,7 +232,7 @@ export default function ResultPage() {
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{ position: "relative", background: result.albumArt ? "#0d1218" : bgGradient }}
+      style={{ position: "relative", background: result.albumArt ? "transparent" : bgGradient }}
     >
       {/* 앨범아트 배경 */}
       {result.albumArt && (

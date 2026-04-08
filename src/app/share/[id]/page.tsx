@@ -162,7 +162,7 @@ export default function SharePage() {
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{ position: "relative", background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)" }}
+      style={{ position: "relative", background: entry.album_art ? "transparent" : "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)" }}
     >
       {entry.album_art && (
         <>
