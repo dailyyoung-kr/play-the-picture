@@ -40,6 +40,13 @@ export default function ResultPage() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
   const [showListenSheet, setShowListenSheet] = useState(false);
+  const [musicLinks, setMusicLinks] = useState<{
+    spotifyUrl: string | null;
+    youtubeUrl: string | null;
+    spotifyFallback: string;
+    youtubeFallback: string;
+  } | null>(null);
+  const [loadingLinks, setLoadingLinks] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const showToast = (msg: string) => {
@@ -99,11 +106,9 @@ export default function ResultPage() {
         },
       });
 
-      const today = new Date().toISOString().slice(0, 10); // 2026-04-08
+      const today = new Date().toISOString().slice(0, 10);
       const fileName = `play-the-picture-${today}.png`;
 
-      // 모바일: 새 탭에서 이미지 열기 (길게 눌러 저장)
-      // 데스크탑: 자동 다운로드
       const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
       if (isMobile) {
         const dataUrl = canvas.toDataURL("image/png");
@@ -122,6 +127,29 @@ export default function ResultPage() {
       console.error("저장 오류:", e);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const fetchMusicLinks = async (song: string, artist: string) => {
+    setLoadingLinks(true);
+    try {
+      const params = new URLSearchParams({ song, artist });
+      const res = await fetch(`/api/music-search?${params}`);
+      const data = await res.json();
+      setMusicLinks(data);
+    } catch {
+      setMusicLinks(null);
+    } finally {
+      setLoadingLinks(false);
+    }
+  };
+
+  const handleListenClick = () => {
+    setShowListenSheet(true);
+    if (!musicLinks && result) {
+      const songName = result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song;
+      const artistName = result.song.includes(" - ") ? result.song.split(" - ").slice(1).join(" - ") : "";
+      fetchMusicLinks(songName, artistName);
     }
   };
 
@@ -196,7 +224,7 @@ export default function ResultPage() {
           ))}
         </div>
 
-        {/* 노래 정보 — song은 "곡명 - 아티스트명" 형식 */}
+        {/* 노래 정보 */}
         <div className="text-center mb-4">
           <h1 className="font-semibold mb-1" style={{ fontSize: 28, color: "#fff", letterSpacing: "-0.5px" }}>
             {result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song}
@@ -228,7 +256,6 @@ export default function ResultPage() {
             ✦ 오늘 하루 감정 분석
           </p>
 
-          {/* 2x2 그리드 */}
           <div
             style={{
               display: "grid",
@@ -285,9 +312,11 @@ export default function ResultPage() {
         </div>
 
       </div>
+      </div>
       {/* 캡처 영역 끝 */}
 
-        {/* 버튼들 */}
+      <div className="px-5">
+        {/* 다른 사진으로 다시 */}
         <button
           className="w-full"
           onClick={() => {
@@ -308,6 +337,7 @@ export default function ResultPage() {
           다른 사진으로 다시 해볼게
         </button>
 
+        {/* 저장하기 */}
         <button
           className="w-full font-medium mb-2"
           onClick={handleSaveToSupabase}
@@ -317,6 +347,7 @@ export default function ResultPage() {
           {saving ? "저장 중..." : "저장하기"}
         </button>
 
+        {/* 친구에게 공유 */}
         <button
           className="w-full flex items-center justify-center gap-2 mb-2"
           style={{
@@ -332,25 +363,26 @@ export default function ResultPage() {
           친구에게 공유
         </button>
 
+        {/* 지금 바로 듣기 */}
         <button
           className="w-full font-medium mb-5"
           style={{ background: "#fff", border: "none", borderRadius: 24, padding: 14, color: "#0d1218", fontSize: 14, cursor: "pointer" }}
-          onClick={() => setShowListenSheet(true)}
+          onClick={handleListenClick}
         >
           ▶  지금 바로 듣기
         </button>
-
       </div>
 
       {/* 듣기 바텀시트 */}
       {showListenSheet && result && (() => {
         const songName = result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song;
         const artistName = result.song.includes(" - ") ? result.song.split(" - ").slice(1).join(" - ") : "";
-        const q = encodeURIComponent(`${songName} ${artistName}`);
+
         const platforms = [
           {
             name: "YouTube Music에서 듣기",
-            url: `https://music.youtube.com/search?q=${q}`,
+            url: musicLinks?.youtubeUrl ?? musicLinks?.youtubeFallback ?? `https://music.youtube.com/search?q=${encodeURIComponent(`${songName} ${artistName}`)}`,
+            isDirect: !!musicLinks?.youtubeUrl,
             iconBg: "#FF0000",
             icon: (
               <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
@@ -360,7 +392,8 @@ export default function ResultPage() {
           },
           {
             name: "Spotify에서 듣기",
-            url: `https://open.spotify.com/search/${q}`,
+            url: musicLinks?.spotifyUrl ?? musicLinks?.spotifyFallback ?? `https://open.spotify.com/search/${encodeURIComponent(`${songName} ${artistName}`)}`,
+            isDirect: !!musicLinks?.spotifyUrl,
             iconBg: "#1DB954",
             icon: (
               <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
@@ -372,12 +405,10 @@ export default function ResultPage() {
 
         return (
           <>
-            {/* 딤 배경 */}
             <div
               style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 60 }}
               onClick={() => setShowListenSheet(false)}
             />
-            {/* 바텀시트 */}
             <div style={{
               position: "fixed", bottom: 0, left: 0, right: 0,
               background: "rgba(13,18,24,0.98)",
@@ -386,15 +417,12 @@ export default function ResultPage() {
               zIndex: 61,
               border: "1px solid rgba(255,255,255,0.08)",
             }}>
-              {/* 핸들바 */}
               <div style={{ width: 36, height: 4, background: "rgba(255,255,255,0.25)", borderRadius: 2, margin: "0 auto 20px" }} />
 
-              {/* 제목 */}
               <p className="font-medium text-center" style={{ fontSize: 16, color: "#fff", marginBottom: 10 }}>
                 어디서 들을까?
               </p>
 
-              {/* 곡명 pill */}
               <div className="flex justify-center mb-5">
                 <span style={{
                   background: "rgba(196,104,122,0.18)",
@@ -408,7 +436,12 @@ export default function ResultPage() {
                 </span>
               </div>
 
-              {/* 플랫폼 rows */}
+              {loadingLinks && (
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 12, marginBottom: 12 }}>
+                  🎵 링크 찾는 중...
+                </div>
+              )}
+
               <div className="flex flex-col" style={{ gap: 8, marginBottom: 20 }}>
                 {platforms.map((p) => (
                   <a
@@ -425,9 +458,9 @@ export default function ResultPage() {
                       borderRadius: 12,
                       padding: "0 16px",
                       textDecoration: "none",
+                      opacity: loadingLinks ? 0.5 : 1,
                     }}
                   >
-                    {/* 아이콘 */}
                     <div style={{
                       width: 40, height: 40, borderRadius: "50%",
                       background: p.iconBg,
@@ -436,15 +469,19 @@ export default function ResultPage() {
                     }}>
                       {p.icon}
                     </div>
-                    {/* 텍스트 */}
-                    <span style={{ flex: 1, fontSize: 14, color: "#fff" }}>{p.name}</span>
-                    {/* 화살표 */}
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontSize: 14, color: "#fff", display: "block" }}>{p.name}</span>
+                      {!loadingLinks && (
+                        <span style={{ fontSize: 10, color: p.isDirect ? "rgba(100,200,100,0.7)" : "rgba(255,255,255,0.3)" }}>
+                          {p.isDirect ? "▶ 바로 재생" : "검색 화면으로 이동"}
+                        </span>
+                      )}
+                    </div>
                     <span style={{ fontSize: 18, color: "rgba(255,255,255,0.35)" }}>›</span>
                   </a>
                 ))}
               </div>
 
-              {/* 나중에 듣기 */}
               <button
                 onClick={() => setShowListenSheet(false)}
                 style={{ width: "100%", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "rgba(255,255,255,0.35)", textAlign: "center", padding: "4px 0" }}
