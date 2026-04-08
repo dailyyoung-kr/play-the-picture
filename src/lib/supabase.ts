@@ -17,4 +17,5 @@ export interface Entry {
   vibe_type: string;
   vibe_description: string;
   photos: string[];
+  album_art?: string | null;
 }

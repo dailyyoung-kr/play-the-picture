@@ -19,6 +19,7 @@ interface ShareEntry {
   vibe_type: string;
   vibe_description: string;
   photos: string[];
+  album_art?: string | null;
 }
 
 const EMOTION_LABELS = [
@@ -161,8 +162,24 @@ export default function SharePage() {
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{ background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)" }}
+      style={{ position: "relative", background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)" }}
     >
+      {entry.album_art && (
+        <>
+          <div style={{
+            position: "fixed", inset: 0, zIndex: -1,
+            backgroundImage: `url(${entry.album_art})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            filter: "blur(40px) brightness(0.28)",
+            transform: "scale(1.1)",
+          }} />
+          <div style={{
+            position: "fixed", inset: 0, zIndex: -1,
+            background: "rgba(0,0,0,0.35)",
+          }} />
+        </>
+      )}
       {/* 상단 앱 이름 */}
       <div
         className="text-center pt-12 pb-3"

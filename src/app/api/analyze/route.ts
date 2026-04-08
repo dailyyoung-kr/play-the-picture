@@ -37,7 +37,9 @@ function artistMatches(spotifyArtist: string, claudeArtist: string): boolean {
   return a.includes(b) || b.includes(a);
 }
 
-async function verifySpotifyTrack(songName: string, artistName: string): Promise<string | null> {
+type SpotifyTrackInfo = { id: string; albumArt: string | null } | null;
+
+async function verifySpotifyTrack(songName: string, artistName: string): Promise<SpotifyTrackInfo> {
   const token = await getSpotifyToken();
   if (!token) return null;
 
@@ -52,15 +54,18 @@ async function verifySpotifyTrack(songName: string, artistName: string): Promise
 
   if (!res.ok) return null;
   const data = await res.json();
-  const tracks: { id: string; artists: { name: string }[] }[] = data.tracks?.items ?? [];
+  const tracks: { id: string; artists: { name: string }[]; album: { images: { url: string }[] } }[] = data.tracks?.items ?? [];
 
-  if (!artistName) return tracks[0]?.id ?? null;
+  if (!artistName) {
+    const track = tracks[0];
+    return track ? { id: track.id, albumArt: track.album.images[0]?.url ?? null } : null;
+  }
 
   // 아티스트 이름 매칭 확인
   const matched = tracks.find((track) =>
     track.artists.some((a) => artistMatches(a.name, artistName))
   );
-  return matched?.id ?? null;
+  return matched ? { id: matched.id, albumArt: matched.album.images[0]?.url ?? null } : null;
 }
 
 function buildPrompt(genre: string, mood: string, listeningStyle: string, rejectedSong?: string): string {
@@ -153,6 +158,7 @@ export async function POST(req: NextRequest) {
     const MAX_RETRIES = 3;
     let result = null;
     let spotifyTrackId: string | null = null;
+    let albumArt: string | null = null;
     let rejectedSong: string | undefined;
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -182,15 +188,18 @@ export async function POST(req: NextRequest) {
       const songName = songParts[0]?.trim() ?? result.song;
       const artistName = songParts.slice(1).join(" - ").trim();
 
-      spotifyTrackId = await verifySpotifyTrack(songName, artistName);
-
-      if (spotifyTrackId) break;
+      const verified = await verifySpotifyTrack(songName, artistName);
+      if (verified) {
+        spotifyTrackId = verified.id;
+        albumArt = verified.albumArt;
+        break;
+      }
 
       // 검증 실패 시 다음 시도에서 재요청
       rejectedSong = result.song;
     }
 
-    return NextResponse.json({ ...result, spotifyTrackId });
+    return NextResponse.json({ ...result, spotifyTrackId, albumArt });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("분석 오류:", message);

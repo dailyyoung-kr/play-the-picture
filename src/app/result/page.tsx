@@ -19,6 +19,7 @@ interface AnalysisResult {
   vibe_description?: string;
   background?: { from: string; to: string };
   spotifyTrackId?: string | null;
+  albumArt?: string | null;
 }
 
 const EMOTION_LABELS = [
@@ -79,6 +80,7 @@ export default function ResultPage() {
         vibe_type: result.vibe_type ?? "",
         vibe_description: result.vibe_description ?? "",
         photos,
+        album_art: result.albumArt ?? null,
       })
       .select("id")
       .single();
@@ -223,15 +225,32 @@ export default function ResultPage() {
     );
   }
 
+  const bgGradient = result.background
+    ? `linear-gradient(158deg, ${result.background.from} 0%, ${result.background.to} 100%)`
+    : "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)";
+
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{
-        background: result.background
-          ? `linear-gradient(158deg, ${result.background.from} 0%, ${result.background.to} 100%)`
-          : "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)"
-      }}
+      style={{ position: "relative", background: result.albumArt ? "#0d1218" : bgGradient }}
     >
+      {/* 앨범아트 배경 */}
+      {result.albumArt && (
+        <>
+          <div style={{
+            position: "fixed", inset: 0, zIndex: -1,
+            backgroundImage: `url(${result.albumArt})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            filter: "blur(40px) brightness(0.28)",
+            transform: "scale(1.1)",
+          }} />
+          <div style={{
+            position: "fixed", inset: 0, zIndex: -1,
+            background: "rgba(0,0,0,0.35)",
+          }} />
+        </>
+      )}
       {/* 캡처 영역 시작 */}
       <div ref={cardRef} id="result-card">
 
@@ -604,7 +623,6 @@ export default function ResultPage() {
             {item.label}
           </div>
         ))}
-      </div>
     </div>
   );
 }
