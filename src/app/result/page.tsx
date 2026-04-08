@@ -98,7 +98,7 @@ export default function ResultPage() {
     setSaving(true);
     try {
       await saveEntry();
-      showToast("오늘의 기록이 저장됐어요 ✦");
+      showToast("오늘의 기록이 ARCHIVE에 저장됐어요 ✦");
     } catch (e) {
       console.error("저장 오류:", e);
       showToast("저장에 실패했어요. 다시 시도해주세요.");
