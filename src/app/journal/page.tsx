@@ -227,13 +227,13 @@ export default function JournalPage() {
                       )}
                     </div>
 
-                    {/* 곡명 + 유형 */}
+                    {/* 곡명 + 아티스트 */}
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold" style={{ fontSize: 14, color: "#fff", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {entry.song}
                       </p>
-                      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {entry.vibe_type || entry.artist}
+                      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.40)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {entry.artist}
                       </p>
                     </div>
 
