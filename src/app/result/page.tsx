@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 interface AnalysisResult {
   song: string; // "곡명 - 아티스트명" 형식
@@ -37,7 +38,44 @@ export default function ResultPage() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [photos, setPhotos] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState("");
   const cardRef = useRef<HTMLDivElement>(null);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 3000);
+  };
+
+  const handleSaveToSupabase = async () => {
+    if (!result) return;
+    setSaving(true);
+    try {
+      const songParts = result.song.split(" - ");
+      const song = songParts[0] ?? result.song;
+      const artist = songParts.slice(1).join(" - ") ?? "";
+      const today = new Date().toISOString().slice(0, 10);
+
+      const { error } = await supabase.from("entries").insert({
+        date: today,
+        song,
+        artist,
+        reason: result.reason,
+        tags: result.tags,
+        emotions: result.emotions,
+        vibe_type: result.vibe_type ?? "",
+        vibe_description: result.vibe_description ?? "",
+        photos,
+      });
+
+      if (error) throw error;
+      showToast("오늘의 기록이 저장됐어요 ✦");
+    } catch (e) {
+      console.error("저장 오류:", e);
+      showToast("저장에 실패했어요. 다시 시도해주세요.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!cardRef.current) return;
@@ -287,7 +325,7 @@ export default function ResultPage() {
 
         <button
           className="w-full font-medium mb-2"
-          onClick={handleSave}
+          onClick={handleSaveToSupabase}
           disabled={saving}
           style={{ background: saving ? "rgba(196,104,122,0.5)" : "#C4687A", border: "none", borderRadius: 24, padding: 14, color: "#fff", fontSize: 14, cursor: saving ? "default" : "pointer" }}
         >
@@ -319,6 +357,26 @@ export default function ResultPage() {
 
       </div>
 
+      {/* 토스트 메시지 */}
+      {toast && (
+        <div style={{
+          position: "fixed",
+          bottom: 100,
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: "rgba(30,30,30,0.95)",
+          border: "1px solid rgba(255,255,255,0.15)",
+          color: "#fff",
+          fontSize: 13,
+          padding: "10px 20px",
+          borderRadius: 24,
+          zIndex: 100,
+          whiteSpace: "nowrap",
+        }}>
+          {toast}
+        </div>
+      )}
+
       {/* 하단 네비게이션 */}
       <div
         style={{
@@ -330,13 +388,14 @@ export default function ResultPage() {
         }}
       >
         {[
-          { icon: "📓", label: "JOURNAL", active: false },
-          { icon: "🖼", label: "GALLERY", active: false },
-          { icon: "+", label: "UPLOAD", active: true, isCenter: true },
-          { icon: "⚙️", label: "SETTINGS", active: false },
+          { icon: "📓", label: "JOURNAL", active: false, path: "/journal" },
+          { icon: "🖼", label: "GALLERY", active: false, path: "/" },
+          { icon: "+", label: "UPLOAD", active: true, isCenter: true, path: "/" },
+          { icon: "⚙️", label: "SETTINGS", active: false, path: "/" },
         ].map((item) => (
           <div
             key={item.label}
+            onClick={() => item.path && router.push(item.path)}
             className="flex-1 flex flex-col items-center gap-1"
             style={{ fontSize: 10, color: item.active ? "#fff" : "rgba(255,255,255,0.38)", cursor: "pointer" }}
           >
