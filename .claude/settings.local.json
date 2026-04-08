@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//usr/local/bin/**)",
+      "Bash(export PATH=\"$PATH:/usr/local/bin:/opt/homebrew/bin:$HOME/.nvm/versions/node/v20.0.0/bin\")",
+      "Bash(export PATH=\"/usr/local/bin:$PATH\")",
+      "Bash(npm -v)",
+      "Bash(npx --version)",
+      "Bash(npx create-next-app@latest . --typescript --eslint --tailwind --src-dir --app --import-alias \"@/*\" --no-turbopack)"
+    ]
+  }
+}
