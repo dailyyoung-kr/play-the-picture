@@ -110,7 +110,7 @@ function buildPrompt(genre: string, mood: string, listeningStyle: string): strin
 발라드 → 서정적이고 감성적인 발라드
 K-POP → 트렌디하고 세련된 케이팝
 POP → 글로벌 팝 계열
-장르 발견하기 → 장르 제한 없이 사진 분위기와 기분에 가장 잘 맞는 장르를 AI가 자유롭게 선택해서 추천해줘. 유저가 평소에 잘 안 듣던 새로운 장르도 괜찮아.
+장르 발견하기 → 장르 제한 없이 사진 분위기와 기분에 가장 잘 맞는 장르를 AI가 자유롭게 선택해서 추천해줘. 유저가 평소에 잘 안 듣던 새로운 장르도 괜찮아. 이 경우 아래 JSON에 "discoveredGenre" 필드에 선택한 장르명을 한국어로 적어줘 (예: 시티팝, 드림팝, 네오소울, 보사노바 등).
 
 [기분별 추천 방향]
 설레 → 두근거리고 기대감 있는 곡
@@ -142,7 +142,8 @@ POP → 글로벌 팝 계열
   "background": {
     "from": "시작 hex 색상 (어두운 톤, 곡 분위기 반영)",
     "to": "끝 hex 색상 (어두운 톤, 곡 분위기 반영)"
-  }
+  },
+  "discoveredGenre": "장르 발견하기 선택 시에만 포함. AI가 선택한 장르명 한국어로 (예: 시티팝). 다른 장르 선택 시 이 필드 생략."
 }
 
 배경 색상 가이드:
@@ -212,8 +213,16 @@ export async function POST(req: NextRequest) {
     // Spotify 앨범아트 우선, 없으면 iTunes
     const albumArt = spotifyInfo?.albumArt ?? itunesArt;
 
+    const isGenreDiscovery = genre === "장르 발견하기";
+
     console.log("[analyze] spotifyTrackId:", spotifyTrackId, "/ albumArt:", albumArt ? albumArt.slice(0, 60) + "..." : null);
-    return NextResponse.json({ ...result, spotifyTrackId, albumArt });
+    return NextResponse.json({
+      ...result,
+      spotifyTrackId,
+      albumArt,
+      isGenreDiscovery,
+      discoveredGenre: isGenreDiscovery ? (result.discoveredGenre ?? null) : undefined,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("분석 오류:", message);

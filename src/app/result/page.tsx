@@ -22,6 +22,8 @@ interface AnalysisResult {
   background?: { from: string; to: string };
   spotifyTrackId?: string | null;
   albumArt?: string | null;
+  isGenreDiscovery?: boolean;
+  discoveredGenre?: string | null;
 }
 
 const EMOTION_LABELS = [
@@ -338,13 +340,25 @@ export default function ResultPage() {
 
         {/* 노래 정보 */}
         <div className="text-center mb-4">
+          {/* 장르 발견하기 배지 */}
+          {result.isGenreDiscovery && (
+            <div className="flex justify-center mb-2">
+              <span style={{
+                fontSize: 11, color: "#C4687A",
+                border: "1px solid #C4687A",
+                padding: "3px 10px", borderRadius: 20,
+              }}>
+                오늘의 새로운 발견 🔭
+              </span>
+            </div>
+          )}
           <h1 className="font-semibold mb-1" style={{ fontSize: 28, color: "#fff", letterSpacing: "-0.5px" }}>
             {result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song}
           </h1>
           <p className="mb-3" style={{ fontSize: 13, color: "rgba(255,255,255,0.48)" }}>
             {result.song.includes(" - ") ? result.song.split(" - ").slice(1).join(" - ") : ""}
           </p>
-          <div className="flex gap-2 justify-center flex-wrap">
+          <div className="flex gap-2 justify-center flex-wrap mb-2">
             {result.tags.map((tag) => (
               <span
                 key={tag}
@@ -360,6 +374,12 @@ export default function ResultPage() {
               </span>
             ))}
           </div>
+          {/* 발견된 장르 */}
+          {result.isGenreDiscovery && result.discoveredGenre && (
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
+              당신이 좋아할 것 같은 장르 : {result.discoveredGenre}
+            </p>
+          )}
         </div>
 
         {/* 감정 분석 카드 */}
