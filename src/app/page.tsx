@@ -218,7 +218,7 @@ export default function UploadPage() {
           최대 5장까지 추가할 수 있어요
         </p>
         <p className="text-right mb-6" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)" }}>
-          사진은 분석에만 사용되며 저장되지 않아요
+          사진은 AI 분석에 사용되며, 저장 시에만 공유 링크에 포함돼요
         </p>
 
         <div className="flex-1" />
