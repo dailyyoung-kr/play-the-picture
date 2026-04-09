@@ -8,3 +8,10 @@
 body {
   font-family: var(--font-sans);
 }
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

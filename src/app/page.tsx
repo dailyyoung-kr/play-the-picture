@@ -137,13 +137,13 @@ export default function UploadPage() {
           </span>
         </div>
 
-        {/* 사진 슬롯 — 사진 썸네일 + + 슬롯 1개 */}
-        <div style={{ display: "flex", flexDirection: "row", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+        {/* 사진 슬롯 — 가로 스크롤 */}
+        <div className="no-scrollbar" style={{ display: "flex", flexDirection: "row", gap: 8, overflowX: "auto", marginBottom: 8 }}>
           {photos.map((src, i) => (
             <div
               key={i}
               style={{
-                width: 80, height: 100, borderRadius: 10,
+                width: 100, height: 124, borderRadius: 10,
                 overflow: "hidden", position: "relative", flexShrink: 0,
               }}
             >
@@ -173,7 +173,7 @@ export default function UploadPage() {
             <button
               onClick={() => fileInputRef.current?.click()}
               style={{
-                width: 80, height: 100, borderRadius: 10, flexShrink: 0,
+                width: 100, height: 124, borderRadius: 10, flexShrink: 0,
                 border: "1px solid rgba(255,255,255,0.15)",
                 background: "rgba(255,255,255,0.04)",
                 display: "flex", alignItems: "center", justifyContent: "center",
