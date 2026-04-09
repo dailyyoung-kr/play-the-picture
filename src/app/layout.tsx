@@ -40,6 +40,9 @@ export default function RootLayout({
   return (
     <html lang="ko" className={`${notoSansKR.variable} ${dmSans.variable} h-full`}>
       <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <meta name="theme-color" content="#0d1218" />
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
           strategy="afterInteractive"
