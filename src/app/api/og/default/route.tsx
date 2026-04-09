@@ -13,8 +13,9 @@ export async function GET() {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          justifyContent: "space-between",
-          paddingBottom: 52,
+          justifyContent: "center",
+          gap: 28,
+          padding: "32px 0 36px",
         }}
       >
         {/* 1. 상단: Play the Picture 로고 */}
@@ -23,7 +24,6 @@ export async function GET() {
             fontSize: 20,
             color: "#C4687A",
             letterSpacing: "0.15em",
-            marginTop: 50,
             fontWeight: 300,
           }}
         >
@@ -45,15 +45,15 @@ export async function GET() {
               key={i}
               style={{
                 width: 220,
-                height: 280,
+                height: 320,
                 borderRadius: 12,
-                border: "2px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.06)",
+                border: "2px solid rgba(255,255,255,0.25)",
+                background: "rgba(255,255,255,0.1)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: 40,
-                color: "rgba(255,255,255,0.2)",
+                color: "rgba(255,255,255,0.4)",
               }}
             >
               +
@@ -67,7 +67,7 @@ export async function GET() {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 10,
+            gap: 8,
           }}
         >
           <div
@@ -92,7 +92,7 @@ export async function GET() {
             style={{
               fontSize: 16,
               color: "#C4687A",
-              marginTop: 4,
+              marginTop: 2,
             }}
           >
             #감성 #오늘 #플더픽
