@@ -9,6 +9,12 @@ const MOODS = ["신나", "설레", "여유로워", "복잡해", "지쳐"];
 const LISTENING_STYLES = ["출근/등교길", "작업/공부", "데이트", "휴식", "산책/드라이브", "잠들기 전"];
 const EMOTION_LABELS = ["행복함", "설레임", "에너지", "특별함"];
 const WAVE_DELAYS = [0, 0.18, 0.36, 0.18, 0]; // 막대 5개 animation-delay
+const PHASE3_TEXTS = [
+  "딱 맞는 한 곡을 찾고 있어요",
+  "취향을 분석하고 있어요",
+  "오늘의 분위기와 어울리는 곡을 고르고 있어요",
+  "거의 다 됐어요",
+];
 
 export default function PreferencePage() {
   const router = useRouter();
@@ -24,6 +30,10 @@ export default function PreferencePage() {
   const [photosFadeIn, setPhotosFadeIn] = useState(false);
   const [gaugeTargets, setGaugeTargets] = useState<number[]>([0, 0, 0, 0]);
   const [gaugeAnimated, setGaugeAnimated] = useState(false);
+
+  // 3단계 텍스트 순환 상태
+  const [phase3TextIndex, setPhase3TextIndex] = useState(0);
+  const [phase3TextVisible, setPhase3TextVisible] = useState(true);
 
 
   useEffect(() => {
@@ -71,6 +81,34 @@ export default function PreferencePage() {
       clearTimeout(t2);
     };
   }, [loading]);
+
+  // 3단계 텍스트 3초 간격 순환 (마지막에서 멈춤)
+  useEffect(() => {
+    if (loadingPhase !== 2) {
+      setPhase3TextIndex(0);
+      setPhase3TextVisible(true);
+      return;
+    }
+
+    setPhase3TextIndex(0);
+    setPhase3TextVisible(true);
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+
+    for (let i = 1; i < PHASE3_TEXTS.length; i++) {
+      const base = i * 3000;
+      // fade-out (전환 400ms 전)
+      timers.push(setTimeout(() => setPhase3TextVisible(false), base - 400));
+      // 텍스트 교체 + fade-in
+      const idx = i;
+      timers.push(setTimeout(() => {
+        setPhase3TextIndex(idx);
+        setPhase3TextVisible(true);
+      }, base));
+    }
+
+    return () => timers.forEach(clearTimeout);
+  }, [loadingPhase]);
 
   const handleAnalyze = async () => {
     const photosRaw = localStorage.getItem("ptp_photos");
@@ -360,19 +398,49 @@ export default function PreferencePage() {
           {/* ── 3단계: 곡 탐색 중 ── */}
           {loadingPhase === 2 && (
             <>
+              {/* ✦ 고정 (애니메이션 없음) */}
               <div
                 style={{
                   fontSize: 52,
                   marginBottom: 28,
-                  animation: "pulse 1.2s ease-in-out infinite",
                   color: "#C4687A",
                 }}
               >
                 ✦
               </div>
-              <p style={{ color: "#fff", fontSize: 17, fontWeight: 500, textAlign: "center", letterSpacing: "-0.3px" }}>
-                딱 맞는 한 곡을 찾고 있어요 🎵
-              </p>
+
+              {/* 순환 텍스트 — position:absolute 로 레이아웃 고정 */}
+              <div
+                style={{
+                  position: "relative",
+                  height: 52,
+                  width: "100%",
+                  textAlign: "center",
+                  overflow: "hidden",
+                }}
+              >
+                {PHASE3_TEXTS.map((text, i) => (
+                  <p
+                    key={i}
+                    style={{
+                      position: "absolute",
+                      width: "100%",
+                      left: 0,
+                      top: 0,
+                      margin: 0,
+                      color: "#fff",
+                      fontSize: 17,
+                      fontWeight: 500,
+                      letterSpacing: "-0.3px",
+                      lineHeight: 1.55,
+                      opacity: i === phase3TextIndex && phase3TextVisible ? 1 : 0,
+                      transition: "opacity 0.4s ease",
+                    }}
+                  >
+                    {text}
+                  </p>
+                ))}
+              </div>
 
               {/* 음악 파형 애니메이션 */}
               <div
