@@ -13,45 +13,90 @@ export async function GET() {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          justifyContent: "center",
-          gap: 0,
+          justifyContent: "space-between",
+          paddingBottom: 52,
         }}
       >
-        {/* Play the Picture */}
+        {/* 1. 상단: Play the Picture 로고 */}
         <div
           style={{
-            fontSize: 24,
+            fontSize: 20,
             color: "#C4687A",
-            letterSpacing: "0.2em",
-            marginBottom: 40,
+            letterSpacing: "0.15em",
+            marginTop: 50,
             fontWeight: 300,
           }}
         >
           Play the Picture
         </div>
 
-        {/* 플더픽 */}
+        {/* 2. 중앙: 사진 플레이스홀더 3장 */}
         <div
           style={{
-            fontSize: 96,
-            fontWeight: 700,
-            color: "#ffffff",
-            marginBottom: 36,
-            letterSpacing: "-0.02em",
+            display: "flex",
+            flexDirection: "row",
+            gap: 16,
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          플더픽
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              style={{
+                width: 220,
+                height: 280,
+                borderRadius: 12,
+                border: "2px solid rgba(255,255,255,0.15)",
+                background: "rgba(255,255,255,0.06)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 40,
+                color: "rgba(255,255,255,0.2)",
+              }}
+            >
+              +
+            </div>
+          ))}
         </div>
 
-        {/* 부제 */}
+        {/* 3. 하단: 곡명 + 아티스트 + 태그 */}
         <div
           style={{
-            fontSize: 26,
-            color: "rgba(255,255,255,0.45)",
-            letterSpacing: "0.02em",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 10,
           }}
         >
-          사진으로 지금 딱 맞는 노래 찾기
+          <div
+            style={{
+              fontSize: 42,
+              fontWeight: 700,
+              color: "#ffffff",
+              letterSpacing: "-0.01em",
+            }}
+          >
+            오늘의 한 곡
+          </div>
+          <div
+            style={{
+              fontSize: 22,
+              color: "rgba(255,255,255,0.5)",
+            }}
+          >
+            Play the Picture
+          </div>
+          <div
+            style={{
+              fontSize: 16,
+              color: "#C4687A",
+              marginTop: 4,
+            }}
+          >
+            #감성 #오늘 #플더픽
+          </div>
         </div>
       </div>
     ),
