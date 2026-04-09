@@ -29,10 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description = "오늘의 사진으로 추천받은 노래예요. 나도 해볼까요? ✦";
   const url = `https://play-the-picture.vercel.app/share/${id}`;
 
-  // 카카오톡 스크래퍼가 외부 CDN 이미지에 직접 접근 못할 수 있어서 프록시 사용
-  const ogImageUrl = data.album_art
-    ? `https://play-the-picture.vercel.app/api/og-image?url=${encodeURIComponent(data.album_art)}`
-    : null;
+  const ogImageUrl = `https://play-the-picture.vercel.app/api/og?id=${id}`;
 
   return {
     title,
@@ -42,13 +39,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url,
       type: "website",
-      ...(ogImageUrl ? { images: [{ url: ogImageUrl, width: 600, height: 600 }] } : {}),
+      images: [{ url: ogImageUrl, width: 1200, height: 630 }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      ...(ogImageUrl ? { images: [ogImageUrl] } : {}),
+      images: [ogImageUrl],
     },
   };
 }
