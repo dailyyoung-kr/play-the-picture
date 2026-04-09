@@ -138,7 +138,8 @@ export default function UploadPage() {
         </div>
 
         {/* 사진 슬롯 — 가로 스크롤 */}
-        <div className="no-scrollbar" style={{ display: "flex", flexDirection: "row", gap: 8, overflowX: "auto", marginBottom: 8 }}>
+        <div style={{ position: "relative", marginBottom: 8 }}>
+        <div className="no-scrollbar" style={{ display: "flex", flexDirection: "row", gap: 8, overflowX: "auto", paddingRight: photos.length >= 3 ? 40 : 0 }}>
           {photos.map((src, i) => (
             <div
               key={i}
@@ -183,6 +184,16 @@ export default function UploadPage() {
             >
               +
             </button>
+          )}
+        </div>
+          {/* 오른쪽 페이드 그라데이션 — 3장 이상일 때만 */}
+          {photos.length >= 3 && (
+            <div style={{
+              position: "absolute", top: 0, right: 0,
+              width: 60, height: "100%",
+              background: "linear-gradient(to right, transparent 0%, #0d1218 100%)",
+              pointerEvents: "none",
+            }} />
           )}
         </div>
 
