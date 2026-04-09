@@ -6,13 +6,13 @@ import { Archive, Music } from "lucide-react";
 
 const GENRES = ["발라드", "인디", "K-POP", "힙합/R&B", "팝", "재즈/어쿠스틱", "장르 발견하기"];
 const MOODS = ["신나", "설레", "여유로워", "복잡해", "지쳐"];
-const LISTENING_STYLES = ["출근/등교", "작업/공부", "퇴근/집가는 길", "휴식", "산책/드라이브", "잠들기 전"];
+const LISTENING_STYLES = ["출근/등교길", "작업/공부", "데이트", "휴식", "산책/드라이브", "잠들기 전"];
 
 export default function PreferencePage() {
   const router = useRouter();
   const [selectedGenre, setSelectedGenre] = useState("발라드");
   const [selectedMood, setSelectedMood] = useState("신나");
-  const [selectedStyle, setSelectedStyle] = useState("출근/등교");
+  const [selectedStyle, setSelectedStyle] = useState("출근/등교길");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
