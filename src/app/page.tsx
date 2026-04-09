@@ -36,10 +36,21 @@ export default function UploadPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photos, setPhotos] = useState<string[]>([]);
+  const [toast, setToast] = useState("");
   const maxPhotos = 5;
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 3000);
+  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    if (photos.length >= maxPhotos) {
+      showToast("사진은 최대 5장까지 추가할 수 있어요");
+      e.target.value = "";
+      return;
+    }
     const remaining = maxPhotos - photos.length;
     const toProcess = files.slice(0, remaining);
     const compressed = await Promise.all(toProcess.map(compressImage));
@@ -258,6 +269,26 @@ export default function UploadPage() {
           ))}
         </div>
       </div>
+
+      {/* 토스트 메시지 */}
+      {toast && (
+        <div style={{
+          position: "fixed",
+          bottom: 100,
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: "rgba(30,30,30,0.95)",
+          border: "1px solid rgba(255,255,255,0.15)",
+          color: "#fff",
+          fontSize: 13,
+          padding: "10px 20px",
+          borderRadius: 24,
+          zIndex: 100,
+          whiteSpace: "nowrap",
+        }}>
+          {toast}
+        </div>
+      )}
 
       {/* 하단 네비게이션 */}
       <div style={{ background: "rgba(0,0,0,0.45)", borderTop: "0.5px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-around", padding: "12px 0 28px" }}>
