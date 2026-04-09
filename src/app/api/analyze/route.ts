@@ -27,14 +27,51 @@ async function getSpotifyToken(): Promise<string | null> {
   return data.access_token ?? null;
 }
 
-function normalizeArtist(name: string): string {
-  return name.toLowerCase().replace(/[\s\-_.,&'()]/g, "");
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/[\s\-_.,&'()!?]/g, "");
 }
 
-function artistMatches(spotifyArtist: string, claudeArtist: string): boolean {
-  const a = normalizeArtist(spotifyArtist);
-  const b = normalizeArtist(claudeArtist);
-  return a.includes(b) || b.includes(a);
+// 공통 글자 수 기반 유사도 (0~1)
+function similarity(a: string, b: string): number {
+  if (a === b) return 1;
+  const longer = a.length >= b.length ? a : b;
+  const shorter = a.length >= b.length ? b : a;
+  let matches = 0;
+  const used = new Array(longer.length).fill(false);
+  for (const ch of shorter) {
+    const idx = longer.split("").findIndex((c, i) => !used[i] && c === ch);
+    if (idx !== -1) { matches++; used[idx] = true; }
+  }
+  return matches / longer.length;
+}
+
+// 아티스트 매칭 3단계 로직
+function artistMatches(spotifyArtist: string, claudeArtist: string, spotifySong?: string, claudeSong?: string): boolean {
+  const a = normalizeName(spotifyArtist);
+  const b = normalizeName(claudeArtist);
+
+  // 1단계: 완전 일치
+  if (a === b) return true;
+
+  // 2단계: Claude 추천 아티스트가 Spotify 결과에 포함되고 길이 차이 5자 이내
+  if (a.includes(b) && Math.abs(a.length - b.length) <= 5) {
+    // 3단계: 곡명도 80% 이상 일치해야 통과
+    if (spotifySong && claudeSong) {
+      const sa = normalizeName(spotifySong);
+      const sb = normalizeName(claudeSong);
+      return similarity(sa, sb) >= 0.8;
+    }
+    return true;
+  }
+
+  return false;
+}
+
+// 곡명 유사도 확인 (80% 이상 일치 시 통과)
+function songMatches(spotifySong: string, claudeSong: string): boolean {
+  const a = normalizeName(spotifySong);
+  const b = normalizeName(claudeSong);
+  return similarity(a, b) >= 0.8;
 }
 
 type VerifiedTrack = {
@@ -87,7 +124,8 @@ async function verifyCandidate(
   }
 
   const matched = filtered.find((track) =>
-    track.artists.some((a) => artistMatches(a.name, artist))
+    songMatches(track.name, song) &&
+    track.artists.some((a) => artistMatches(a.name, artist, track.name, song))
   );
   return matched
     ? { song, artist, spotifyTrackId: matched.id, albumArt: matched.album.images[0]?.url ?? null }
@@ -117,7 +155,7 @@ function buildCandidatePrompt(genre: string, mood: string, listeningStyle: strin
     ? "이전 추천 곡들이 Spotify에서 찾을 수 없었어요. 완전히 다른 아티스트와 곡으로 다시 추천해줘.\n\n"
     : "";
 
-  return `${retryPrefix}다음 정보를 종합해서 Spotify에 실제 존재하는 노래 후보 8곡을 추천해줘.
+  return `${retryPrefix}다음 정보를 종합해서 Spotify에 실제 존재하는 노래 후보 10곡을 추천해줘.
 
 [타겟 사용자]
 추천 대상은 20대 한국 사용자로, 새로운 음악 발견을 좋아해요.
@@ -245,6 +283,27 @@ ${trackList}
 반드시 어두운 톤(밝기 10-15% 이하)으로 설정해줘.`;
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+  for (let i = 0; i <= maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      const isOverloaded = status === 529 || (err instanceof Error && err.message.includes("529"));
+      if (isOverloaded && i < maxRetries) {
+        const delay = (i + 1) * 3000;
+        console.log(`[analyze] 529 과부하, ${delay / 1000}초 후 재시도 (${i + 1}/${maxRetries})`);
+        await sleep(delay);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("최대 재시도 횟수 초과");
+}
+
 export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -279,7 +338,7 @@ export async function POST(req: NextRequest) {
       const isRetry = attempt > 0;
       attempt++;
 
-      const candidateResponse = await client.messages.create({
+      const candidateResponse = await withRetry(() => client.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 600,
         messages: [{
@@ -289,7 +348,7 @@ export async function POST(req: NextRequest) {
             { type: "text", text: buildCandidatePrompt(genre, mood, listeningStyle, isRetry) },
           ],
         }],
-      });
+      }));
 
       const candidateText = candidateResponse.content[0].type === "text" ? candidateResponse.content[0].text : "";
       const candidates = parseCandidates(candidateText);
@@ -307,14 +366,14 @@ export async function POST(req: NextRequest) {
 
     // 검증 통과곡이 3개 미만이면 추가 후보 1회 요청
     if (spotifyToken && verifiedTracks.length > 0 && verifiedTracks.length < 3) {
-      const extraResponse = await client.messages.create({
+      const extraResponse = await withRetry(() => client.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 400,
         messages: [{
           role: "user",
           content: [{ type: "text", text: buildExtraPrompt(genre, mood, listeningStyle) }],
         }],
-      });
+      }));
 
       const extraText = extraResponse.content[0].type === "text" ? extraResponse.content[0].text : "";
       const extraCandidates = parseCandidates(extraText);
@@ -333,7 +392,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 3단계: Claude 최종 선택 ──
-    const finalResponse = await client.messages.create({
+    const finalResponse = await withRetry(() => client.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 800,
       messages: [{
@@ -343,7 +402,7 @@ export async function POST(req: NextRequest) {
           { type: "text", text: buildFinalPrompt(genre, mood, listeningStyle, verifiedTracks) },
         ],
       }],
-    });
+    }));
 
     const finalText = finalResponse.content[0].type === "text" ? finalResponse.content[0].text : "";
     const finalCleaned = finalText.replace(/```json\n?|\n?```/g, "").trim();
@@ -381,8 +440,25 @@ export async function POST(req: NextRequest) {
       discoveredGenre: isGenreDiscovery ? (result.discoveredGenre ?? null) : undefined,
     });
   } catch (error) {
+    const status = (error as { status?: number })?.status;
     const message = error instanceof Error ? error.message : String(error);
     console.error("분석 오류:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+
+    if (status === 529 || message.includes("529") || message.toLowerCase().includes("overloaded")) {
+      return NextResponse.json(
+        { error: "지금 플더픽이 너무 바빠요 🙏 잠시 후 다시 시도해주세요" },
+        { status: 529 }
+      );
+    }
+    if (status === 429 || message.includes("429") || message.toLowerCase().includes("rate limit")) {
+      return NextResponse.json(
+        { error: "잠깐, 너무 많은 요청이 들어왔어요. 잠시 후 다시 시도해주세요" },
+        { status: 429 }
+      );
+    }
+    return NextResponse.json(
+      { error: "분석 중 오류가 발생했어요. 다시 시도해주세요" },
+      { status: 500 }
+    );
   }
 }

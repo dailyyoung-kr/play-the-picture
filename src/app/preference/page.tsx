@@ -254,7 +254,7 @@ export default function PreferencePage() {
       </div>
 
       {/* 로딩 오버레이 */}
-      {loading && (
+      {loading && !error && (
         <div
           style={{
             position: "fixed",
@@ -295,6 +295,45 @@ export default function PreferencePage() {
               </p>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* 에러 오버레이 */}
+      {!loading && error && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(13,18,24,0.92)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 16,
+            zIndex: 50,
+            padding: "0 32px",
+          }}
+        >
+          <div style={{ fontSize: 36 }}>🙏</div>
+          <p style={{ color: "#fff", fontSize: 15, fontWeight: 500, textAlign: "center", lineHeight: 1.6 }}>
+            {error}
+          </p>
+          <button
+            onClick={() => setError("")}
+            style={{
+              marginTop: 8,
+              background: "#C4687A",
+              border: "none",
+              borderRadius: 24,
+              padding: "12px 32px",
+              color: "#fff",
+              fontSize: 14,
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            다시 시도하기
+          </button>
         </div>
       )}
 
