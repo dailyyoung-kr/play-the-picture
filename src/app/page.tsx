@@ -46,6 +46,11 @@ export default function UploadPage() {
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    if (files.some((f) => f.type.startsWith("video/"))) {
+      showToast("사진 파일만 추가할 수 있어요 📷");
+      e.target.value = "";
+      return;
+    }
     if (photos.length >= maxPhotos) {
       showToast("사진은 최대 5장까지 추가할 수 있어요");
       e.target.value = "";
