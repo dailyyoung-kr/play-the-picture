@@ -251,8 +251,13 @@ export async function POST(req: NextRequest) {
           console.log(`[analyze] ✓ Spotify 검증 성공: ${spotifyTrackId}`);
           break;
         } else {
-          console.log(`[analyze] ✗ Spotify에서 찾지 못함, 재시도`);
-          continue; // 다음 attempt에서 다른 곡 추천
+          console.log(`[analyze] ✗ Spotify에서 찾지 못함 (시도 ${attempt + 1}/${maxAttempts})`);
+          // 마지막 시도면 Spotify 없이 그대로 사용
+          if (attempt === maxAttempts - 1) {
+            console.log(`[analyze] Spotify 검증 실패 - 결과는 반환 (플레이어 없음)`);
+            finalResult = result;
+          }
+          continue;
         }
       } else {
         // Spotify 토큰 없으면 그대로 사용
@@ -263,7 +268,7 @@ export async function POST(req: NextRequest) {
 
     if (!finalResult) {
       return NextResponse.json(
-        { error: "Spotify에서 곡을 찾지 못했어요. 다시 시도해주세요." },
+        { error: "분석 중 오류가 발생했어요. 다시 시도해주세요." },
         { status: 500 }
       );
     }
