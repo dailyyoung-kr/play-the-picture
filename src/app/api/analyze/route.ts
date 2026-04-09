@@ -69,7 +69,13 @@ type VerifiedTrack = {
   artist: string;
   spotifyTrackId: string;
   albumArt: string | null;
+  popularity: number;
 };
+
+function getPopularityThreshold(genre: string): number {
+  if (genre === "인디" || genre === "재즈/어쿠스틱") return 20;
+  return 35;
+}
 
 const EXCLUDE_KEYWORDS = [
   "live", "cover", "acoustic", "remix", "instrumental",
@@ -86,7 +92,8 @@ function isOriginalTrack(trackName: string, albumType: string): boolean {
 async function verifyCandidate(
   song: string,
   artist: string,
-  token: string
+  token: string,
+  popularityThreshold: number
 ): Promise<VerifiedTrack | null> {
   const query = artist ? `track:${song} artist:${artist}` : `track:${song}`;
   const res = await fetch(
@@ -99,43 +106,47 @@ async function verifyCandidate(
   const tracks: {
     id: string;
     name: string;
+    popularity: number;
     artists: { name: string }[];
     album: { images: { url: string }[]; album_type: string };
   }[] = data.tracks?.items ?? [];
 
-  // 커버/라이브/리믹스/컴필레이션 제외 필터
-  const filtered = tracks.filter((t) => isOriginalTrack(t.name, t.album.album_type));
+  // 커버/라이브/리믹스/컴필레이션 제외 + popularity 기준 필터
+  const filtered = tracks.filter(
+    (t) => isOriginalTrack(t.name, t.album.album_type) && t.popularity >= popularityThreshold
+  );
 
   if (!artist) {
     const track = filtered[0];
     return track
-      ? { song, artist, spotifyTrackId: track.id, albumArt: track.album.images[0]?.url ?? null }
+      ? { song, artist, spotifyTrackId: track.id, albumArt: track.album.images[0]?.url ?? null, popularity: track.popularity }
       : null;
   }
 
   const matched = filtered.find((track) => {
     const sMatch = songMatches(track.name, song);
     const aMatch = track.artists.some((a) => artistMatches(a.name, artist));
-    console.log(`[verify] "${song} - ${artist}" vs Spotify "${track.name} - ${track.artists.map(a => a.name).join(",")}" → song:${sMatch} artist:${aMatch}`);
+    console.log(`[verify] "${song} - ${artist}" vs Spotify "${track.name} - ${track.artists.map(a => a.name).join(",")}" pop:${track.popularity} → song:${sMatch} artist:${aMatch}`);
     return sMatch && aMatch;
   });
 
   if (!matched) {
-    console.log(`[verify] ✗ "${song} - ${artist}" 매칭 실패 (후보 ${filtered.length}개 검토)`);
+    console.log(`[verify] ✗ "${song} - ${artist}" 매칭 실패 (후보 ${filtered.length}개 검토, threshold:${popularityThreshold})`);
   } else {
-    console.log(`[verify] ✓ "${song} - ${artist}" 매칭 성공: ${matched.id}`);
+    console.log(`[verify] ✓ "${song} - ${artist}" 매칭 성공: ${matched.id} pop:${matched.popularity}`);
   }
 
   return matched
-    ? { song, artist, spotifyTrackId: matched.id, albumArt: matched.album.images[0]?.url ?? null }
+    ? { song, artist, spotifyTrackId: matched.id, albumArt: matched.album.images[0]?.url ?? null, popularity: matched.popularity }
     : null;
 }
 
 async function verifyCandidates(
   candidates: { song: string; artist: string }[],
-  token: string
+  token: string,
+  popularityThreshold: number
 ): Promise<VerifiedTrack[]> {
-  const results = await Promise.all(candidates.map((c) => verifyCandidate(c.song, c.artist, token)));
+  const results = await Promise.all(candidates.map((c) => verifyCandidate(c.song, c.artist, token, popularityThreshold)));
   return results.filter((r): r is VerifiedTrack => r !== null);
 }
 
@@ -235,7 +246,7 @@ function buildFinalPrompt(
   verifiedTracks: VerifiedTrack[]
 ): string {
   const trackList = verifiedTracks
-    .map((t, i) => `${i + 1}. ${t.song} - ${t.artist}`)
+    .map((t, i) => `${i + 1}. ${t.song} - ${t.artist} (popularity: ${t.popularity})`)
     .join("\n");
 
   return `아래 검증된 후보 목록 중에서 사진, 기분, 상황에 가장 잘 어울리는 1곡을 골라 결과를 반환해줘.
@@ -255,6 +266,8 @@ ${trackList}
 - 사진의 분위기와 감정에 가장 잘 맞는 곡
 - 기분(${mood})과 상황(${listeningStyle})에 어울리는 곡
 - 뻔하지 않고 발견의 기쁨을 줄 수 있는 곡
+- popularity가 높다고 무조건 선택하지 말고, 사진/기분/상황과 가장 잘 맞는 곡을 선택해줘
+- popularity 기준 미달 곡은 이미 제외됐으니 남은 후보 중에서만 선택해줘
 
 [기분별 추천 방향]
 신나 → 에너지 넘치고 업템포, 같이 흥얼거릴 수 있는 곡
@@ -353,6 +366,8 @@ export async function POST(req: NextRequest) {
     const spotifyToken = await getSpotifyToken();
 
     // ── 1단계 + 2단계: 후보 생성 및 Spotify 검증 (최대 3회) ──
+    const popularityThreshold = getPopularityThreshold(genre);
+    console.log(`[analyze] 장르: ${genre}, popularity 기준: ${popularityThreshold}+`);
     let verifiedTracks: VerifiedTrack[] = [];
     let attempt = 0;
 
@@ -377,10 +392,10 @@ export async function POST(req: NextRequest) {
       console.log(`[analyze] 시도 ${attempt}: 후보 ${candidates.length}곡 →`, candidates.map((c) => `${c.song} - ${c.artist}`));
 
       if (spotifyToken && candidates.length > 0) {
-        verifiedTracks = await verifyCandidates(candidates, spotifyToken);
+        verifiedTracks = await verifyCandidates(candidates, spotifyToken, popularityThreshold);
       } else if (candidates.length > 0) {
         // Spotify 없으면 후보를 그대로 사용
-        verifiedTracks = candidates.map((c) => ({ ...c, spotifyTrackId: "", albumArt: null }));
+        verifiedTracks = candidates.map((c) => ({ ...c, spotifyTrackId: "", albumArt: null, popularity: 0 }));
       }
 
       console.log(`[analyze] 시도 ${attempt}: 검증 통과 ${verifiedTracks.length}곡`);
@@ -400,7 +415,7 @@ export async function POST(req: NextRequest) {
       const extraText = extraResponse.content[0].type === "text" ? extraResponse.content[0].text : "";
       const extraCandidates = parseCandidates(extraText);
       if (extraCandidates.length > 0) {
-        const extraVerified = await verifyCandidates(extraCandidates, spotifyToken);
+        const extraVerified = await verifyCandidates(extraCandidates, spotifyToken, popularityThreshold);
         verifiedTracks = [...verifiedTracks, ...extraVerified];
       }
       console.log(`[analyze] 추가 후보 후 검증 통과 ${verifiedTracks.length}곡`);
