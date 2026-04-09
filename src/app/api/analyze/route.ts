@@ -169,10 +169,17 @@ function parseCandidates(text: string): { song: string; artist: string }[] {
   }
 }
 
-function buildCandidatePrompt(genre: string, mood: string, listeningStyle: string, retry = false): string {
-  const retryPrefix = retry
-    ? "이전 추천 곡들이 Spotify에서 찾을 수 없었어요. 완전히 다른 아티스트와 곡으로 다시 추천해줘.\n\n"
-    : "";
+function buildCandidatePrompt(genre: string, mood: string, listeningStyle: string, attempt = 0): string {
+  let retryPrefix = "";
+  if (attempt === 1) {
+    retryPrefix = `앞서 추천한 곡들이 Spotify에서 검증되지 않았어요. 이번엔 반드시 아래 조건을 지켜줘:
+- 월간 리스너 500만 이상의 검증된 아티스트 위주로 추천
+- Spotify에 확실히 존재하는 유명한 곡
+- 발라드라면 아이유, 폴킴, 멜로망스, 이무진, 박효신 등 확실히 알려진 아티스트 위주로
+- 완전히 다른 아티스트와 곡으로 다시 추천해줘\n\n`;
+  } else if (attempt >= 2) {
+    retryPrefix = `장르 제한을 완화해서 사진과 기분에 맞는 확실히 Spotify에 존재하는 곡으로 추천해줘. 발라드가 아니어도 괜찮아. 월간 리스너 100만 이상의 유명 아티스트 곡으로만 추천해줘.\n\n`;
+  }
 
   return `${retryPrefix}다음 정보를 종합해서 Spotify에 실제 존재하는 노래 후보 6곡을 추천해줘.
 
@@ -374,15 +381,20 @@ export async function POST(req: NextRequest) {
     // Spotify 토큰 미리 발급
     const spotifyToken = await getSpotifyToken();
 
-    // ── 1단계 + 2단계: 후보 생성 및 Spotify 검증 (최대 3회) ──
-    const popularityThreshold = getPopularityThreshold(genre);
-    console.log(`[analyze] 장르: ${genre}, popularity 기준: ${popularityThreshold}+`);
+    // ── 1단계 + 2단계: 후보 생성 및 Spotify 검증 (최대 5회) ──
+    const baseThreshold = getPopularityThreshold(genre);
+    console.log(`[analyze] 장르: ${genre}, popularity 기준: ${baseThreshold}+`);
     let verifiedTracks: VerifiedTrack[] = [];
     let attempt = 0;
 
     while (verifiedTracks.length === 0 && attempt < 5) {
-      const isRetry = attempt > 0;
-      attempt++;
+      // attempt 증가할수록 popularity 완화: 1차→기본값, 2차→10, 3차→0
+      const popularityThreshold = attempt === 0 ? baseThreshold
+        : attempt === 1 ? Math.min(baseThreshold, 20)
+        : attempt === 2 ? 10
+        : 0;
+
+      console.log(`[analyze] 시도 ${attempt + 1}/5, popularity 기준: ${popularityThreshold}+`);
 
       const candidateResponse = await withRetry(() => client.messages.create({
         model: "claude-sonnet-4-6",
@@ -391,10 +403,12 @@ export async function POST(req: NextRequest) {
           role: "user",
           content: [
             ...imageBlocks,
-            { type: "text", text: buildCandidatePrompt(genre, mood, listeningStyle, isRetry) },
+            { type: "text", text: buildCandidatePrompt(genre, mood, listeningStyle, attempt) },
           ],
         }],
       }));
+
+      attempt++;
 
       const candidateText = candidateResponse.content[0].type === "text" ? candidateResponse.content[0].text : "";
       const candidates = parseCandidates(candidateText);
@@ -424,7 +438,7 @@ export async function POST(req: NextRequest) {
       const extraText = extraResponse.content[0].type === "text" ? extraResponse.content[0].text : "";
       const extraCandidates = parseCandidates(extraText);
       if (extraCandidates.length > 0) {
-        const extraVerified = await verifyCandidates(extraCandidates, spotifyToken, popularityThreshold);
+        const extraVerified = await verifyCandidates(extraCandidates, spotifyToken, baseThreshold);
         verifiedTracks = [...verifiedTracks, ...extraVerified];
       }
       console.log(`[analyze] 추가 후보 후 검증 통과 ${verifiedTracks.length}곡`);
