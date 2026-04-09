@@ -161,6 +161,35 @@ function RankList({
   );
 }
 
+type SpotifyStatus = {
+  status: "ok" | "rate_limited" | "token_failed";
+  checkedAt: number;
+  retryAfter: number | null;
+};
+
+function useCountdown(targetMs: number | null): string {
+  const [remaining, setRemaining] = useState("");
+
+  useEffect(() => {
+    if (!targetMs) { setRemaining(""); return; }
+
+    const tick = () => {
+      const diff = Math.max(0, targetMs - Date.now());
+      if (diff === 0) { setRemaining("곧 초기화"); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setRemaining(h > 0 ? `${h}시간 ${m}분 ${s}초` : `${m}분 ${s}초`);
+    };
+
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [targetMs]);
+
+  return remaining;
+}
+
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [pw, setPw] = useState("");
@@ -171,6 +200,8 @@ export default function AdminPage() {
   const [tryClicks, setTryClicks] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [spotifyStatus, setSpotifyStatus] = useState<SpotifyStatus | null>(null);
+  const [spotifyChecking, setSpotifyChecking] = useState(false);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -212,9 +243,25 @@ export default function AdminPage() {
     setLoading(false);
   }, []);
 
+  const checkSpotify = useCallback(async () => {
+    setSpotifyChecking(true);
+    try {
+      const res = await fetch("/api/admin/spotify-status");
+      const data = await res.json();
+      setSpotifyStatus(data);
+    } catch {
+      setSpotifyStatus({ status: "token_failed", checkedAt: Date.now(), retryAfter: null });
+    } finally {
+      setSpotifyChecking(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (authed) fetchData();
-  }, [authed, fetchData]);
+    if (authed) {
+      fetchData();
+      checkSpotify();
+    }
+  }, [authed, fetchData, checkSpotify]);
 
   const handleLogin = () => {
     if (pw === ADMIN_PW) {
@@ -345,6 +392,13 @@ export default function AdminPage() {
       })
     : "";
 
+  // Spotify 429 카운트다운 타겟 계산
+  const retryTargetMs =
+    spotifyStatus?.status === "rate_limited" && spotifyStatus.retryAfter
+      ? spotifyStatus.checkedAt + spotifyStatus.retryAfter * 1000
+      : null;
+  const countdown = useCountdown(retryTargetMs);
+
   // ── 대시보드 ──
   return (
     <div
@@ -440,6 +494,102 @@ export default function AdminPage() {
           sub={today}
           accent="#f0d080"
         />
+      </div>
+
+      {/* Spotify 상태 */}
+      <div
+        style={{
+          background: "rgba(255,255,255,0.06)",
+          borderRadius: 14,
+          padding: "18px 20px",
+          marginBottom: 10,
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <p style={{ color: "#fff", fontSize: 13, fontWeight: 600, margin: 0 }}>
+            🎵 Spotify API 상태
+          </p>
+          <button
+            onClick={checkSpotify}
+            disabled={spotifyChecking}
+            style={{
+              background: spotifyChecking ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.10)",
+              border: "1px solid rgba(255,255,255,0.14)",
+              borderRadius: 16,
+              padding: "5px 12px",
+              color: spotifyChecking ? "rgba(255,255,255,0.3)" : "#fff",
+              fontSize: 11,
+              cursor: spotifyChecking ? "default" : "pointer",
+            }}
+          >
+            {spotifyChecking ? "확인 중..." : "지금 확인"}
+          </button>
+        </div>
+
+        {!spotifyStatus && !spotifyChecking && (
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", margin: 0 }}>확인 전</p>
+        )}
+        {spotifyChecking && (
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", margin: 0 }}>확인 중...</p>
+        )}
+        {spotifyStatus && !spotifyChecking && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {/* 상태 뱃지 */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span
+                style={{
+                  display: "inline-block",
+                  padding: "4px 12px",
+                  borderRadius: 20,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  background:
+                    spotifyStatus.status === "ok"
+                      ? "rgba(80,200,120,0.18)"
+                      : spotifyStatus.status === "rate_limited"
+                      ? "rgba(220,60,60,0.18)"
+                      : "rgba(220,180,60,0.18)",
+                  color:
+                    spotifyStatus.status === "ok"
+                      ? "#6be0a0"
+                      : spotifyStatus.status === "rate_limited"
+                      ? "#f07070"
+                      : "#f0d060",
+                  border: `1px solid ${
+                    spotifyStatus.status === "ok"
+                      ? "rgba(80,200,120,0.3)"
+                      : spotifyStatus.status === "rate_limited"
+                      ? "rgba(220,60,60,0.3)"
+                      : "rgba(220,180,60,0.3)"
+                  }`,
+                }}
+              >
+                {spotifyStatus.status === "ok"
+                  ? "● 정상"
+                  : spotifyStatus.status === "rate_limited"
+                  ? "● 429 제한 중"
+                  : "● 토큰 오류"}
+              </span>
+            </div>
+
+            {/* 마지막 확인 시간 */}
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", margin: 0 }}>
+              확인 시각:{" "}
+              {new Date(spotifyStatus.checkedAt).toLocaleTimeString("ko-KR", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              })}
+            </p>
+
+            {/* 429일 때 카운트다운 */}
+            {spotifyStatus.status === "rate_limited" && countdown && (
+              <p style={{ fontSize: 12, color: "#f07070", margin: 0 }}>
+                초기화까지 {countdown}
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* GA4 안내 섹션 */}
