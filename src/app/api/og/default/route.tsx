@@ -20,35 +20,24 @@ export async function GET() {
         {/* Play the Picture */}
         <div
           style={{
-            fontSize: 28,
+            fontSize: 24,
             color: "#C4687A",
-            letterSpacing: "0.15em",
-            marginBottom: 32,
+            letterSpacing: "0.2em",
+            marginBottom: 40,
             fontWeight: 300,
           }}
         >
           Play the Picture
         </div>
 
-        {/* ✦ 심볼 */}
-        <div
-          style={{
-            fontSize: 80,
-            color: "#C4687A",
-            lineHeight: 1,
-            marginBottom: 32,
-          }}
-        >
-          ✦
-        </div>
-
         {/* 플더픽 */}
         <div
           style={{
-            fontSize: 52,
+            fontSize: 96,
             fontWeight: 700,
             color: "#ffffff",
-            marginBottom: 20,
+            marginBottom: 36,
+            letterSpacing: "-0.02em",
           }}
         >
           플더픽
@@ -57,8 +46,9 @@ export async function GET() {
         {/* 부제 */}
         <div
           style={{
-            fontSize: 24,
-            color: "rgba(255,255,255,0.5)",
+            fontSize: 26,
+            color: "rgba(255,255,255,0.45)",
+            letterSpacing: "0.02em",
           }}
         >
           사진으로 지금 딱 맞는 노래 찾기
