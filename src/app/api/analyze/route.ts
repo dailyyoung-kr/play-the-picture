@@ -44,16 +44,21 @@ function isOriginalTrack(trackName: string, albumType: string): boolean {
 }
 
 // Spotify에서 곡 검색 → track ID + 앨범아트 반환
+// rateLimited: true면 429로 막힌 상태
 async function findOnSpotify(
   song: string,
   artist: string,
   token: string
-): Promise<{ trackId: string; albumArt: string | null } | null> {
+): Promise<{ trackId: string; albumArt: string | null; rateLimited?: boolean } | null> {
   const query = artist ? `${song} ${artist}` : song;
   const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`;
 
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
 
+  if (res.status === 429) {
+    console.log(`[spotify] 429 레이트리밋`);
+    return { trackId: "", albumArt: null, rateLimited: true };
+  }
   if (!res.ok) {
     console.log(`[spotify] HTTP ${res.status} for "${song} - ${artist}"`);
     return null;
@@ -271,11 +276,16 @@ export async function POST(req: NextRequest) {
       // ── 2단계: Spotify에서 그 1곡만 검색 ──
       if (spotifyToken) {
         const found = await findOnSpotify(searchSong, searchArtist, spotifyToken);
-        if (found) {
+        if (found && !found.rateLimited && found.trackId) {
           spotifyTrackId = found.trackId;
           albumArt = found.albumArt;
           finalResult = result;
           console.log(`[analyze] ✓ Spotify 검증 성공: ${spotifyTrackId}`);
+          break;
+        } else if (found?.rateLimited) {
+          // 429 → 재시도 없이 즉시 현재 결과 사용
+          console.log(`[analyze] 429 감지 → 즉시 반환 (플레이어 없음)`);
+          finalResult = result;
           break;
         } else {
           console.log(`[analyze] ✗ Spotify에서 찾지 못함 (시도 ${attempt + 1}/${maxAttempts})`);
