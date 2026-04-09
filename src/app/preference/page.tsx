@@ -253,9 +253,9 @@ export default function PreferencePage() {
         }}
       >
         {[
-          { icon: "📓", label: "ARCHIVE", active: false, path: "/journal" },
-          { icon: "+", label: "UPLOAD", active: true, isCenter: true, path: "/" },
-          { icon: "⚙️", label: "SETTINGS", active: false, path: "/" },
+          { label: "ARCHIVE", active: false, path: "/journal" },
+          { label: "UPLOAD", active: true, isCenter: true, path: "/" },
+          { label: "SETTINGS", active: false, path: "/" },
         ].map((item) => (
           <div
             key={item.label}
@@ -274,9 +274,7 @@ export default function PreferencePage() {
                 +
               </div>
             ) : (
-              <div style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
-                {item.icon}
-              </div>
+              <div style={{ height: 22 }} />
             )}
             {item.label}
           </div>

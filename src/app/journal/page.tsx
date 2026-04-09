@@ -335,9 +335,9 @@ export default function JournalPage() {
       {/* 하단 네비게이션 */}
       <div style={{ background: "rgba(0,0,0,0.45)", borderTop: "0.5px solid rgba(255,255,255,0.08)", display: "flex", padding: "10px 0 24px", flexShrink: 0 }}>
         {[
-          { icon: "📓", label: "ARCHIVE", active: true, path: "/journal" },
-          { icon: "+", label: "UPLOAD", active: false, isCenter: true, path: "/" },
-          { icon: "⚙️", label: "SETTINGS", active: false, path: "/" },
+          { label: "ARCHIVE", active: true, path: "/journal" },
+          { label: "UPLOAD", active: false, isCenter: true, path: "/" },
+          { label: "SETTINGS", active: false, path: "/" },
         ].map((item) => (
           <div key={item.label} onClick={() => router.push(item.path)}
             className="flex-1 flex flex-col items-center gap-1"
@@ -346,7 +346,7 @@ export default function JournalPage() {
             {item.isCenter ? (
               <div style={{ width: 38, height: 38, background: "#C4687A", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#fff", marginTop: -8 }}>+</div>
             ) : (
-              <div style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{item.icon}</div>
+              <div style={{ height: 22 }} />
             )}
             {item.label}
           </div>

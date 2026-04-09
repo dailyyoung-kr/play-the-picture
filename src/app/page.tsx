@@ -98,7 +98,7 @@ export default function UploadPage() {
         {/* 부제목 */}
         <p
           className="mb-7"
-          style={{ fontSize: 14, color: "rgba(255,255,255,0.52)", lineHeight: 1.8 }}
+          style={{ fontSize: 14, color: "rgba(255,255,255,0.52)", lineHeight: 2.0 }}
         >
           지금 생각나는 사진 몇 장이면<br />
           AI가 오늘 분위기를 읽어<br />
@@ -138,11 +138,14 @@ export default function UploadPage() {
         </div>
 
         {/* 사진 슬롯 */}
-        <div className="flex gap-2 mb-2" style={{ flexWrap: "wrap" }}>
+        <div
+          className="flex gap-2 mb-2"
+          style={{ overflowX: "auto", paddingBottom: 4 }}
+        >
           {photos.map((src, i) => (
             <div
               key={i}
-              style={{ width: 96, height: 116, borderRadius: 10, overflow: "hidden", position: "relative", flexShrink: 0 }}
+              style={{ width: 80, height: 96, borderRadius: 10, overflow: "hidden", position: "relative", flexShrink: 0 }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -154,8 +157,8 @@ export default function UploadPage() {
                 onClick={() => removePhoto(i)}
                 style={{
                   position: "absolute",
-                  top: 6,
-                  right: 6,
+                  top: 5,
+                  right: 5,
                   width: 18,
                   height: 18,
                   background: "rgba(0,0,0,0.6)",
@@ -179,16 +182,16 @@ export default function UploadPage() {
             <button
               onClick={() => fileInputRef.current?.click()}
               style={{
-                width: 96,
-                height: 116,
+                width: 80,
+                height: 96,
                 borderRadius: 10,
-                border: "1.5px dashed rgba(255,255,255,0.3)",
-                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                background: "rgba(255,255,255,0.04)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 26,
-                color: "rgba(255,255,255,0.40)",
+                fontSize: 20,
+                color: "rgba(255,255,255,0.35)",
                 cursor: "pointer",
                 flexShrink: 0,
               }}
@@ -267,9 +270,9 @@ export default function UploadPage() {
         }}
       >
         {[
-          { icon: "📓", label: "ARCHIVE", active: false, path: "/journal" },
-          { icon: "+", label: "UPLOAD", active: true, isCenter: true, path: "/" },
-          { icon: "⚙️", label: "SETTINGS", active: false, path: "/" },
+          { label: "ARCHIVE", active: false, path: "/journal" },
+          { label: "UPLOAD", active: true, isCenter: true, path: "/" },
+          { label: "SETTINGS", active: false, path: "/" },
         ].map((item) => (
           <div
             key={item.label}
@@ -299,18 +302,7 @@ export default function UploadPage() {
                 +
               </div>
             ) : (
-              <div
-                style={{
-                  width: 22,
-                  height: 22,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 16,
-                }}
-              >
-                {item.icon}
-              </div>
+              <div style={{ height: 22 }} />
             )}
             {item.label}
           </div>
