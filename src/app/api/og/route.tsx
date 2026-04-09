@@ -108,8 +108,8 @@ export async function GET(req: NextRequest) {
                 width: "100%",
                 height: "100%",
                 objectFit: "cover",
-                filter: "blur(48px)",
-                transform: "scale(1.2)",
+                filter: "blur(72px)",
+                transform: "scale(1.3)",
               }}
             />
           )}
@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
             style={{
               position: "absolute",
               inset: "0",
-              background: "rgba(0,0,0,0.72)",
+              background: "rgba(0,0,0,0.75)",
               display: "flex",
             }}
           />
@@ -177,70 +177,54 @@ export async function GET(req: NextRequest) {
             />
           </div>
 
-          {/* 우측: 곡 정보 영역 */}
+          {/* 상단 좌측 로고 */}
           <div
             style={{
               position: "absolute",
-              left: PHOTO_W,
-              top: 0,
-              width: 1200 - PHOTO_W,
-              height: 630,
+              top: 44,
+              left: 52,
+              color: "#C4687A",
+              fontSize: 18,
+              letterSpacing: "0.15em",
               display: "flex",
-              flexDirection: "column",
-              padding: "52px 56px",
-              background: "rgba(0,0,0,0.0)",
             }}
           >
-            {/* 상단 로고 */}
-            <div
-              style={{
-                color: "#C4687A",
-                fontSize: 18,
-                letterSpacing: "0.15em",
-              }}
-            >
-              Play the Picture
-            </div>
+            Play the Picture
+          </div>
 
-            {/* 곡 정보: 세로 중앙 정렬 */}
+          {/* 우측 하단: 곡명 박스 */}
+          <div
+            style={{
+              position: "absolute",
+              bottom: 40,
+              right: 40,
+              background: "rgba(0,0,0,0.7)",
+              borderRadius: 12,
+              padding: "20px 24px",
+              display: "flex",
+              flexDirection: "column",
+              maxWidth: 560,
+            }}
+          >
             <div
               style={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
+                color: "#ffffff",
+                fontSize: 56,
+                fontWeight: 700,
+                lineHeight: 1.2,
+                letterSpacing: "-0.5px",
               }}
             >
-              <div
-                style={{
-                  background: "rgba(0,0,0,0.6)",
-                  borderRadius: 12,
-                  padding: "28px 32px",
-                  display: "flex",
-                  flexDirection: "column",
-                }}
-              >
-                <div
-                  style={{
-                    color: "#ffffff",
-                    fontSize: 56,
-                    fontWeight: 700,
-                    lineHeight: 1.2,
-                    letterSpacing: "-0.5px",
-                  }}
-                >
-                  {song}
-                </div>
-                <div
-                  style={{
-                    color: "rgba(255,255,255,0.8)",
-                    fontSize: 32,
-                    marginTop: 14,
-                  }}
-                >
-                  {artist}
-                </div>
-              </div>
+              {song}
+            </div>
+            <div
+              style={{
+                color: "rgba(255,255,255,0.8)",
+                fontSize: 32,
+                marginTop: 12,
+              }}
+            >
+              {artist}
             </div>
           </div>
         </div>
