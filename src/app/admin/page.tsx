@@ -203,6 +203,13 @@ export default function AdminPage() {
   const [spotifyStatus, setSpotifyStatus] = useState<SpotifyStatus | null>(null);
   const [spotifyChecking, setSpotifyChecking] = useState(false);
 
+  // Spotify 429 카운트다운 — 조건부 return 전에 호출해야 Rules of Hooks 충족
+  const retryTargetMs =
+    spotifyStatus?.status === "rate_limited" && spotifyStatus.retryAfter
+      ? spotifyStatus.checkedAt + spotifyStatus.retryAfter * 1000
+      : null;
+  const countdown = useCountdown(retryTargetMs);
+
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(""), 3000);
@@ -391,13 +398,6 @@ export default function AdminPage() {
         second: "2-digit",
       })
     : "";
-
-  // Spotify 429 카운트다운 타겟 계산
-  const retryTargetMs =
-    spotifyStatus?.status === "rate_limited" && spotifyStatus.retryAfter
-      ? spotifyStatus.checkedAt + spotifyStatus.retryAfter * 1000
-      : null;
-  const countdown = useCountdown(retryTargetMs);
 
   // ── 대시보드 ──
   return (
