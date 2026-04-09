@@ -324,7 +324,7 @@ export default function ResultPage() {
                 width: 100,
                 height: 124,
                 borderRadius: 10,
-                border: "1.5px solid rgba(255,255,255,0.13)",
+                border: "1.5px solid rgba(255,255,255,0.2)",
                 flexShrink: 0,
                 overflow: "hidden",
                 background: typeof src === "string" && src.startsWith("data:") ? undefined : PHOTO_COLORS[i],
@@ -342,7 +342,7 @@ export default function ResultPage() {
         <div className="text-center mb-4">
           {/* 장르 발견하기 배지 */}
           {result.isGenreDiscovery && (
-            <div className="flex justify-center mb-2">
+            <div className="flex justify-center" style={{ marginBottom: 8 }}>
               <span style={{
                 fontSize: 11, color: "#C4687A",
                 border: "1px solid #C4687A",
