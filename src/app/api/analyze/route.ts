@@ -67,81 +67,78 @@ type SpotifyTrack = {
   album: { images: { url: string }[]; album_type: string };
 };
 
-async function spotifySearch(query: string, token: string): Promise<SpotifyTrack[]> {
-  const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!res.ok) return [];
-  const data = await res.json();
-  return (data.tracks?.items ?? []) as SpotifyTrack[];
-}
-
 async function verifyCandidate(
   song: string,
   artist: string,
   token: string
 ): Promise<VerifiedTrack | null> {
-  // 3단계 검색 전략: field검색 → 자유텍스트 → 곡명만
-  const queries = [
-    artist ? `track:${song} artist:${artist}` : `track:${song}`,
-    artist ? `${song} ${artist}` : song,
-    song,
-  ];
+  // 자유텍스트 검색 1회만 (레이트 리밋 방지)
+  const query = artist ? `${song} ${artist}` : song;
+  const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
 
-  let allTracks: SpotifyTrack[] = [];
-  for (const q of queries) {
-    console.log(`[verify] 검색: "${song} - ${artist}" | query: "${q}"`);
-    const tracks = await spotifySearch(q, token);
-    if (tracks.length > 0) {
-      console.log(`[verify] Spotify 응답 ${tracks.length}곡: ${tracks.map(t => `"${t.name} - ${t.artists.map(a => a.name).join(",")}"(pop:${t.popularity})`).join(" | ")}`);
-      allTracks = tracks;
-      break;
-    }
-    console.log(`[verify] 결과 없음, 다음 쿼리로 시도`);
+  if (res.status === 429) {
+    console.log(`[verify] 429 레이트리밋: "${song} - ${artist}"`);
+    return null;
   }
-
-  if (allTracks.length === 0) {
-    console.log(`[verify] ✗ "${song} - ${artist}" 모든 쿼리 실패`);
+  if (!res.ok) {
+    console.log(`[verify] HTTP ${res.status}: "${song} - ${artist}"`);
     return null;
   }
 
-  // 커버/라이브/리믹스/컴필레이션 제외, 없으면 전체 사용
-  const original = allTracks.filter((t) => isOriginalTrack(t.name, t.album.album_type));
-  const pool = original.length > 0 ? original : allTracks;
+  const data = await res.json();
+  const tracks = (data.tracks?.items ?? []) as SpotifyTrack[];
+  console.log(`[verify] "${song} - ${artist}" → ${tracks.length}곡: ${tracks.slice(0,3).map(t => `"${t.name}-${t.artists[0]?.name}"(${t.popularity})`).join(" | ")}`);
 
-  if (!artist) {
-    const track = pool[0];
-    console.log(`[verify] ✓ "${song}" → "${track.name}" pop:${track.popularity}`);
-    return { song, artist, spotifyTrackId: track.id, albumArt: track.album.images[0]?.url ?? null, popularity: track.popularity };
-  }
+  if (tracks.length === 0) return null;
 
-  // 1순위: 아티스트 + 곡명 모두 매칭
+  // 커버/라이브/리믹스 제외, 없으면 전체 사용
+  const original = tracks.filter((t) => isOriginalTrack(t.name, t.album.album_type));
+  const pool = original.length > 0 ? original : tracks;
+
+  // 1순위: 곡명 + 아티스트 모두 매칭
   const fullMatch = pool.find((t) =>
     songMatches(t.name, song) && t.artists.some((a) => artistMatches(a.name, artist))
   );
   if (fullMatch) {
-    console.log(`[verify] ✓ "${song} - ${artist}" → "${fullMatch.name} - ${fullMatch.artists.map(a => a.name).join(",")}" pop:${fullMatch.popularity}`);
+    console.log(`[verify] ✓ 풀매칭: "${fullMatch.name} - ${fullMatch.artists[0]?.name}" pop:${fullMatch.popularity}`);
     return { song, artist, spotifyTrackId: fullMatch.id, albumArt: fullMatch.album.images[0]?.url ?? null, popularity: fullMatch.popularity };
   }
 
   // 2순위: 곡명만 매칭 (한국어↔영문 아티스트명 불일치 커버)
   const songMatch = pool.find((t) => songMatches(t.name, song));
   if (songMatch) {
-    console.log(`[verify] ↩ "${song} - ${artist}" 아티스트 불일치, 곡명만 매칭 → "${songMatch.name} - ${songMatch.artists.map(a => a.name).join(",")}" pop:${songMatch.popularity}`);
+    console.log(`[verify] ↩ 곡명매칭: "${songMatch.name} - ${songMatch.artists[0]?.name}" pop:${songMatch.popularity}`);
     return { song, artist, spotifyTrackId: songMatch.id, albumArt: songMatch.album.images[0]?.url ?? null, popularity: songMatch.popularity };
   }
 
-  // 3순위: 첫 번째 결과 그대로 사용 (최후 수단)
+  // 3순위: 첫 번째 결과 사용
   const fallback = pool[0];
-  console.log(`[verify] ↩↩ "${song} - ${artist}" 매칭 포기, 첫 결과 사용 → "${fallback.name} - ${fallback.artists.map(a => a.name).join(",")}" pop:${fallback.popularity}`);
+  console.log(`[verify] ↩↩ 첫결과: "${fallback.name} - ${fallback.artists[0]?.name}" pop:${fallback.popularity}`);
   return { song, artist, spotifyTrackId: fallback.id, albumArt: fallback.album.images[0]?.url ?? null, popularity: fallback.popularity };
 }
 
 async function verifyCandidates(
   candidates: { song: string; artist: string }[],
   token: string
-): Promise<VerifiedTrack[]> {
-  const results = await Promise.all(candidates.map((c) => verifyCandidate(c.song, c.artist, token)));
-  return results.filter((r): r is VerifiedTrack => r !== null);
+): Promise<{ tracks: VerifiedTrack[]; rateLimited: boolean }> {
+  const tracks: VerifiedTrack[] = [];
+  let rateLimitCount = 0;
+
+  // 순차 처리 + 딜레이 (레이트 리밋 방지)
+  for (const c of candidates) {
+    await new Promise((r) => setTimeout(r, 150));
+    const result = await verifyCandidate(c.song, c.artist, token);
+    if (result) {
+      tracks.push(result);
+    } else {
+      // 429인지 확인하기 위해 로그에서 체크 (간접적으로)
+      rateLimitCount++;
+    }
+  }
+
+  const rateLimited = rateLimitCount >= candidates.length; // 전부 실패 = 레이트리밋 의심
+  return { tracks, rateLimited };
 }
 
 function parseCandidates(text: string): { song: string; artist: string }[] {
@@ -400,9 +397,15 @@ export async function POST(req: NextRequest) {
       console.log(`[analyze] 시도 ${attempt}: 후보 ${candidates.length}곡 →`, candidates.map((c) => `${c.song} - ${c.artist}`));
 
       if (spotifyToken && candidates.length > 0) {
-        verifiedTracks = await verifyCandidates(candidates, spotifyToken);
+        const { tracks, rateLimited } = await verifyCandidates(candidates, spotifyToken);
+        verifiedTracks = tracks;
+        if (rateLimited && tracks.length === 0) {
+          // 레이트리밋으로 전부 실패 → 후보를 그대로 사용 (Spotify ID 없이)
+          console.log(`[analyze] 시도 ${attempt}: 레이트리밋 의심 → 후보 미검증으로 사용`);
+          verifiedTracks = candidates.map((c) => ({ ...c, spotifyTrackId: "", albumArt: null, popularity: 0 }));
+        }
       } else if (candidates.length > 0) {
-        // Spotify 없으면 후보를 그대로 사용
+        // Spotify 토큰 없으면 후보를 그대로 사용
         verifiedTracks = candidates.map((c) => ({ ...c, spotifyTrackId: "", albumArt: null, popularity: 0 }));
       }
 
@@ -423,7 +426,7 @@ export async function POST(req: NextRequest) {
       const extraText = extraResponse.content[0].type === "text" ? extraResponse.content[0].text : "";
       const extraCandidates = parseCandidates(extraText);
       if (extraCandidates.length > 0) {
-        const extraVerified = await verifyCandidates(extraCandidates, spotifyToken);
+        const { tracks: extraVerified } = await verifyCandidates(extraCandidates, spotifyToken);
         verifiedTracks = [...verifiedTracks, ...extraVerified];
       }
       console.log(`[analyze] 추가 후보 후 검증 통과 ${verifiedTracks.length}곡`);
