@@ -126,7 +126,7 @@ export default function JournalPage() {
       style={{ background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)" }}
     >
       {/* 상단 */}
-      <div className="text-center pt-12 pb-1" style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(255,255,255,0.28)", fontFamily: "var(--font-dm-sans)", fontWeight: 300 }}>
+      <div className="text-center pt-12 pb-1" style={{ fontSize: 15, letterSpacing: "0.2em", color: "#C4687A", fontFamily: "var(--font-dm-sans)", fontWeight: 300 }}>
         Play the Picture
       </div>
 
