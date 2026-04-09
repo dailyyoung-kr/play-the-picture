@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
             style={{
               position: "absolute",
               inset: "0",
-              background: "rgba(0,0,0,0.52)",
+              background: "rgba(0,0,0,0.72)",
               display: "flex",
             }}
           />
@@ -171,7 +171,7 @@ export async function GET(req: NextRequest) {
                 right: 0,
                 width: 80,
                 height: "100%",
-                background: "linear-gradient(to right, transparent, rgba(0,0,0,0.52))",
+                background: "linear-gradient(to right, transparent, rgba(0,0,0,0.72))",
                 display: "flex",
               }}
             />
@@ -188,6 +188,7 @@ export async function GET(req: NextRequest) {
               display: "flex",
               flexDirection: "column",
               padding: "52px 56px",
+              background: "rgba(0,0,0,0.0)",
             }}
           >
             {/* 상단 로고 */}
@@ -212,23 +213,33 @@ export async function GET(req: NextRequest) {
             >
               <div
                 style={{
-                  color: "#fff",
-                  fontSize: 64,
-                  fontWeight: 700,
-                  lineHeight: 1.15,
-                  letterSpacing: "-0.5px",
+                  background: "rgba(0,0,0,0.6)",
+                  borderRadius: 12,
+                  padding: "28px 32px",
+                  display: "flex",
+                  flexDirection: "column",
                 }}
               >
-                {song}
-              </div>
-              <div
-                style={{
-                  color: "rgba(255,255,255,0.7)",
-                  fontSize: 36,
-                  marginTop: 16,
-                }}
-              >
-                {artist}
+                <div
+                  style={{
+                    color: "#ffffff",
+                    fontSize: 56,
+                    fontWeight: 700,
+                    lineHeight: 1.2,
+                    letterSpacing: "-0.5px",
+                  }}
+                >
+                  {song}
+                </div>
+                <div
+                  style={{
+                    color: "rgba(255,255,255,0.8)",
+                    fontSize: 32,
+                    marginTop: 14,
+                  }}
+                >
+                  {artist}
+                </div>
               </div>
             </div>
           </div>
