@@ -67,31 +67,22 @@ function isOriginalTrack(trackName: string, albumType: string): boolean {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-// Spotify 검색: 429 시 한 번 재시도
+// Spotify 검색: 429 즉시 null 반환 (sleep 없음 - 타임아웃 방지)
 async function spotifySearch(query: string, token: string): Promise<SpotifyTrack[] | null> {
   const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
 
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-
-    if (res.status === 429) {
-      const retryAfter = parseInt(res.headers.get("Retry-After") ?? "2", 10);
-      const waitMs = Math.min(retryAfter * 1000, 4000);
-      console.log(`[spotify] 429, ${waitMs}ms 대기 후 재시도 (attempt ${attempt + 1})`);
-      await sleep(waitMs);
-      continue;
-    }
-    if (!res.ok) {
-      console.log(`[spotify] HTTP ${res.status}: "${query}"`);
-      return null;
-    }
-
-    const data = await res.json();
-    return (data.tracks?.items ?? []) as SpotifyTrack[];
+  if (res.status === 429) {
+    console.log(`[spotify] 429 레이트리밋: "${query}"`);
+    return null;
+  }
+  if (!res.ok) {
+    console.log(`[spotify] HTTP ${res.status}: "${query}"`);
+    return null;
   }
 
-  console.log(`[spotify] 429 재시도 실패: "${query}"`);
-  return null; // null = 레이트리밋으로 포기
+  const data = await res.json();
+  return (data.tracks?.items ?? []) as SpotifyTrack[];
 }
 
 async function verifyCandidate(
@@ -148,7 +139,7 @@ async function verifyCandidates(
 
   for (const c of candidates) {
     if (tracks.length >= maxVerified) break;
-    await sleep(200); // 요청 간 간격
+    await sleep(50); // 요청 간 간격
     const result = await verifyCandidate(c.song, c.artist, token);
     if (result) tracks.push(result);
   }
