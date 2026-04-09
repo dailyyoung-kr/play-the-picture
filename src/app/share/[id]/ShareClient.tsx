@@ -221,7 +221,7 @@ export default function ShareClient({ id }: { id: string }) {
             </div>
             {entry.vibe_type && (
               <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 12px" }}>
-                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.40)", marginBottom: 6 }}>지금 딱 맞는 노래</p>
+                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.40)", marginBottom: 6 }}>사진으로 분석한 나의 음악 취향</p>
                 <p className="font-medium" style={{ fontSize: 15, color: "#a0f0b0", marginBottom: 4 }}>{entry.vibe_type}</p>
                 {entry.vibe_description && <p style={{ fontSize: 11, color: "rgba(255,255,255,0.50)" }}>{entry.vibe_description}</p>}
               </div>
