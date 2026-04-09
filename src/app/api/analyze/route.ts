@@ -45,33 +45,23 @@ function similarity(a: string, b: string): number {
   return matches / longer.length;
 }
 
-// 아티스트 매칭 3단계 로직
-function artistMatches(spotifyArtist: string, claudeArtist: string, spotifySong?: string, claudeSong?: string): boolean {
+// 아티스트 매칭 (완화된 로직)
+function artistMatches(spotifyArtist: string, claudeArtist: string): boolean {
   const a = normalizeName(spotifyArtist);
   const b = normalizeName(claudeArtist);
-
-  // 1단계: 완전 일치
+  if (a.length <= 2 || b.length <= 2) return false; // 너무 짧은 약어 방지
   if (a === b) return true;
-
-  // 2단계: Claude 추천 아티스트가 Spotify 결과에 포함되고 길이 차이 5자 이내
-  if (a.includes(b) && Math.abs(a.length - b.length) <= 5) {
-    // 3단계: 곡명도 80% 이상 일치해야 통과
-    if (spotifySong && claudeSong) {
-      const sa = normalizeName(spotifySong);
-      const sb = normalizeName(claudeSong);
-      return similarity(sa, sb) >= 0.8;
-    }
-    return true;
-  }
-
+  if (a.includes(b) || b.includes(a)) return true;
   return false;
 }
 
-// 곡명 유사도 확인 (80% 이상 일치 시 통과)
+// 곡명 매칭 (완화된 로직)
 function songMatches(spotifySong: string, claudeSong: string): boolean {
   const a = normalizeName(spotifySong);
   const b = normalizeName(claudeSong);
-  return similarity(a, b) >= 0.8;
+  if (a === b) return true;
+  if (a.includes(b) || b.includes(a)) return true;
+  return similarity(a, b) >= 0.5;
 }
 
 type VerifiedTrack = {
@@ -123,10 +113,19 @@ async function verifyCandidate(
       : null;
   }
 
-  const matched = filtered.find((track) =>
-    songMatches(track.name, song) &&
-    track.artists.some((a) => artistMatches(a.name, artist, track.name, song))
-  );
+  const matched = filtered.find((track) => {
+    const sMatch = songMatches(track.name, song);
+    const aMatch = track.artists.some((a) => artistMatches(a.name, artist));
+    console.log(`[verify] "${song} - ${artist}" vs Spotify "${track.name} - ${track.artists.map(a => a.name).join(",")}" → song:${sMatch} artist:${aMatch}`);
+    return sMatch && aMatch;
+  });
+
+  if (!matched) {
+    console.log(`[verify] ✗ "${song} - ${artist}" 매칭 실패 (후보 ${filtered.length}개 검토)`);
+  } else {
+    console.log(`[verify] ✓ "${song} - ${artist}" 매칭 성공: ${matched.id}`);
+  }
+
   return matched
     ? { song, artist, spotifyTrackId: matched.id, albumArt: matched.album.images[0]?.url ?? null }
     : null;
@@ -335,7 +334,7 @@ export async function POST(req: NextRequest) {
     let verifiedTracks: VerifiedTrack[] = [];
     let attempt = 0;
 
-    while (verifiedTracks.length === 0 && attempt < 3) {
+    while (verifiedTracks.length === 0 && attempt < 5) {
       const isRetry = attempt > 0;
       attempt++;
 
