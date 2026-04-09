@@ -355,6 +355,110 @@ ${trackList}
 반드시 어두운 톤(밝기 10-15% 이하)으로 설정해줘.`;
 }
 
+// ── 발라드 전용 사전 검증 곡 풀 ──────────────────────────────
+const BALLAD_POOL = [
+  { song: "좋은 날", artist: "아이유" },
+  { song: "밤편지", artist: "아이유" },
+  { song: "LILAC", artist: "아이유" },
+  { song: "나만 몰랐던 이야기", artist: "폴킴" },
+  { song: "너를 만나", artist: "폴킴" },
+  { song: "비도 오고 그래서", artist: "폴킴" },
+  { song: "취중고백", artist: "멜로망스" },
+  { song: "동이 틀 때까지", artist: "멜로망스" },
+  { song: "선물", artist: "멜로망스" },
+  { song: "하루도", artist: "이무진" },
+  { song: "신호등", artist: "이무진" },
+  { song: "어떻게 이별까지 사랑하겠어, 널 사랑하는 거지", artist: "이적" },
+  { song: "봄날", artist: "BTS" },
+  { song: "내 손을 잡아", artist: "버즈" },
+  { song: "먼지가 되어", artist: "버즈" },
+  { song: "그대라는 시", artist: "헤이즈" },
+  { song: "저 별", artist: "헤이즈" },
+  { song: "Happen", artist: "헤이즈" },
+  { song: "우주를 줄게", artist: "볼빨간사춘기" },
+  { song: "나비와 고양이", artist: "볼빨간사춘기" },
+  { song: "썸 탈꺼야", artist: "볼빨간사춘기" },
+  { song: "한 페이지가 될 수 있게", artist: "찬열, 펀치" },
+  { song: "숨", artist: "에릭남" },
+  { song: "다시 난, 여기", artist: "에릭남" },
+  { song: "있잖아", artist: "정승환" },
+  { song: "눈사람", artist: "정승환" },
+  { song: "오래된 노래", artist: "적재" },
+  { song: "별 보러 가자", artist: "적재" },
+  { song: "그리워서", artist: "규현" },
+  { song: "광화문에서", artist: "규현" },
+];
+
+function buildBalladPrompt(mood: string, listeningStyle: string): string {
+  const poolList = BALLAD_POOL
+    .map((t, i) => `${i + 1}. ${t.song} - ${t.artist}`)
+    .join("\n");
+
+  return `아래 발라드 곡 목록 중에서 사진, 기분, 상황에 가장 잘 어울리는 1곡을 골라 결과를 반환해줘.
+
+[사용자 취향]
+- 선호 장르: 발라드
+- 현재 기분: ${mood}
+- 상황: ${listeningStyle}
+
+[사진 분석]
+업로드된 사진들의 색감, 장소, 분위기, 감정을 참고해서 선택해줘.
+
+[발라드 곡 목록 — 반드시 이 중에서만 선택]
+${poolList}
+
+[선택 기준]
+- 사진의 분위기와 감정에 가장 잘 맞는 곡
+- 기분(${mood})과 상황(${listeningStyle})에 어울리는 곡
+- 뻔하지 않고 발견의 기쁨을 줄 수 있는 곡
+
+[기분별 방향]
+신나 → 에너지 넘치고 밝은 발라드
+설레 → 두근거리고 기대감 있는 곡
+여유로워 → 잔잔하고 편안한 곡
+복잡해 → 감정이 교차하는 묵직한 곡
+지쳐 → 위로가 되거나 감정에 공감해주는 곡
+
+[상황별 방향]
+출근/등교길 → 설레거나 활기찬 발라드
+작업/공부 → 가사가 잔잔하고 집중을 방해하지 않는 곡
+데이트 → 설레고 따뜻한 곡
+휴식 → 편안하게 흘러가는 발라드
+산책/드라이브 → 미디엄 템포, 감성적인 곡
+잠들기 전 → 조용하고 잔잔한 곡
+
+[응답 형식 - JSON만 반환, 다른 텍스트 없이]
+{
+  "song": "곡명 - 아티스트명",
+  "reason": "2-3문장. 사진에서 오늘의 이야기를 상상해서 짧은 스토리처럼 표현. 분석 리포트가 아닌 감성적이고 시적인 톤으로. 마지막 문장은 약간 신비롭거나 위트있게 마무리. 존댓말(~요체) 유지.",
+  "tags": [
+    "1번: 장르/서브장르 (예: 발라드, 인디팝 / 최대 6자, # 없이 텍스트만)",
+    "2번: 무드/감정 (예: 잔잔한, 따뜻한, 쓸쓸한, 설레는 / 최대 6자, # 없이 텍스트만)",
+    "3번: 상황/시간대 (예: 드라이브, 새벽, 출근길, 작업할때, 잠들기전, 산책 / 최대 6자, # 없이 텍스트만)"
+  ],
+  "emotions": {
+    "행복함": 0~100 숫자,
+    "설레임": 0~100 숫자,
+    "에너지": 0~100 숫자,
+    "특별함": 0~100 숫자
+  },
+  "hidden_emotion": "오늘의 숨은 감정 한 줄 (이모지 포함)",
+  "emotion_comment": "4개 감정 중 가장 높은 수치를 기반으로 사용자에게 말을 거는 느낌의 한 줄 코멘트. 존댓말(~요체), 따뜻하고 공감되는 톤, 20자 이내.",
+  "vibe_type": "이모지 + 오늘의 나를 표현하는 유형명 (10자 이내). 반드시 한글만 사용. 예: 🌙 새벽 감성러 / 🍃 조용한 관찰자",
+  "vibe_description": "오늘 나의 상황이나 감정을 20자 이내로 표현. 20대가 카톡 상태메시지에 쓸 법한 말투.",
+  "background": {
+    "from": "시작 hex 색상 (어두운 톤, 곡 분위기 반영)",
+    "to": "끝 hex 색상 (어두운 톤, 곡 분위기 반영)"
+  }
+}
+
+배경 색상 가이드:
+- 잔잔하고 감성적인 곡 → from: #0d1a10, to: #1a0d18
+- 설레는 곡 → from: #0d1218, to: #1a1408
+- 위로 발라드 → from: #1a0d0d, to: #0d0d1a
+반드시 어두운 톤(밝기 10-15% 이하)으로 설정해줘.`;
+}
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
@@ -401,6 +505,43 @@ export async function POST(req: NextRequest) {
 
     // Spotify 토큰 미리 발급
     const spotifyToken = await getSpotifyToken();
+
+    // ── 발라드 전용 경로: 사전 검증 풀에서 Claude가 직접 선택 ──
+    if (genre === "발라드") {
+      console.log("[analyze] 발라드 모드: 사전 검증 풀 사용");
+
+      const balladResponse = await withRetry(() => client.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 800,
+        messages: [{
+          role: "user",
+          content: [
+            ...imageBlocks,
+            { type: "text", text: buildBalladPrompt(mood, listeningStyle) },
+          ],
+        }],
+      }));
+
+      const balladText = balladResponse.content[0].type === "text" ? balladResponse.content[0].text : "";
+      const balladCleaned = balladText.replace(/```json\n?|\n?```/g, "").trim();
+      const result = JSON.parse(balladCleaned);
+
+      const selectedSong = (result.song as string).split(" - ")[0]?.trim() ?? result.song;
+      const selectedArtist = (result.song as string).split(" - ").slice(1).join(" - ").trim();
+      console.log("[analyze] 발라드 선택:", result.song);
+
+      // Spotify에서 trackId + albumArt 조회 (popularity 조건 없음 — 풀 자체가 검증됨)
+      let spotifyTrackId: string | null = null;
+      let albumArt: string | null = null;
+      if (spotifyToken) {
+        const found = await verifyCandidate(selectedSong, selectedArtist, spotifyToken, 0);
+        spotifyTrackId = found?.spotifyTrackId ?? null;
+        albumArt = found?.albumArt ?? null;
+        console.log("[analyze] 발라드 Spotify 조회:", spotifyTrackId ? "성공" : "실패");
+      }
+
+      return NextResponse.json({ ...result, spotifyTrackId, albumArt, isGenreDiscovery: false });
+    }
 
     // ── 1단계 + 2단계: 후보 생성 및 Spotify 검증 (최대 5회) ──
     const baseThreshold = getPopularityThreshold(genre);
