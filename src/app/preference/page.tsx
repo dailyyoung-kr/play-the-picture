@@ -8,11 +8,7 @@ const GENRES = ["발라드", "인디", "K-POP", "힙합/R&B", "팝", "재즈/어
 const MOODS = ["신나", "설레", "여유로워", "복잡해", "지쳐"];
 const LISTENING_STYLES = ["출근/등교길", "작업/공부", "데이트", "휴식", "산책/드라이브", "잠들기 전"];
 const EMOTION_LABELS = ["행복함", "설레임", "에너지", "특별함"];
-const SLOT_SONGS = [
-  "Blinding Lights", "좋은 날", "Dynamite",
-  "봄날", "Shape of You", "LILAC",
-  "Butter", "밤편지", "Stay", "Celebrity",
-];
+const WAVE_DELAYS = [0, 0.18, 0.36, 0.18, 0]; // 막대 5개 animation-delay
 
 export default function PreferencePage() {
   const router = useRouter();
@@ -29,9 +25,6 @@ export default function PreferencePage() {
   const [gaugeTargets, setGaugeTargets] = useState<number[]>([0, 0, 0, 0]);
   const [gaugeAnimated, setGaugeAnimated] = useState(false);
 
-  // 슬롯머신 상태
-  const [slotIndex, setSlotIndex] = useState(0);
-  const [slotStopped, setSlotStopped] = useState(false);
 
   useEffect(() => {
     if (!loading) {
@@ -78,47 +71,6 @@ export default function PreferencePage() {
       clearTimeout(t2);
     };
   }, [loading]);
-
-  // 슬롯머신 애니메이션 (3단계 진입 시)
-  useEffect(() => {
-    if (loadingPhase !== 2) {
-      setSlotIndex(0);
-      setSlotStopped(false);
-      return;
-    }
-
-    // 타이밍 스케줄: { delay(ms), count } 순서대로 실행
-    const schedule = [
-      { delay: 80,   count: 16 }, // 빠르게
-      { delay: 220,  count: 5  }, // 조금 느리게
-      { delay: 450,  count: 3  }, // 더 느리게
-      { delay: 750,  count: 2  }, // 훨씬 느리게
-      { delay: 1100, count: 1  }, // 거의 멈춤 직전
-    ];
-
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    let elapsed = 0;
-    let step = 0;
-
-    for (const { delay, count } of schedule) {
-      for (let i = 0; i < count; i++) {
-        elapsed += delay;
-        const s = step;
-        timers.push(
-          setTimeout(() => {
-            setSlotIndex((s + 1) % SLOT_SONGS.length);
-          }, elapsed)
-        );
-        step++;
-      }
-    }
-
-    // 최종 정지 → "?"
-    elapsed += 400;
-    timers.push(setTimeout(() => setSlotStopped(true), elapsed));
-
-    return () => timers.forEach(clearTimeout);
-  }, [loadingPhase]);
 
   const handleAnalyze = async () => {
     const photosRaw = localStorage.getItem("ptp_photos");
@@ -422,38 +374,28 @@ export default function PreferencePage() {
                 딱 맞는 한 곡을 찾고 있어요 🎵
               </p>
 
-              {/* 슬롯머신 */}
+              {/* 음악 파형 애니메이션 */}
               <div
                 style={{
-                  height: 40,
-                  overflow: "hidden",
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  marginTop: 22,
+                  gap: 4,
+                  marginTop: 24,
+                  height: 32,
                 }}
               >
-                {slotStopped ? (
-                  <span style={{ fontSize: 24, color: "#C4687A", fontWeight: "bold" }}>?</span>
-                ) : (
-                  <span style={{ fontSize: 18, color: "rgba(255,255,255,0.6)" }}>
-                    {SLOT_SONGS[slotIndex]}
-                  </span>
-                )}
+                {WAVE_DELAYS.map((delay, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      width: 4,
+                      borderRadius: 2,
+                      background: "#C4687A",
+                      animation: `wave 0.8s ease-in-out ${delay}s infinite alternate`,
+                    }}
+                  />
+                ))}
               </div>
-
-              <p
-                style={{
-                  fontSize: 13,
-                  textAlign: "center",
-                  marginTop: 8,
-                  color: "rgba(255,255,255,0.38)",
-                  opacity: slotStopped ? 1 : 0,
-                  transition: "opacity 0.5s ease",
-                }}
-              >
-                곧 알려드릴게요 ✦
-              </p>
             </>
           )}
         </div>
@@ -513,6 +455,7 @@ export default function PreferencePage() {
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+        @keyframes wave { from { height: 8px; } to { height: 32px; } }
       `}</style>
     </div>
   );
