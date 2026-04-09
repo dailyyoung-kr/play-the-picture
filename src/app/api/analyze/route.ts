@@ -172,12 +172,25 @@ function parseCandidates(text: string): { song: string; artist: string }[] {
 function buildCandidatePrompt(genre: string, mood: string, listeningStyle: string, attempt = 0): string {
   let retryPrefix = "";
   if (attempt === 1) {
-    retryPrefix = `앞서 추천한 곡들이 Spotify에서 검증되지 않았어요. 이번엔 반드시 아래 조건을 지켜줘:
+    if (genre === "발라드") {
+      retryPrefix = `발라드 장르에서 Spotify 검증이 실패했어요. 반드시 아래 조건을 지켜줘:
+- 아이유, 폴킴, 멜로망스, 이무진, 임재현, 권진아, 박효신, 이적, 성시경, 버즈, 10cm, 에릭남, 정승환, 조이, 헤이즈, 볼빨간사춘기, 태연, 윤종신, 규현, 적재, 첸, D.O 중에서만 선택
+- 해당 아티스트의 대표곡 또는 많이 알려진 곡으로
+- 앨범 수록곡보다 싱글이나 타이틀곡 우선
+- 완전히 다른 곡으로 다시 추천해줘\n\n`;
+    } else {
+      retryPrefix = `앞서 추천한 곡들이 Spotify에서 검증되지 않았어요. 이번엔 반드시 아래 조건을 지켜줘:
 - 월간 리스너 500만 이상의 검증된 아티스트 위주로 추천
 - Spotify에 확실히 존재하는 유명한 곡
-- 발라드라면 아이유, 폴킴, 멜로망스, 이무진, 박효신 등 확실히 알려진 아티스트 위주로
 - 완전히 다른 아티스트와 곡으로 다시 추천해줘\n\n`;
-  } else if (attempt >= 2) {
+    }
+  } else if (attempt === 2) {
+    if (genre === "발라드") {
+      retryPrefix = `위 아티스트 중 아이유, 폴킴, 멜로망스, 이무진만으로 제한해서 가장 유명한 곡으로 추천해줘. 이 4명의 아티스트 외 다른 아티스트는 절대 포함하지 말 것.\n\n`;
+    } else {
+      retryPrefix = `장르 제한을 완화해서 사진과 기분에 맞는 확실히 Spotify에 존재하는 곡으로 추천해줘. 월간 리스너 100만 이상의 유명 아티스트 곡으로만 추천해줘.\n\n`;
+    }
+  } else if (attempt >= 3) {
     retryPrefix = `장르 제한을 완화해서 사진과 기분에 맞는 확실히 Spotify에 존재하는 곡으로 추천해줘. 발라드가 아니어도 괜찮아. 월간 리스너 100만 이상의 유명 아티스트 곡으로만 추천해줘.\n\n`;
   }
 
