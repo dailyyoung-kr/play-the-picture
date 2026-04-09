@@ -58,6 +58,7 @@ export default function ResultPage() {
     youtubeFallback: string;
   } | null>(null);
   const [loadingLinks, setLoadingLinks] = useState(false);
+  const [modalIndex, setModalIndex] = useState<number | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const showToast = (msg: string) => {
@@ -240,6 +241,16 @@ export default function ResultPage() {
   };
 
   useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setModalIndex(null);
+      if (e.key === "ArrowRight") setModalIndex((i) => (i !== null && photos.length > 1 ? (i + 1) % photos.length : i));
+      if (e.key === "ArrowLeft") setModalIndex((i) => (i !== null && photos.length > 1 ? (i - 1 + photos.length) % photos.length : i));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [photos.length]);
+
+  useEffect(() => {
     const raw = localStorage.getItem("ptp_result");
     const photosRaw = localStorage.getItem("ptp_photos");
     if (raw) {
@@ -350,25 +361,34 @@ export default function ResultPage() {
                   : { gap: 8, justifyContent: count === 1 ? "center" : "center" }
               }
             >
-              {displayItems.map((src, i) => (
-                <div
-                  key={i}
-                  style={{
-                    width: slotW,
-                    height: slotH,
-                    borderRadius: 10,
-                    border: "1.5px solid rgba(255,255,255,0.2)",
-                    flexShrink: 0,
-                    overflow: "hidden",
-                    background: typeof src === "string" && src.startsWith("data:") ? undefined : PHOTO_COLORS[i % PHOTO_COLORS.length],
-                  }}
-                >
-                  {typeof src === "string" && src.startsWith("data:") && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={src} alt={`사진 ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  )}
-                </div>
-              ))}
+              {displayItems.map((src, i) => {
+                const isPhoto = typeof src === "string" && src.startsWith("data:");
+                return (
+                  <div
+                    key={i}
+                    role={isPhoto ? "button" : undefined}
+                    tabIndex={isPhoto ? 0 : undefined}
+                    onClick={() => isPhoto && setModalIndex(i)}
+                    onTouchEnd={(e) => { if (isPhoto) { e.preventDefault(); setModalIndex(i); } }}
+                    style={{
+                      width: slotW,
+                      height: slotH,
+                      borderRadius: 10,
+                      border: "1.5px solid rgba(255,255,255,0.2)",
+                      flexShrink: 0,
+                      overflow: "hidden",
+                      background: isPhoto ? undefined : PHOTO_COLORS[i % PHOTO_COLORS.length],
+                      cursor: isPhoto ? "pointer" : "default",
+                      WebkitTapHighlightColor: "transparent",
+                    }}
+                  >
+                    {isPhoto && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={src} alt={`사진 ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none", display: "block" }} />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           );
         })()}
@@ -789,6 +809,100 @@ export default function ResultPage() {
         </div>
       </div>
     </div>
+
+    {/* 사진 확대 모달 */}
+    {modalIndex !== null && photos[modalIndex] && (
+      <div
+        style={{
+          position: "fixed", inset: 0,
+          background: "rgba(0,0,0,0.9)",
+          zIndex: 200,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          animation: "fadeIn 0.2s ease",
+        }}
+        onClick={() => setModalIndex(null)}
+      >
+        {/* 닫기 버튼 */}
+        <button
+          onClick={() => setModalIndex(null)}
+          style={{
+            position: "absolute", top: 20, right: 20,
+            background: "rgba(255,255,255,0.15)",
+            border: "none", borderRadius: "50%",
+            width: 40, height: 40,
+            fontSize: 20, color: "#fff",
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 201,
+          }}
+        >
+          ✕
+        </button>
+
+        {/* 이미지 */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={photos[modalIndex]}
+          alt={`사진 ${modalIndex + 1}`}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            maxWidth: "100%",
+            maxHeight: "90vh",
+            objectFit: "contain",
+            borderRadius: 8,
+            userSelect: "none",
+          }}
+        />
+
+        {/* 이전 화살표 */}
+        {photos.length > 1 && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setModalIndex((i) => i !== null ? (i - 1 + photos.length) % photos.length : 0); }}
+            style={{
+              position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)",
+              background: "rgba(255,255,255,0.15)",
+              border: "none", borderRadius: "50%",
+              width: 44, height: 44,
+              fontSize: 22, color: "#fff",
+              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            ‹
+          </button>
+        )}
+
+        {/* 다음 화살표 */}
+        {photos.length > 1 && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setModalIndex((i) => i !== null ? (i + 1) % photos.length : 0); }}
+            style={{
+              position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)",
+              background: "rgba(255,255,255,0.15)",
+              border: "none", borderRadius: "50%",
+              width: 44, height: 44,
+              fontSize: 22, color: "#fff",
+              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            ›
+          </button>
+        )}
+
+        {/* N/M 카운터 */}
+        {photos.length > 1 && (
+          <div style={{
+            position: "absolute", bottom: 24,
+            left: "50%", transform: "translateX(-50%)",
+            background: "rgba(0,0,0,0.55)",
+            borderRadius: 20, padding: "5px 16px",
+            fontSize: 13, color: "rgba(255,255,255,0.8)",
+          }}>
+            {modalIndex + 1} / {photos.length}
+          </div>
+        )}
+
+        <style>{`@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }`}</style>
+      </div>
+    )}
     </div>
   );
 }
