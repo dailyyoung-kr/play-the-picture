@@ -181,7 +181,15 @@ function buildCandidatePrompt(genre: string, mood: string, listeningStyle: strin
     retryPrefix = `장르 제한을 완화해서 사진과 기분에 맞는 확실히 Spotify에 존재하는 곡으로 추천해줘. 발라드가 아니어도 괜찮아. 월간 리스너 100만 이상의 유명 아티스트 곡으로만 추천해줘.\n\n`;
   }
 
-  return `${retryPrefix}다음 정보를 종합해서 Spotify에 실제 존재하는 노래 후보 6곡을 추천해줘.
+  const balladArtistSection = genre === "발라드" ? `
+[발라드 아티스트 목록 — 이 목록에서만 선택할 것]
+아이유, 폴킴, 멜로망스, 이무진, 임재현, 권진아,
+박효신, 이적, 성시경, 버즈, 10cm, 에릭남,
+정승환, 조이, 헤이즈, 볼빨간사춘기, 태연, 윤종신, 규현, 적재, 첸, D.O
+위 아티스트 외 다른 아티스트는 절대 추천하지 말 것.
+` : "";
+
+  return `${retryPrefix}다음 정보를 종합해서 Spotify에 실제 존재하는 노래 후보 6곡을 추천해줘.${balladArtistSection}
 
 [타겟 사용자]
 추천 대상은 20대 한국 사용자예요.
@@ -197,7 +205,7 @@ function buildCandidatePrompt(genre: string, mood: string, listeningStyle: strin
 - 상황: ${listeningStyle}
 
 [장르별 추천 방향]
-발라드 → 반드시 한국어 가사의 서정적인 발라드만 추천. 외국 발라드는 절대 제외. 6곡 모두 한국어 발라드로만 구성. Spotify에 실제 존재하는 곡만.
+발라드 → 반드시 아래 [발라드 아티스트 목록] 안의 아티스트 곡만 추천. 외국 발라드 절대 제외. 6곡 모두 목록 내 한국어 발라드로만 구성. 아티스트는 목록에서 고르되 곡은 사진/기분/상황에 맞게 자유롭게 선택.
 인디 → 한국 인디 중심. 날것의 감성, 덜 알려진 곡도 포함. 한국 곡 위주.
 K-POP → 타이틀곡 50% + 수록곡/B사이드 50% 비율로 믹스. 잘 알려진 곡과 숨은 명곡 균형있게. 중소형 아티스트 포함.
 힙합/R&B → 한국/글로벌 구분 없이. 다양한 스타일 자유롭게. 한국 곡 60% 권장.
