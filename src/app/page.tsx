@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bookmark, SlidersHorizontal } from "lucide-react";
+import { Bookmark, Music } from "lucide-react";
 
 // 사진을 800px 이하로 압축해서 base64로 변환
 function compressImage(file: File): Promise<string> {
@@ -246,18 +246,14 @@ export default function UploadPage() {
       </div>
 
       {/* 하단 네비게이션 */}
-      <div style={{ background: "rgba(0,0,0,0.45)", borderTop: "0.5px solid rgba(255,255,255,0.08)", display: "flex", padding: "12px 0 28px" }}>
-        <div className="flex-1 flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", cursor: "pointer" }} onClick={() => router.push("/journal")}>
+      <div style={{ background: "rgba(0,0,0,0.45)", borderTop: "0.5px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-around", padding: "12px 0 28px" }}>
+        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", cursor: "pointer" }} onClick={() => router.push("/journal")}>
           <Bookmark size={22} strokeWidth={1.5} />
-          ARCHIVE
+          보관함
         </div>
-        <div className="flex-1 flex flex-col items-center gap-1" style={{ fontSize: 10, color: "#fff", cursor: "pointer" }} onClick={() => router.push("/")}>
-          <div style={{ width: 38, height: 38, background: "#C4687A", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#fff", marginTop: -8 }}>+</div>
-          UPLOAD
-        </div>
-        <div className="flex-1 flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", cursor: "pointer" }} onClick={() => router.push("/")}>
-          <SlidersHorizontal size={22} strokeWidth={1.5} />
-          SETTINGS
+        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "#fff", cursor: "pointer" }} onClick={() => router.push("/")}>
+          <Music size={22} strokeWidth={1.5} />
+          노래 추천받기
         </div>
       </div>
     </div>
