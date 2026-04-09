@@ -24,20 +24,11 @@ export const metadata: Metadata = {
     description: "오늘 찍은 사진으로 AI가 딱 맞는 한 곡을 추천해드려요 🎵",
     url: "https://play-the-picture.vercel.app",
     type: "website",
-    images: [
-      {
-        url: "https://play-the-picture.vercel.app/api/og/default",
-        width: 1200,
-        height: 630,
-        alt: "플더픽 — 사진으로 지금 딱 맞는 노래 찾기",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "플더픽 — 사진으로 지금 딱 맞는 노래 찾기",
     description: "오늘 찍은 사진으로 AI가 딱 맞는 한 곡을 추천해드려요 🎵",
-    images: ["https://play-the-picture.vercel.app/api/og/default"],
   },
 };
 
