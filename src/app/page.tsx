@@ -137,53 +137,53 @@ export default function UploadPage() {
           </span>
         </div>
 
-        {/* 사진 슬롯 — 5개 고정 표시 */}
+        {/* 사진 슬롯 — 사진 썸네일 + + 슬롯 1개 */}
         <div style={{ display: "flex", flexDirection: "row", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-          {Array.from({ length: maxPhotos }).map((_, i) => {
-            const src = photos[i];
-            const isFilled = !!src;
-            return (
-              <div
-                key={i}
+          {photos.map((src, i) => (
+            <div
+              key={i}
+              style={{
+                width: 80, height: 100, borderRadius: 10,
+                overflow: "hidden", position: "relative", flexShrink: 0,
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt={`사진 ${i + 1}`}
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+              />
+              <button
+                onClick={() => removePhoto(i)}
                 style={{
-                  width: 80, height: 100, borderRadius: 10,
-                  overflow: "hidden", position: "relative", flexShrink: 0,
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  background: "rgba(255,255,255,0.04)",
-                  opacity: isFilled ? 1 : 0.3,
-                  cursor: isFilled ? "default" : "pointer",
+                  position: "absolute", top: 5, right: 5,
+                  width: 18, height: 18,
+                  background: "rgba(0,0,0,0.6)", borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 9, color: "#fff", cursor: "pointer", border: "none",
                 }}
-                onClick={() => { if (!isFilled) fileInputRef.current?.click(); }}
               >
-                {isFilled ? (
-                  <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={src}
-                      alt={`사진 ${i + 1}`}
-                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                    />
-                    <button
-                      onClick={(e) => { e.stopPropagation(); removePhoto(i); }}
-                      style={{
-                        position: "absolute", top: 5, right: 5,
-                        width: 18, height: 18,
-                        background: "rgba(0,0,0,0.6)", borderRadius: "50%",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 9, color: "#fff", cursor: "pointer", border: "none",
-                      }}
-                    >
-                      ✕
-                    </button>
-                  </>
-                ) : (
-                  <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "rgba(255,255,255,0.5)" }}>
-                    +
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                ✕
+              </button>
+            </div>
+          ))}
+
+          {/* + 슬롯 (5장 미만일 때만) */}
+          {photos.length < maxPhotos && (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                width: 80, height: 100, borderRadius: 10, flexShrink: 0,
+                border: "1px solid rgba(255,255,255,0.15)",
+                background: "rgba(255,255,255,0.04)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 18, color: "rgba(255,255,255,0.3)",
+                cursor: "pointer",
+              }}
+            >
+              +
+            </button>
+          )}
         </div>
 
         {/* 안내 문구 */}
