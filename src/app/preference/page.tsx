@@ -77,7 +77,7 @@ export default function PreferencePage() {
       </div>
 
       <p className="text-center mb-5" style={{ fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
-        조금만 더 알려주면 딱 맞는 노래를 찾아줄게
+        조금만 더 알려주시면 딱 맞는 노래를 찾아드릴게요
       </p>
 
       <div className="flex-1 flex flex-col px-5 overflow-y-auto">
@@ -111,7 +111,7 @@ export default function PreferencePage() {
         {/* 카드 2: 기분 */}
         <div className="mb-3 p-4" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14 }}>
           <p className="mb-3 font-medium" style={{ fontSize: 13, color: "rgba(255,255,255,0.90)" }}>
-            🌤 지금 이 순간 기분이 어때?
+            🌤️ 지금 이 순간 기분이 어때요?
           </p>
           <div className="flex flex-wrap gap-2">
             {MOODS.map((mood) => (
@@ -137,7 +137,7 @@ export default function PreferencePage() {
         {/* 카드 3: 듣는 방식 */}
         <div className="mb-3 p-4" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14 }}>
           <p className="mb-3 font-medium" style={{ fontSize: 13, color: "rgba(255,255,255,0.90)" }}>
-            🎵 지금 뭐 하면서 들을 거야?
+            🎵 지금 뭐 하면서 들을 거예요?
           </p>
           <div className="flex flex-wrap gap-2">
             {LISTENING_STYLES.map((style) => (
@@ -213,7 +213,7 @@ export default function PreferencePage() {
           )}
         </button>
         <p className="text-center mb-2" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)" }}>
-          사진 속 감정을 읽어 노래를 찾아드려요
+          플더픽이 오늘의 한 곡을 찾아드릴게요
         </p>
       </div>
 

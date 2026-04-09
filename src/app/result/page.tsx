@@ -125,8 +125,8 @@ export default function ResultPage() {
       if (navigator.share) {
         try {
           await navigator.share({
-            title: "Play the Picture",
-            text: `${songName} — ${artistName}`,
+            title: "플더픽 — 사진으로 지금 딱 맞는 노래 찾기",
+            text: "플더픽으로 오늘의 사진에 딱 맞는 노래를 추천받았어요 🎵",
             url,
           });
           return; // 성공 시 종료
@@ -514,7 +514,7 @@ export default function ResultPage() {
             textAlign: "center",
           }}
         >
-          다른 사진으로 다시 해보기
+          다른 사진으로 다시 해볼게요
         </button>
       </div>
 
@@ -567,7 +567,7 @@ export default function ResultPage() {
               <div style={{ width: 36, height: 4, background: "rgba(255,255,255,0.25)", borderRadius: 2, margin: "0 auto 20px" }} />
 
               <p className="font-medium text-center" style={{ fontSize: 16, color: "#fff", marginBottom: 10 }}>
-                어디서 들을까?
+                어디서 들을까요?
               </p>
 
               <div className="flex justify-center mb-5">
