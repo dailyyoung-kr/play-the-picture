@@ -33,11 +33,12 @@ export default function PreferencePage() {
     setDots(0);
 
     const textTimer = setInterval(() => {
-      setLoadingTextVisible(false);
-      setTimeout(() => {
-        setLoadingTextIndex((i) => (i + 1) % LOADING_TEXTS.length);
-        setLoadingTextVisible(true);
-      }, 500);
+      setLoadingTextIndex((i) => {
+        if (i >= LOADING_TEXTS.length - 1) return i; // 마지막에서 멈춤
+        setLoadingTextVisible(false);
+        setTimeout(() => setLoadingTextVisible(true), 500);
+        return i + 1;
+      });
     }, 2000);
 
     const dotsTimer = setInterval(() => {
@@ -267,7 +268,10 @@ export default function PreferencePage() {
             zIndex: 50,
           }}
         >
-          <div style={{ fontSize: 40 }}>✦</div>
+          <div style={{
+            fontSize: 40,
+            animation: loadingTextIndex === LOADING_TEXTS.length - 1 ? "pulse 1s ease-in-out infinite" : "spin 1s linear infinite",
+          }}>✦</div>
           <p style={{ color: "#fff", fontSize: 16, fontWeight: 500 }}>
             분위기 분석 중{".".repeat(dots)}
           </p>
@@ -308,6 +312,7 @@ export default function PreferencePage() {
 
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
       `}</style>
     </div>
   );

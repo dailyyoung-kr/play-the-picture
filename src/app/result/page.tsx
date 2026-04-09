@@ -125,7 +125,7 @@ export default function ResultPage() {
       if (navigator.share) {
         try {
           await navigator.share({
-            title: "플더픽 — 사진으로 사진으로 분석한 나의 음악 취향 찾기",
+            title: "플더픽 — 사진으로 사진으로 분석한 내 음악 스타일 찾기",
             text: "플더픽으로 오늘의 사진에 딱 맞는 노래를 추천받았어요 🎵",
             url,
           });
@@ -401,7 +401,7 @@ export default function ResultPage() {
         {/* 감정 분석 카드 */}
         <div className="mb-3 p-4" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 12 }}>
           <p className="mb-4" style={{ fontSize: 11, color: "rgba(255,255,255,0.38)" }}>
-            ✦ 사진 분위기 분석
+            ✦ 사진 분위기
           </p>
 
           <div
@@ -435,9 +435,9 @@ export default function ResultPage() {
             })}
           </div>
 
-          {/* 사진으로 분석한 나의 음악 취향 */}
+          {/* 사진으로 분석한 내 음악 스타일 */}
           <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 12px" }}>
-            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.40)", marginBottom: 6 }}>사진으로 분석한 나의 음악 취향</p>
+            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.40)", marginBottom: 6 }}>사진으로 분석한 내 음악 스타일</p>
             <p className="font-medium" style={{ fontSize: 15, color: "#a0f0b0", marginBottom: 4 }}>
               {result.vibe_type ?? result.hidden_emotion}
             </p>

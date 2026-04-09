@@ -202,7 +202,7 @@ export default function ShareClient({ id }: { id: string }) {
           </div>
 
           <div className="mb-3 p-4" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 12 }}>
-            <p className="mb-4" style={{ fontSize: 11, color: "rgba(255,255,255,0.38)" }}>✦ 사진 분위기 분석</p>
+            <p className="mb-4" style={{ fontSize: 11, color: "rgba(255,255,255,0.38)" }}>✦ 사진 분위기</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
               {EMOTION_LABELS.map(({ key, emoji, label, color }) => {
                 const pct = (entry.emotions as Record<string, number>)[key] ?? 0;
@@ -221,7 +221,7 @@ export default function ShareClient({ id }: { id: string }) {
             </div>
             {entry.vibe_type && (
               <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 12px" }}>
-                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.40)", marginBottom: 6 }}>사진으로 분석한 나의 음악 취향</p>
+                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.40)", marginBottom: 6 }}>사진으로 분석한 내 음악 스타일</p>
                 <p className="font-medium" style={{ fontSize: 15, color: "#a0f0b0", marginBottom: 4 }}>{entry.vibe_type}</p>
                 {entry.vibe_description && <p style={{ fontSize: 11, color: "rgba(255,255,255,0.50)" }}>{entry.vibe_description}</p>}
               </div>
