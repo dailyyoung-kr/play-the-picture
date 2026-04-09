@@ -25,21 +25,79 @@ export async function GET(req: NextRequest) {
     const song = data?.song ?? "오늘의 추천곡";
     const artist = data?.artist ?? "";
     const albumArt: string | null = data?.album_art ?? null;
-    const photos: string[] = (data?.photos ?? []).slice(0, 2);
+    const photos: string[] = data?.photos ?? [];
+
+    // 사진 레이아웃 계산
+    const count = photos.length;
+    // 사진 영역: 좌측 530px, 우측 530px, 여백 각 35px
+    const photoAreaW = 490;
+    const photoAreaH = 430;
+
+    // count별 사진 크기/위치 계산
+    type PhotoLayout = { src: string; x: number; y: number; w: number; h: number }[];
+
+    function getPhotoLayout(): PhotoLayout {
+      if (count === 0) return [];
+
+      const gap = 10;
+
+      if (count === 1) {
+        return [{ src: photos[0], x: 0, y: 0, w: photoAreaW, h: photoAreaH }];
+      }
+
+      if (count === 2) {
+        const w = (photoAreaW - gap) / 2;
+        return [
+          { src: photos[0], x: 0, y: 0, w, h: photoAreaH },
+          { src: photos[1], x: w + gap, y: 0, w, h: photoAreaH },
+        ];
+      }
+
+      if (count === 3) {
+        const topW = (photoAreaW - gap) / 2;
+        const topH = (photoAreaH - gap) / 2;
+        const botW = photoAreaW;
+        const botH = topH;
+        return [
+          { src: photos[0], x: 0, y: 0, w: topW, h: topH },
+          { src: photos[1], x: topW + gap, y: 0, w: topW, h: topH },
+          { src: photos[2], x: 0, y: topH + gap, w: botW, h: botH },
+        ];
+      }
+
+      // 4~5장: 첫 줄 2개 + 둘째 줄 나머지
+      const topH = (photoAreaH - gap) / 2;
+      const botH = topH;
+      const topW = (photoAreaW - gap) / 2;
+      const rest = photos.slice(2);
+      const botCount = rest.length;
+      const botW = botCount === 1 ? photoAreaW : botCount === 2 ? (photoAreaW - gap) / 2 : (photoAreaW - gap * 2) / 3;
+
+      const layout: PhotoLayout = [
+        { src: photos[0], x: 0, y: 0, w: topW, h: topH },
+        { src: photos[1], x: topW + gap, y: 0, w: topW, h: topH },
+      ];
+      rest.forEach((src, i) => {
+        layout.push({ src, x: i * (botW + gap), y: topH + gap, w: botW, h: botH });
+      });
+      return layout;
+    }
+
+    const photoLayout = getPhotoLayout();
 
     return new ImageResponse(
       (
         <div
           style={{
-            width: "100%",
-            height: "100%",
+            width: 1200,
+            height: 630,
             display: "flex",
-            background: "#0d1218",
             position: "relative",
             overflow: "hidden",
+            background: "#0d1218",
           }}
         >
-          {/* 앨범아트 배경 (저투명도) */}
+          {/* 배경: 앨범아트 블러 */}
           {albumArt && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -51,129 +109,124 @@ export async function GET(req: NextRequest) {
                 width: "100%",
                 height: "100%",
                 objectFit: "cover",
-                opacity: 0.18,
+                filter: "blur(40px)",
+                transform: "scale(1.15)",
               }}
             />
           )}
 
-          {/* 다크 그라디언트 오버레이 */}
+          {/* 어두운 오버레이 */}
           <div
             style={{
               position: "absolute",
               inset: "0",
-              background:
-                "linear-gradient(to right, rgba(13,18,24,0.96) 0%, rgba(13,18,24,0.75) 60%, rgba(13,18,24,0.55) 100%)",
+              background: "rgba(0,0,0,0.55)",
               display: "flex",
             }}
           />
 
-          {/* 콘텐츠 레이어 */}
+          {/* 전체 콘텐츠 레이어 */}
           <div
             style={{
               position: "absolute",
               inset: "0",
               display: "flex",
               flexDirection: "column",
-              padding: "56px 64px",
+              padding: "44px 52px",
             }}
           >
-            {/* 로고 */}
+            {/* 상단 로고 */}
             <div
               style={{
                 color: "#C4687A",
                 fontSize: 18,
-                letterSpacing: "0.2em",
-                marginBottom: "auto",
+                letterSpacing: "0.15em",
+                marginBottom: 36,
               }}
             >
               Play the Picture
             </div>
 
-            {/* 메인 콘텐츠 (하단) */}
+            {/* 메인 영역: 좌(사진) + 우(곡 정보) */}
             <div
               style={{
                 display: "flex",
-                alignItems: "flex-end",
-                gap: 48,
+                flex: 1,
+                gap: 56,
+                alignItems: "center",
               }}
             >
-              {/* 사진 (업로드된 경우) */}
-              {photos.length > 0 && (
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 12,
-                    flexShrink: 0,
-                  }}
-                >
-                  {photos.map((photo, i) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={i}
-                      src={photo}
-                      alt=""
-                      style={{
-                        width: 180,
-                        height: 224,
-                        objectFit: "cover",
-                        borderRadius: 12,
-                        border: "1.5px solid rgba(255,255,255,0.2)",
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* 곡 정보 */}
+              {/* 좌측: 사진 영역 */}
               <div
                 style={{
+                  width: 490,
+                  height: 430,
+                  flexShrink: 0,
+                  position: "relative",
                   display: "flex",
-                  flexDirection: "column",
-                  gap: 10,
-                  flex: 1,
                 }}
               >
-                {/* 앨범아트 썸네일 */}
-                {albumArt && (
+                {photoLayout.map((p, i) => (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={albumArt}
+                    key={i}
+                    src={p.src}
                     alt=""
                     style={{
-                      width: 72,
-                      height: 72,
-                      borderRadius: 8,
+                      position: "absolute",
+                      left: p.x,
+                      top: p.y,
+                      width: p.w,
+                      height: p.h,
                       objectFit: "cover",
-                      marginBottom: 8,
+                      borderRadius: 8,
+                      border: "1.5px solid rgba(255,255,255,0.2)",
+                    }}
+                  />
+                ))}
+                {/* 사진이 없을 때 빈 플레이스홀더 */}
+                {count === 0 && (
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      borderRadius: 8,
+                      background: "rgba(255,255,255,0.06)",
+                      border: "1.5px solid rgba(255,255,255,0.12)",
+                      display: "flex",
                     }}
                   />
                 )}
+              </div>
+
+              {/* 우측: 곡 정보 */}
+              <div
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                }}
+              >
                 <div
                   style={{
                     color: "#fff",
-                    fontSize: photos.length > 0 ? 48 : 60,
+                    fontSize: 52,
                     fontWeight: 700,
-                    lineHeight: 1.15,
+                    lineHeight: 1.2,
+                    letterSpacing: "-0.5px",
                   }}
                 >
                   {song}
                 </div>
                 <div
                   style={{
-                    color: "rgba(255,255,255,0.55)",
-                    fontSize: 26,
+                    color: "rgba(255,255,255,0.7)",
+                    fontSize: 28,
+                    marginTop: 12,
                   }}
                 >
                   {artist}
-                </div>
-                <div
-                  style={{
-                    color: "rgba(255,255,255,0.28)",
-                    fontSize: 17,
-                    marginTop: 6,
-                  }}
-                >
-                  플더픽에서 사진으로 추천받은 노래
                 </div>
               </div>
             </div>
