@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
-import { Noto_Sans_KR } from "next/font/google";
+import { Noto_Sans_KR, DM_Sans } from "next/font/google";
 import "./globals.css";
 
 const notoSansKR = Noto_Sans_KR({
   weight: ["400", "500", "600"],
   subsets: ["latin"],
   variable: "--font-noto-sans-kr",
+});
+
+const dmSans = DM_Sans({
+  weight: ["300"],
+  subsets: ["latin"],
+  variable: "--font-dm-sans",
 });
 
 export const metadata: Metadata = {
@@ -30,7 +36,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className={`${notoSansKR.variable} h-full`}>
+    <html lang="ko" className={`${notoSansKR.variable} ${dmSans.variable} h-full`}>
       <body className="min-h-full font-sans">{children}</body>
     </html>
   );

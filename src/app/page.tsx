@@ -81,9 +81,9 @@ export default function UploadPage() {
       {/* 상단 앱 이름 */}
       <div
         className="text-center pt-12 pb-7"
-        style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(255,255,255,0.28)" }}
+        style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(255,255,255,0.28)", fontFamily: "var(--font-dm-sans)", fontWeight: 300 }}
       >
-        PLAY THE PICTURE
+        Play the Picture
       </div>
 
       {/* 본문 */}
