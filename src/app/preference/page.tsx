@@ -6,13 +6,13 @@ import { Archive, Music } from "lucide-react";
 
 const GENRES = ["발라드", "인디", "K-POP", "힙합/R&B", "팝", "재즈/어쿠스틱", "장르 발견하기"];
 const MOODS = ["신나", "설레", "여유로워", "복잡해", "지쳐"];
-const LISTENING_STYLES = ["혼자", "친한 친구와", "사랑하는 사람과", "새로운 사람과"];
+const LISTENING_STYLES = ["출근/등교", "작업/공부", "퇴근/집가는 길", "휴식", "산책/드라이브", "잠들기 전"];
 
 export default function PreferencePage() {
   const router = useRouter();
   const [selectedGenre, setSelectedGenre] = useState("발라드");
   const [selectedMood, setSelectedMood] = useState("신나");
-  const [selectedStyle, setSelectedStyle] = useState("혼자");
+  const [selectedStyle, setSelectedStyle] = useState("출근/등교");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -137,7 +137,7 @@ export default function PreferencePage() {
         {/* 카드 3: 듣는 방식 */}
         <div className="mb-3 p-4" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14 }}>
           <p className="mb-3 font-medium" style={{ fontSize: 13, color: "rgba(255,255,255,0.90)" }}>
-            🎧 지금 누구와 같이 듣고 있어?
+            🎧 지금 뭐 하면서 들을 거야?
           </p>
           <div className="flex flex-col gap-2">
             {LISTENING_STYLES.map((style) => {
