@@ -358,7 +358,7 @@ export default function ResultPage() {
         })()}
 
         {/* 노래 정보 */}
-        <div className="text-center mb-4">
+        <div className="text-center mb-4" style={{ position: "relative", zIndex: 2 }}>
           {/* 장르 발견하기 배지 */}
           {result.isGenreDiscovery && (
             <div className="flex justify-center" style={{ marginBottom: 8 }}>
@@ -402,7 +402,7 @@ export default function ResultPage() {
         </div>
 
         {/* 감정 분석 카드 */}
-        <div className="mb-3 p-4" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 12 }}>
+        <div className="mb-3 p-4" style={{ background: "rgba(13,18,24,0.85)", borderRadius: 12, position: "relative", zIndex: 2, isolation: "isolate" }}>
           <p className="mb-4" style={{ fontSize: 11, color: "rgba(255,255,255,0.38)" }}>
             ✦ 사진 분위기
           </p>
