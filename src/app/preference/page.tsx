@@ -7,6 +7,7 @@ import { Archive, Music } from "lucide-react";
 const GENRES = ["발라드", "인디", "K-POP", "힙합/R&B", "팝", "재즈/어쿠스틱", "장르 발견하기"];
 const MOODS = ["신나", "설레", "여유로워", "복잡해", "지쳐"];
 const LISTENING_STYLES = ["출근/등교길", "작업/공부", "데이트", "휴식", "산책/드라이브", "잠들기 전"];
+const EMOTION_LABELS = ["행복함", "설레임", "에너지", "특별함"];
 
 export default function PreferencePage() {
   const router = useRouter();
@@ -15,41 +16,58 @@ export default function PreferencePage() {
   const [selectedStyle, setSelectedStyle] = useState("출근/등교길");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [loadingTextIndex, setLoadingTextIndex] = useState(0);
-  const [loadingTextVisible, setLoadingTextVisible] = useState(true);
-  const [dots, setDots] = useState(0);
 
-  const LOADING_TEXTS = [
-    "사진 속 감정을 읽고 있어요",
-    "오늘의 분위기를 분석하고 있어요",
-    "딱 맞는 한 곡을 찾고 있어요",
-    "거의 다 됐어요 ✦",
-  ];
+  // 3단계 로딩 상태
+  const [loadingPhase, setLoadingPhase] = useState(0); // 0 | 1 | 2
+  const [loadingPhotos, setLoadingPhotos] = useState<string[]>([]);
+  const [photosFadeIn, setPhotosFadeIn] = useState(false);
+  const [gaugeTargets, setGaugeTargets] = useState<number[]>([0, 0, 0, 0]);
+  const [gaugeAnimated, setGaugeAnimated] = useState(false);
 
   useEffect(() => {
-    if (!loading) return;
-    setLoadingTextIndex(0);
-    setLoadingTextVisible(true);
-    setDots(0);
+    if (!loading) {
+      setLoadingPhase(0);
+      setPhotosFadeIn(false);
+      setGaugeAnimated(false);
+      return;
+    }
 
-    const textTimer = setInterval(() => {
-      setLoadingTextIndex((i) => {
-        if (i >= LOADING_TEXTS.length - 1) return i; // 마지막에서 멈춤
-        setLoadingTextVisible(false);
-        setTimeout(() => setLoadingTextVisible(true), 500);
-        return i + 1;
-      });
-    }, 2000);
+    // 사진 불러오기
+    const photosRaw = localStorage.getItem("ptp_photos");
+    const photos: string[] = photosRaw ? JSON.parse(photosRaw) : [];
+    setLoadingPhotos(photos.slice(0, 3));
 
-    const dotsTimer = setInterval(() => {
-      setDots((d) => (d + 1) % 4);
-    }, 500);
+    // 랜덤 게이지 값 생성
+    setGaugeTargets([
+      Math.floor(Math.random() * 28) + 52,
+      Math.floor(Math.random() * 30) + 44,
+      Math.floor(Math.random() * 32) + 38,
+      Math.floor(Math.random() * 26) + 54,
+    ]);
+
+    setLoadingPhase(0);
+    setPhotosFadeIn(false);
+    setGaugeAnimated(false);
+
+    // 사진 fade-in 시작
+    const tFade = setTimeout(() => setPhotosFadeIn(true), 150);
+
+    // 1단계 → 2단계 (3초)
+    const t1 = setTimeout(() => {
+      setLoadingPhase(1);
+      setTimeout(() => setGaugeAnimated(true), 120);
+    }, 3000);
+
+    // 2단계 → 3단계 (6초)
+    const t2 = setTimeout(() => {
+      setLoadingPhase(2);
+    }, 6000);
 
     return () => {
-      clearInterval(textTimer);
-      clearInterval(dotsTimer);
+      clearTimeout(tFade);
+      clearTimeout(t1);
+      clearTimeout(t2);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
   const handleAnalyze = async () => {
@@ -253,48 +271,111 @@ export default function PreferencePage() {
         </p>
       </div>
 
-      {/* 로딩 오버레이 */}
+      {/* 로딩 오버레이 — 3단계 스토리텔링 */}
       {loading && !error && (
         <div
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(13,18,24,0.85)",
+            background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 55%, #1a1408 100%)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            gap: 16,
             zIndex: 50,
+            padding: "0 36px",
           }}
         >
-          <div style={{
-            fontSize: 40,
-            animation: loadingTextIndex === LOADING_TEXTS.length - 1 ? "pulse 1s ease-in-out infinite" : "spin 1s linear infinite",
-          }}>✦</div>
-          <p style={{ color: "#fff", fontSize: 16, fontWeight: 500 }}>
-            분위기 분석 중{".".repeat(dots)}
-          </p>
-          <div style={{ height: 24, position: "relative", width: "100%", textAlign: "center", overflow: "hidden" }}>
-            {LOADING_TEXTS.map((text, i) => (
-              <p
-                key={i}
+          {/* ── 1단계: 사진 분석 중 ── */}
+          {loadingPhase === 0 && (
+            <>
+              <div style={{ display: "flex", gap: 10, marginBottom: 36 }}>
+                {loadingPhotos.map((src, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={i}
+                    src={src}
+                    alt=""
+                    style={{
+                      width: 88,
+                      height: 110,
+                      objectFit: "cover",
+                      borderRadius: 10,
+                      border: "1.5px solid rgba(255,255,255,0.18)",
+                      opacity: photosFadeIn ? 1.0 : 0.35,
+                      transition: "opacity 2.6s ease",
+                    }}
+                  />
+                ))}
+                {/* 사진이 없으면 플레이스홀더 */}
+                {loadingPhotos.length === 0 && (
+                  <div style={{
+                    width: 88, height: 110, borderRadius: 10,
+                    background: "rgba(255,255,255,0.07)",
+                    border: "1.5px solid rgba(255,255,255,0.12)",
+                  }} />
+                )}
+              </div>
+              <p style={{ color: "#fff", fontSize: 17, fontWeight: 500, textAlign: "center", letterSpacing: "-0.3px" }}>
+                사진 속 오늘을 읽고 있어요 🔍
+              </p>
+              <p style={{ color: "rgba(255,255,255,0.38)", fontSize: 13, marginTop: 10, textAlign: "center" }}>
+                사진의 분위기를 분석하는 중이에요
+              </p>
+            </>
+          )}
+
+          {/* ── 2단계: 감정 게이지 ── */}
+          {loadingPhase === 1 && (
+            <>
+              <p style={{ color: "#C4687A", fontSize: 13, marginBottom: 28, textAlign: "center", letterSpacing: "0.04em" }}>
+                오늘의 분위기를 파악했어요 ✦
+              </p>
+              <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 18 }}>
+                {EMOTION_LABELS.map((label, i) => (
+                  <div key={label}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 7 }}>
+                      <span style={{ fontSize: 13, color: "rgba(255,255,255,0.75)" }}>{label}</span>
+                      <span style={{ fontSize: 12, color: "#C4687A", fontWeight: 500 }}>{gaugeTargets[i]}%</span>
+                    </div>
+                    <div style={{ height: 5, background: "rgba(255,255,255,0.09)", borderRadius: 3, overflow: "hidden" }}>
+                      <div
+                        style={{
+                          height: "100%",
+                          width: gaugeAnimated ? `${gaugeTargets[i]}%` : "0%",
+                          background: "linear-gradient(to right, #C4687A, #e8a0b0)",
+                          borderRadius: 3,
+                          transition: `width ${0.75 + i * 0.12}s cubic-bezier(0.4, 0, 0.2, 1) ${i * 0.08}s`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* ── 3단계: 곡 탐색 중 ── */}
+          {loadingPhase === 2 && (
+            <>
+              <div
                 style={{
-                  position: "absolute",
-                  width: "100%",
-                  left: 0,
-                  top: 0,
-                  margin: 0,
-                  color: "rgba(255,255,255,0.45)",
-                  fontSize: 13,
-                  opacity: i === loadingTextIndex && loadingTextVisible ? 1 : 0,
-                  transition: "opacity 0.5s ease",
+                  fontSize: 52,
+                  marginBottom: 28,
+                  animation: "pulse 1.2s ease-in-out infinite",
+                  color: "#C4687A",
                 }}
               >
-                {text}
+                ✦
+              </div>
+              <p style={{ color: "#fff", fontSize: 17, fontWeight: 500, textAlign: "center", letterSpacing: "-0.3px" }}>
+                딱 맞는 한 곡을 찾고 있어요 🎵
               </p>
-            ))}
-          </div>
+              <p style={{ color: "rgba(255,255,255,0.38)", fontSize: 13, marginTop: 10, textAlign: "center" }}>
+                거의 다 됐어요
+              </p>
+            </>
+          )}
         </div>
       )}
 
@@ -351,7 +432,7 @@ export default function PreferencePage() {
 
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+        @keyframes pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
       `}</style>
     </div>
   );
