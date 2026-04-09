@@ -17,18 +17,18 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Play the Picture",
-  description: "사진으로 오늘의 노래를 찾아드려요",
+  title: "플더픽 — 사진으로 지금 딱 맞는 노래 찾기",
+  description: "오늘 찍은 사진으로 AI가 딱 맞는 한 곡을 추천해드려요 🎵",
   openGraph: {
-    title: "Play the Picture",
-    description: "사진으로 오늘의 노래를 찾아드려요",
+    title: "플더픽 — 사진으로 지금 딱 맞는 노래 찾기",
+    description: "오늘 찍은 사진으로 AI가 딱 맞는 한 곡을 추천해드려요 🎵",
     url: "https://play-the-picture.vercel.app",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Play the Picture",
-    description: "사진으로 오늘의 노래를 찾아드려요",
+    title: "플더픽 — 사진으로 지금 딱 맞는 노래 찾기",
+    description: "오늘 찍은 사진으로 AI가 딱 맞는 한 곡을 추천해드려요 🎵",
   },
 };
 
