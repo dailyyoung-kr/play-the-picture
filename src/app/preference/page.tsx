@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, Music } from "lucide-react";
 
@@ -15,6 +15,41 @@ export default function PreferencePage() {
   const [selectedStyle, setSelectedStyle] = useState("출근/등교길");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [loadingTextIndex, setLoadingTextIndex] = useState(0);
+  const [loadingTextVisible, setLoadingTextVisible] = useState(true);
+  const [dots, setDots] = useState(0);
+
+  const LOADING_TEXTS = [
+    "사진 속 감정을 읽고 있어요",
+    "오늘의 분위기를 분석하고 있어요",
+    "딱 맞는 한 곡을 찾고 있어요",
+    "거의 다 됐어요 ✦",
+  ];
+
+  useEffect(() => {
+    if (!loading) return;
+    setLoadingTextIndex(0);
+    setLoadingTextVisible(true);
+    setDots(0);
+
+    const textTimer = setInterval(() => {
+      setLoadingTextVisible(false);
+      setTimeout(() => {
+        setLoadingTextIndex((i) => (i + 1) % LOADING_TEXTS.length);
+        setLoadingTextVisible(true);
+      }, 500);
+    }, 2000);
+
+    const dotsTimer = setInterval(() => {
+      setDots((d) => (d + 1) % 4);
+    }, 500);
+
+    return () => {
+      clearInterval(textTimer);
+      clearInterval(dotsTimer);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   const handleAnalyze = async () => {
     const photosRaw = localStorage.getItem("ptp_photos");
@@ -233,8 +268,17 @@ export default function PreferencePage() {
           }}
         >
           <div style={{ fontSize: 40 }}>✦</div>
-          <p style={{ color: "#fff", fontSize: 16, fontWeight: 500 }}>분위기 분석 중...</p>
-          <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13 }}>사진 속 감정을 읽고 있어요</p>
+          <p style={{ color: "#fff", fontSize: 16, fontWeight: 500 }}>
+            분위기 분석 중{".".repeat(dots)}
+          </p>
+          <p style={{
+            color: "rgba(255,255,255,0.45)",
+            fontSize: 13,
+            opacity: loadingTextVisible ? 1 : 0,
+            transition: "opacity 0.5s ease",
+          }}>
+            {LOADING_TEXTS[loadingTextIndex]}
+          </p>
         </div>
       )}
 

@@ -315,28 +315,44 @@ export default function ResultPage() {
           오늘의 기록
         </p>
 
-        {/* 사진 3장 */}
-        <div className="flex gap-2 justify-center mb-5">
-          {(photos.length > 0 ? photos.slice(0, 3) : PHOTO_COLORS).map((src, i) => (
+        {/* 사진 (업로드 수에 따라 유동적으로) */}
+        {(() => {
+          const count = photos.length;
+          const slotW = count === 1 ? 200 : count === 2 ? 160 : 100;
+          const slotH = count === 1 ? 250 : count === 2 ? 200 : 124;
+          const displayItems = count > 0 ? photos : PHOTO_COLORS;
+
+          return (
             <div
-              key={i}
-              style={{
-                width: 100,
-                height: 124,
-                borderRadius: 10,
-                border: "1.5px solid rgba(255,255,255,0.2)",
-                flexShrink: 0,
-                overflow: "hidden",
-                background: typeof src === "string" && src.startsWith("data:") ? undefined : PHOTO_COLORS[i],
-              }}
+              className={count === 1 ? "flex justify-center mb-5" : "flex mb-5"}
+              style={
+                count >= 4
+                  ? { gap: 8, overflowX: "auto", scrollbarWidth: "none", msOverflowStyle: "none" as React.CSSProperties["msOverflowStyle"], paddingBottom: 2 }
+                  : { gap: 8, justifyContent: count === 1 ? "center" : "center" }
+              }
             >
-              {src.startsWith("data:") && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={src} alt={`사진 ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              )}
+              {displayItems.map((src, i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: slotW,
+                    height: slotH,
+                    borderRadius: 10,
+                    border: "1.5px solid rgba(255,255,255,0.2)",
+                    flexShrink: 0,
+                    overflow: "hidden",
+                    background: typeof src === "string" && src.startsWith("data:") ? undefined : PHOTO_COLORS[i % PHOTO_COLORS.length],
+                  }}
+                >
+                  {typeof src === "string" && src.startsWith("data:") && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={src} alt={`사진 ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          );
+        })()}
 
         {/* 노래 정보 */}
         <div className="text-center mb-4">
@@ -449,41 +465,9 @@ export default function ResultPage() {
 
       <div className="px-5 pb-2">
 
-        {/* 저장하기 + 친구에게 공유 — 나란히 */}
-        <div className="flex gap-2 mb-2">
-          <button
-            className="flex-1 font-medium"
-            onClick={handleSaveToSupabase}
-            disabled={saving}
-            style={{
-              background: "rgba(196,104,122,0.22)",
-              border: "1px solid rgba(196,104,122,0.45)",
-              borderRadius: 24, padding: "14px 0",
-              color: saving ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.85)",
-              fontSize: 14, cursor: saving ? "default" : "pointer",
-            }}
-          >
-            {saving ? "저장 중..." : "저장하기"}
-          </button>
-          <button
-            className="flex-1"
-            onClick={handleShare}
-            disabled={sharing}
-            style={{
-              background: "rgba(255,255,255,0.07)",
-              border: "1px solid rgba(255,255,255,0.18)",
-              borderRadius: 24, padding: "14px 0",
-              color: sharing ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.75)",
-              fontSize: 14, cursor: sharing ? "default" : "pointer",
-            }}
-          >
-            {sharing ? "공유 중..." : "친구에게 공유"}
-          </button>
-        </div>
-
         {/* 지금 바로 듣기 */}
         <button
-          className="w-full font-medium mb-3"
+          className="w-full font-medium mb-2"
           onClick={handleListenClick}
           style={{
             background: "rgba(255,255,255,0.92)",
@@ -496,7 +480,39 @@ export default function ResultPage() {
           ▶  지금 바로 듣기
         </button>
 
-        {/* 다른 사진으로 다시 해보기 — 텍스트 링크 */}
+        {/* 친구에게 공유 */}
+        <button
+          className="w-full font-medium mb-2"
+          onClick={handleShare}
+          disabled={sharing}
+          style={{
+            background: sharing ? "rgba(196,104,122,0.5)" : "#C4687A",
+            border: "none",
+            borderRadius: 24, padding: 14,
+            color: sharing ? "rgba(255,255,255,0.5)" : "#fff",
+            fontSize: 14, cursor: sharing ? "default" : "pointer",
+          }}
+        >
+          {sharing ? "공유 중..." : "친구에게 공유"}
+        </button>
+
+        {/* 저장하기 */}
+        <button
+          className="w-full mb-3"
+          onClick={handleSaveToSupabase}
+          disabled={saving}
+          style={{
+            background: "transparent",
+            border: "1px solid rgba(255,255,255,0.3)",
+            borderRadius: 24, padding: 14,
+            color: saving ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.7)",
+            fontSize: 14, cursor: saving ? "default" : "pointer",
+          }}
+        >
+          {saving ? "저장 중..." : "저장하기"}
+        </button>
+
+        {/* 다시 해보기 — 텍스트 링크 */}
         <button
           className="w-full mb-4"
           onClick={() => {
@@ -507,7 +523,7 @@ export default function ResultPage() {
           style={{
             background: "none",
             border: "none",
-            color: "rgba(255,255,255,0.55)",
+            color: "rgba(255,255,255,0.4)",
             fontSize: 13,
             cursor: "pointer",
             padding: "6px 0",
