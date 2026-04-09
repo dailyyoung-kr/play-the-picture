@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Bookmark, SlidersHorizontal } from "lucide-react";
 
 const GENRES = ["인디 / 락", "발라드", "K-POP", "POP", "장르 발견하기"];
 const MOODS = ["설레", "평온해", "좀 지쳐", "신나", "복잡해"];
@@ -244,41 +245,19 @@ export default function PreferencePage() {
       )}
 
       {/* 하단 네비게이션 */}
-      <div
-        style={{
-          background: "rgba(0,0,0,0.45)",
-          borderTop: "0.5px solid rgba(255,255,255,0.08)",
-          display: "flex",
-          padding: "10px 0 24px",
-        }}
-      >
-        {[
-          { label: "ARCHIVE", active: false, path: "/journal" },
-          { label: "UPLOAD", active: true, isCenter: true, path: "/" },
-          { label: "SETTINGS", active: false, path: "/" },
-        ].map((item) => (
-          <div
-            key={item.label}
-            onClick={() => item.path && router.push(item.path)}
-            className="flex-1 flex flex-col items-center gap-1"
-            style={{ fontSize: 10, color: item.active ? "#fff" : "rgba(255,255,255,0.38)", cursor: "pointer" }}
-          >
-            {item.isCenter ? (
-              <div
-                style={{
-                  width: 38, height: 38, background: "#C4687A", borderRadius: "50%",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 18, color: "#fff", marginTop: -8,
-                }}
-              >
-                +
-              </div>
-            ) : (
-              <div style={{ height: 22 }} />
-            )}
-            {item.label}
-          </div>
-        ))}
+      <div style={{ background: "rgba(0,0,0,0.45)", borderTop: "0.5px solid rgba(255,255,255,0.08)", display: "flex", padding: "12px 0 28px" }}>
+        <div className="flex-1 flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", cursor: "pointer" }} onClick={() => router.push("/journal")}>
+          <Bookmark size={22} strokeWidth={1.5} />
+          ARCHIVE
+        </div>
+        <div className="flex-1 flex flex-col items-center gap-1" style={{ fontSize: 10, color: "#fff", cursor: "pointer" }} onClick={() => router.push("/")}>
+          <div style={{ width: 38, height: 38, background: "#C4687A", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#fff", marginTop: -8 }}>+</div>
+          UPLOAD
+        </div>
+        <div className="flex-1 flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", cursor: "pointer" }} onClick={() => router.push("/")}>
+          <SlidersHorizontal size={22} strokeWidth={1.5} />
+          SETTINGS
+        </div>
       </div>
 
       <style>{`
