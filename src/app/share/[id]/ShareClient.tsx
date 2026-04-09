@@ -48,6 +48,7 @@ export default function ShareClient({ id }: { id: string }) {
     youtubeFallback: string;
   } | null>(null);
   const [loadingLinks, setLoadingLinks] = useState(false);
+  const viewLogged = { current: false };
 
   useEffect(() => {
     if (!id) return;
@@ -61,8 +62,14 @@ export default function ShareClient({ id }: { id: string }) {
           setNotFound(true);
         } else {
           setEntry(data as ShareEntry);
+          // 공유 페이지 방문 기록 (최초 1회)
+          if (!viewLogged.current) {
+            viewLogged.current = true;
+            supabase.from("share_views").insert({ entry_id: id }).then(() => {});
+          }
         }
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchMusicLinks = async (song: string, artist: string) => {
@@ -86,6 +93,11 @@ export default function ShareClient({ id }: { id: string }) {
     }
   };
 
+  const handleTryClick = () => {
+    supabase.from("try_click").insert({ entry_id: id }).then(() => {});
+    router.push("/");
+  };
+
   if (notFound) {
     return (
       <div
@@ -97,7 +109,7 @@ export default function ShareClient({ id }: { id: string }) {
           <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 15, marginBottom: 8 }}>결과를 찾을 수 없어요</p>
           <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13, marginBottom: 32 }}>링크가 만료됐거나 잘못됐어요</p>
           <button
-            onClick={() => router.push("/")}
+            onClick={handleTryClick}
             style={{ background: "#C4687A", border: "none", borderRadius: 24, padding: "12px 32px", color: "#fff", fontSize: 14, cursor: "pointer" }}
           >
             나도 해보기
@@ -239,7 +251,7 @@ export default function ShareClient({ id }: { id: string }) {
             style={{ background: "#fff", border: "none", borderRadius: 24, padding: 14, color: "#0d1218", fontSize: 14, cursor: "pointer" }}>
             ▶  지금 바로 듣기
           </button>
-          <button className="w-full font-medium mb-5" onClick={() => router.push("/")}
+          <button className="w-full font-medium mb-5" onClick={handleTryClick}
             style={{ background: "#C4687A", border: "none", borderRadius: 24, padding: 14, color: "#fff", fontSize: 14, cursor: "pointer" }}>
             나도 해보기 ✦
           </button>

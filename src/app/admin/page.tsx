@@ -14,7 +14,7 @@ type EntryRow = {
   mood: string | null;
 };
 
-type ShareLogRow = {
+type LogRow = {
   id: string;
   created_at: string;
 };
@@ -166,7 +166,9 @@ export default function AdminPage() {
   const [pw, setPw] = useState("");
   const [toast, setToast] = useState("");
   const [entries, setEntries] = useState<EntryRow[]>([]);
-  const [shareLogs, setShareLogs] = useState<ShareLogRow[]>([]);
+  const [shareLogs, setShareLogs] = useState<LogRow[]>([]);
+  const [shareViews, setShareViews] = useState<LogRow[]>([]);
+  const [tryClicks, setTryClicks] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
@@ -178,13 +180,21 @@ export default function AdminPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
 
-    const [entriesRes, shareRes] = await Promise.all([
+    const [entriesRes, shareRes, viewsRes, tryRes] = await Promise.all([
       supabase
         .from("entries")
         .select("id, date, song, artist, genre, mood")
         .order("id", { ascending: false }),
       supabase
         .from("share_logs")
+        .select("id, created_at")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("share_views")
+        .select("id, created_at")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("try_click")
         .select("id, created_at")
         .order("created_at", { ascending: false }),
     ]);
@@ -194,10 +204,9 @@ export default function AdminPage() {
     } else {
       setEntries(entriesRes.data ?? []);
     }
-
-    if (!shareRes.error) {
-      setShareLogs(shareRes.data ?? []);
-    }
+    if (!shareRes.error) setShareLogs(shareRes.data ?? []);
+    if (!viewsRes.error) setShareViews(viewsRes.data ?? []);
+    if (!tryRes.error) setTryClicks(tryRes.data ?? []);
 
     setLastRefresh(new Date());
     setLoading(false);
@@ -304,9 +313,17 @@ export default function AdminPage() {
   const todayCount = entries.filter((e) => e.date === today).length;
 
   const totalShares = shareLogs.length;
-  const todayShares = shareLogs.filter(
-    (s) => timestampToKSTDate(s.created_at) === today
-  ).length;
+  const todayShares = shareLogs.filter((s) => timestampToKSTDate(s.created_at) === today).length;
+
+  const totalViews = shareViews.length;
+  const todayViews = shareViews.filter((s) => timestampToKSTDate(s.created_at) === today).length;
+
+  const totalTryClicks = tryClicks.length;
+  const todayTryClicks = tryClicks.filter((s) => timestampToKSTDate(s.created_at) === today).length;
+
+  const conversionRate = totalViews > 0 ? ((totalTryClicks / totalViews) * 100).toFixed(1) : "0.0";
+  const todayConversionRate =
+    todayViews > 0 ? ((todayTryClicks / todayViews) * 100).toFixed(1) : "0.0";
 
   const topSongs = countBy(
     entries.map((e) => `${e.song}${e.artist ? ` — ${e.artist}` : ""}`)
@@ -395,6 +412,33 @@ export default function AdminPage() {
           value={todayShares}
           sub={today}
           accent="#C4687A"
+        />
+      </div>
+
+      {/* 공유 유입 지표 */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+        <StatCard label="공유 페이지 방문 (전체)" value={totalViews} sub="share_views" accent="#a0d4f0" />
+        <StatCard label="공유 페이지 방문 (오늘)" value={todayViews} sub={today} accent="#a0d4f0" />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+        <StatCard label="나도 해보기 클릭 (전체)" value={totalTryClicks} sub="try_click" accent="#a0f0b0" />
+        <StatCard label="나도 해보기 클릭 (오늘)" value={todayTryClicks} sub={today} accent="#a0f0b0" />
+      </div>
+
+      {/* 전환율 카드 */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+        <StatCard
+          label="전환율 (전체)"
+          value={`${conversionRate}%`}
+          sub="나도 해보기 ÷ 공유 페이지"
+          accent="#f0d080"
+        />
+        <StatCard
+          label="전환율 (오늘)"
+          value={`${todayConversionRate}%`}
+          sub={today}
+          accent="#f0d080"
         />
       </div>
 
