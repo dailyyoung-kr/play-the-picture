@@ -15,7 +15,7 @@ export async function GET() {
           alignItems: "center",
           justifyContent: "center",
           gap: 28,
-          padding: "32px 0 36px",
+          padding: "40px 0",
         }}
       >
         {/* 1. 상단: Play the Picture 로고 */}
@@ -35,7 +35,7 @@ export async function GET() {
           style={{
             display: "flex",
             flexDirection: "row",
-            gap: 16,
+            gap: 24,
             alignItems: "center",
             justifyContent: "center",
           }}
@@ -44,8 +44,8 @@ export async function GET() {
             <div
               key={i}
               style={{
-                width: 220,
-                height: 320,
+                width: 240,
+                height: 300,
                 borderRadius: 12,
                 border: "2px solid rgba(255,255,255,0.25)",
                 background: "rgba(255,255,255,0.1)",
@@ -61,13 +61,13 @@ export async function GET() {
           ))}
         </div>
 
-        {/* 3. 하단: 곡명 + 아티스트 + 태그 */}
+        {/* 3. 하단: 곡명 + 설명 문구 */}
         <div
           style={{
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 8,
+            gap: 10,
           }}
         >
           <div
@@ -82,20 +82,11 @@ export async function GET() {
           </div>
           <div
             style={{
-              fontSize: 22,
-              color: "rgba(255,255,255,0.5)",
+              fontSize: 18,
+              color: "rgba(255,255,255,0.45)",
             }}
           >
-            Play the Picture
-          </div>
-          <div
-            style={{
-              fontSize: 16,
-              color: "#C4687A",
-              marginTop: 2,
-            }}
-          >
-            #감성 #오늘 #플더픽
+            사진을 올리면 AI가 오늘의 딱 맞는 한 곡을 추천해드려요
           </div>
         </div>
       </div>
