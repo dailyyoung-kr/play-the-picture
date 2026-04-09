@@ -17,6 +17,7 @@ interface AnalysisResult {
     "특별함": number;
   };
   hidden_emotion: string;
+  emotion_comment?: string;
   vibe_type?: string;
   vibe_description?: string;
   background?: { from: string; to: string };
@@ -71,7 +72,8 @@ export default function ResultPage() {
     const songParts = result.song.split(" - ");
     const song = songParts[0] ?? result.song;
     const artist = songParts.slice(1).join(" - ") ?? "";
-    const today = new Date().toISOString().slice(0, 10);
+    const kst = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    const today = kst.replace(/\.\s*/g, '-').replace(/-$/, '').trim();
 
     const { data, error } = await supabase
       .from("entries")
@@ -176,7 +178,8 @@ export default function ResultPage() {
         },
       });
 
-      const today = new Date().toISOString().slice(0, 10);
+      const kst = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    const today = kst.replace(/\.\s*/g, '-').replace(/-$/, '').trim();
       const fileName = `play-the-picture-${today}.png`;
 
       const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
@@ -403,6 +406,12 @@ export default function ResultPage() {
           <p className="mb-4" style={{ fontSize: 11, color: "rgba(255,255,255,0.38)" }}>
             ✦ 사진 분위기
           </p>
+
+          {result.emotion_comment && (
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", textAlign: "center", marginBottom: 12, fontStyle: "italic" }}>
+              {result.emotion_comment}
+            </p>
+          )}
 
           <div
             style={{
