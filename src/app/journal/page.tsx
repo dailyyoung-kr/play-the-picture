@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, Entry } from "@/lib/supabase";
-import { Bookmark, Music } from "lucide-react";
+import { Archive, Music } from "lucide-react";
 import { getDeviceId } from "@/lib/device";
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -336,8 +336,8 @@ export default function JournalPage() {
       {/* 하단 네비게이션 */}
       <div style={{ background: "rgba(0,0,0,0.45)", borderTop: "0.5px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-around", padding: "12px 0 28px", flexShrink: 0 }}>
         <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "#fff", cursor: "pointer" }} onClick={() => router.push("/journal")}>
-          <Bookmark size={22} strokeWidth={1.5} fill="white" />
-          보관함
+          <Archive size={22} strokeWidth={1.5} />
+          아카이브
         </div>
         <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", cursor: "pointer" }} onClick={() => router.push("/")}>
           <Music size={22} strokeWidth={1.5} />

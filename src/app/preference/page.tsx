@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bookmark, Music } from "lucide-react";
+import { Archive, Music } from "lucide-react";
 
 const GENRES = ["인디 / 락", "발라드", "K-POP", "POP", "장르 발견하기"];
 const MOODS = ["설레", "평온해", "좀 지쳐", "신나", "복잡해"];
@@ -247,8 +247,8 @@ export default function PreferencePage() {
       {/* 하단 네비게이션 */}
       <div style={{ background: "rgba(0,0,0,0.45)", borderTop: "0.5px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-around", padding: "12px 0 28px" }}>
         <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", cursor: "pointer" }} onClick={() => router.push("/journal")}>
-          <Bookmark size={22} strokeWidth={1.5} />
-          보관함
+          <Archive size={22} strokeWidth={1.5} />
+          아카이브
         </div>
         <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "#fff", cursor: "pointer" }} onClick={() => router.push("/")}>
           <Music size={22} strokeWidth={1.5} />
