@@ -271,14 +271,26 @@ export default function PreferencePage() {
           <p style={{ color: "#fff", fontSize: 16, fontWeight: 500 }}>
             분위기 분석 중{".".repeat(dots)}
           </p>
-          <p style={{
-            color: "rgba(255,255,255,0.45)",
-            fontSize: 13,
-            opacity: loadingTextVisible ? 1 : 0,
-            transition: "opacity 0.5s ease",
-          }}>
-            {LOADING_TEXTS[loadingTextIndex]}
-          </p>
+          <div style={{ height: 24, position: "relative", width: "100%", textAlign: "center", overflow: "hidden" }}>
+            {LOADING_TEXTS.map((text, i) => (
+              <p
+                key={i}
+                style={{
+                  position: "absolute",
+                  width: "100%",
+                  left: 0,
+                  top: 0,
+                  margin: 0,
+                  color: "rgba(255,255,255,0.45)",
+                  fontSize: 13,
+                  opacity: i === loadingTextIndex && loadingTextVisible ? 1 : 0,
+                  transition: "opacity 0.5s ease",
+                }}
+              >
+                {text}
+              </p>
+            ))}
+          </div>
         </div>
       )}
 

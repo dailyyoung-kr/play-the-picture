@@ -312,7 +312,7 @@ export default function ResultPage() {
 
         {/* 오늘의 기록 */}
         <p className="text-center mb-3" style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: "0.08em" }}>
-          오늘의 기록
+          플더픽의 추천곡
         </p>
 
         {/* 사진 (업로드 수에 따라 유동적으로) */}
@@ -401,7 +401,7 @@ export default function ResultPage() {
         {/* 감정 분석 카드 */}
         <div className="mb-3 p-4" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 12 }}>
           <p className="mb-4" style={{ fontSize: 11, color: "rgba(255,255,255,0.38)" }}>
-            ✦ 오늘 하루 감정 분석
+            ✦ 사진 분위기 분석
           </p>
 
           <div
@@ -435,9 +435,9 @@ export default function ResultPage() {
             })}
           </div>
 
-          {/* 사진으로 보는 오늘의 선곡 */}
+          {/* 지금 딱 맞는 노래 */}
           <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 12px" }}>
-            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.40)", marginBottom: 6 }}>사진으로 보는 오늘의 선곡</p>
+            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.40)", marginBottom: 6 }}>지금 딱 맞는 노래</p>
             <p className="font-medium" style={{ fontSize: 15, color: "#a0f0b0", marginBottom: 4 }}>
               {result.vibe_type ?? result.hidden_emotion}
             </p>
@@ -449,10 +449,10 @@ export default function ResultPage() {
           </div>
         </div>
 
-        {/* 왜 이 노래? */}
+        {/* 플더픽이 추천한 이유 */}
         <div className="mb-5" style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "14px 16px", marginTop: 12 }}>
           <p className="font-medium mb-2" style={{ fontSize: 10, color: "#f0d080", letterSpacing: "0.05em" }}>
-            왜 이 노래?
+            플더픽이 추천한 이유
           </p>
           <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.8 }}>
             {result.reason}
@@ -530,7 +530,7 @@ export default function ResultPage() {
             textAlign: "center",
           }}
         >
-          다른 사진으로 다시 해볼게요
+          다른 사진으로 다시 해보기
         </button>
       </div>
 
