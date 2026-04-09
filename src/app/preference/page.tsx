@@ -137,32 +137,26 @@ export default function PreferencePage() {
         {/* 카드 3: 듣는 방식 */}
         <div className="mb-3 p-4" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14 }}>
           <p className="mb-3 font-medium" style={{ fontSize: 13, color: "rgba(255,255,255,0.90)" }}>
-            🎧 지금 뭐 하면서 들을 거야?
+            🎵 지금 뭐 하면서 들을 거야?
           </p>
-          <div className="flex flex-col gap-2">
-            {LISTENING_STYLES.map((style) => {
-              const isSelected = selectedStyle === style;
-              return (
-                <button
-                  key={style}
-                  onClick={() => setSelectedStyle(style)}
-                  className="w-full flex justify-between items-center"
-                  style={{
-                    padding: "11px 16px",
-                    borderRadius: 10,
-                    fontSize: 13,
-                    cursor: "pointer",
-                    background: isSelected ? "rgba(196,104,122,0.14)" : "rgba(255,255,255,0.06)",
-                    border: isSelected ? "1px solid #C4687A" : "1px solid rgba(255,255,255,0.12)",
-                    color: isSelected ? "#fff" : "rgba(255,255,255,0.58)",
-                    textAlign: "left",
-                  }}
-                >
-                  {style}
-                  {isSelected && <span style={{ color: "#C4687A", fontSize: 14 }}>✓</span>}
-                </button>
-              );
-            })}
+          <div className="flex flex-wrap gap-2">
+            {LISTENING_STYLES.map((style) => (
+              <button
+                key={style}
+                onClick={() => setSelectedStyle(style)}
+                style={{
+                  background: selectedStyle === style ? "rgba(196,104,122,0.22)" : "rgba(255,255,255,0.07)",
+                  border: selectedStyle === style ? "1px solid #C4687A" : "1px solid rgba(255,255,255,0.16)",
+                  color: selectedStyle === style ? "#fff" : "rgba(255,255,255,0.62)",
+                  borderRadius: 20,
+                  padding: "6px 14px",
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}
+              >
+                {style}
+              </button>
+            ))}
           </div>
         </div>
 
