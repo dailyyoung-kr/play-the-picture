@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Archive, Music } from "lucide-react";
 import { trackEvent } from "@/lib/gtag";
 
-const GENRES = ["발라드", "인디", "K-POP", "힙합/R&B", "팝", "재즈/어쿠스틱", "장르 발견하기"];
+const GENRES = ["인디", "팝", "K-POP", "힙합/R&B", "재즈/어쿠스틱", "장르 발견하기"];
 const MOODS = ["신나", "설레", "여유로워", "복잡해", "지쳐"];
 const LISTENING_STYLES = ["출근/등교길", "작업/공부", "데이트", "휴식", "산책/드라이브", "잠들기 전"];
 const EMOTION_LABELS = ["행복함", "설레임", "에너지", "특별함"];
@@ -19,7 +19,7 @@ const PHASE3_TEXTS = [
 
 export default function PreferencePage() {
   const router = useRouter();
-  const [selectedGenre, setSelectedGenre] = useState("발라드");
+  const [selectedGenre, setSelectedGenre] = useState("인디");
   const [selectedMood, setSelectedMood] = useState("신나");
   const [selectedStyle, setSelectedStyle] = useState("출근/등교길");
   const [loading, setLoading] = useState(false);
