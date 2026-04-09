@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Noto_Sans_KR, DM_Sans } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
+import { GA_ID } from "@/lib/gtag";
 
 const notoSansKR = Noto_Sans_KR({
   weight: ["400", "500", "600"],
@@ -37,6 +39,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className={`${notoSansKR.variable} ${dmSans.variable} h-full`}>
+      <head>
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">{`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', '${GA_ID}');
+        `}</Script>
+      </head>
       <body className="min-h-full font-sans">{children}</body>
     </html>
   );

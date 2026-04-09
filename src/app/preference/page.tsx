@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, Music } from "lucide-react";
+import { trackEvent } from "@/lib/gtag";
 
 const GENRES = ["발라드", "인디", "K-POP", "힙합/R&B", "팝", "재즈/어쿠스틱", "장르 발견하기"];
 const MOODS = ["신나", "설레", "여유로워", "복잡해", "지쳐"];
@@ -119,6 +120,7 @@ export default function PreferencePage() {
       return;
     }
 
+    trackEvent("analyze_start", { genre: selectedGenre, mood: selectedMood, style: selectedStyle });
     setLoading(true);
     setError("");
 

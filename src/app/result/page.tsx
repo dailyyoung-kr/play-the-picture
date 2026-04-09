@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Archive, Music } from "lucide-react";
 import { getDeviceId } from "@/lib/device";
+import { trackEvent } from "@/lib/gtag";
 
 interface AnalysisResult {
   song: string; // "곡명 - 아티스트명" 형식
@@ -100,6 +101,7 @@ export default function ResultPage() {
 
   const handleSaveToSupabase = async () => {
     if (!result) return;
+    trackEvent("save_click", { song: result.song });
     setSaving(true);
     try {
       await saveEntry();
@@ -114,6 +116,7 @@ export default function ResultPage() {
 
   const handleShare = async () => {
     if (!result) return;
+    trackEvent("share_click", { song: result.song });
     setSharing(true);
     try {
       const entryId = await saveEntry();
@@ -218,6 +221,7 @@ export default function ResultPage() {
   };
 
   const handleListenClick = () => {
+    trackEvent("listen_click", { song: result?.song });
     setShowListenSheet(true);
     // spotifyTrackId가 이미 있으면 music-search 호출 불필요
     if (!musicLinks && result && !result.spotifyTrackId) {
@@ -230,7 +234,11 @@ export default function ResultPage() {
   useEffect(() => {
     const raw = localStorage.getItem("ptp_result");
     const photosRaw = localStorage.getItem("ptp_photos");
-    if (raw) setResult(JSON.parse(raw));
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      setResult(parsed);
+      trackEvent("result_view", { song: parsed.song });
+    }
     if (photosRaw) setPhotos(JSON.parse(photosRaw));
   }, []);
 
@@ -621,6 +629,7 @@ export default function ResultPage() {
                     href={p.url}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => trackEvent(p.name.includes("Spotify") ? "spotify_click" : "youtube_click", { song: songName })}
                     style={{
                       display: "flex",
                       alignItems: "center",
