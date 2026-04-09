@@ -76,6 +76,9 @@ export default function ResultPage() {
     const kst = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
     const today = kst.replace(/\.\s*/g, '-').replace(/-$/, '').trim();
 
+    const prefsRaw = localStorage.getItem("ptp_prefs");
+    const prefs: { genre?: string; mood?: string } = prefsRaw ? JSON.parse(prefsRaw) : {};
+
     const { data, error } = await supabase
       .from("entries")
       .insert({
@@ -90,6 +93,8 @@ export default function ResultPage() {
         photos,
         album_art: result.albumArt ?? null,
         device_id: getDeviceId(),
+        genre: prefs.genre ?? null,
+        mood: prefs.mood ?? null,
       })
       .select("id")
       .single();
@@ -121,6 +126,9 @@ export default function ResultPage() {
     try {
       const entryId = await saveEntry();
       if (!entryId) throw new Error("저장 실패");
+
+      // 공유 로그 기록 (에러 나도 공유 흐름은 계속)
+      supabase.from("share_logs").insert({ entry_id: entryId }).then(() => {});
 
       const url = `https://play-the-picture.vercel.app/share/${entryId}`;
       const songName = result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song;

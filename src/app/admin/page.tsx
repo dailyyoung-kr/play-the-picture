@@ -3,14 +3,20 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 
-const ADMIN_PW = process.env.NEXT_PUBLIC_ADMIN_PASSWORD ?? "ptp2024";
+const ADMIN_PW = process.env.NEXT_PUBLIC_ADMIN_PASSWORD ?? "coldboardp1!";
 
 type EntryRow = {
   id: string;
   date: string;
   song: string;
   artist: string;
-  tags: string[] | null;
+  genre: string | null;
+  mood: string | null;
+};
+
+type ShareLogRow = {
+  id: string;
+  created_at: string;
 };
 
 function getTodayKST() {
@@ -23,6 +29,17 @@ function getTodayKST() {
   return kst.replace(/\.\s*/g, "-").replace(/-$/, "").trim();
 }
 
+function timestampToKSTDate(ts: string): string {
+  const d = new Date(ts);
+  const kst = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+  return kst.replace(/\.\s*/g, "-").replace(/-$/, "").trim();
+}
+
 function countBy(arr: string[]): [string, number][] {
   const map: Record<string, number> = {};
   for (const k of arr) {
@@ -31,7 +48,17 @@ function countBy(arr: string[]): [string, number][] {
   return Object.entries(map).sort((a, b) => b[1] - a[1]);
 }
 
-function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+function StatCard({
+  label,
+  value,
+  sub,
+  accent = "#fff",
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  accent?: string;
+}) {
   return (
     <div
       style={{
@@ -46,7 +73,7 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
       <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: "0.08em" }}>
         {label}
       </span>
-      <span style={{ fontSize: 36, fontWeight: 700, color: "#fff", lineHeight: 1.2 }}>
+      <span style={{ fontSize: 36, fontWeight: 700, color: accent, lineHeight: 1.2 }}>
         {value}
       </span>
       {sub && (
@@ -56,7 +83,11 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
   );
 }
 
-function RankList({ title, items, accent = "#C4687A" }: {
+function RankList({
+  title,
+  items,
+  accent = "#C4687A",
+}: {
   title: string;
   items: [string, number][];
   accent?: string;
@@ -100,7 +131,6 @@ function RankList({ title, items, accent = "#C4687A" }: {
                 >
                   {name}
                 </div>
-                {/* 게이지 바 */}
                 <div
                   style={{
                     marginTop: 4,
@@ -136,6 +166,7 @@ export default function AdminPage() {
   const [pw, setPw] = useState("");
   const [toast, setToast] = useState("");
   const [entries, setEntries] = useState<EntryRow[]>([]);
+  const [shareLogs, setShareLogs] = useState<ShareLogRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
@@ -146,17 +177,29 @@ export default function AdminPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("entries")
-      .select("id, date, song, artist, tags")
-      .order("id", { ascending: false });
 
-    if (error) {
-      showToast("데이터 로드 실패");
+    const [entriesRes, shareRes] = await Promise.all([
+      supabase
+        .from("entries")
+        .select("id, date, song, artist, genre, mood")
+        .order("id", { ascending: false }),
+      supabase
+        .from("share_logs")
+        .select("id, created_at")
+        .order("created_at", { ascending: false }),
+    ]);
+
+    if (entriesRes.error) {
+      showToast("entries 로드 실패");
     } else {
-      setEntries(data ?? []);
-      setLastRefresh(new Date());
+      setEntries(entriesRes.data ?? []);
     }
+
+    if (!shareRes.error) {
+      setShareLogs(shareRes.data ?? []);
+    }
+
+    setLastRefresh(new Date());
     setLoading(false);
   }, []);
 
@@ -232,11 +275,21 @@ export default function AdminPage() {
         </div>
 
         {toast && (
-          <div style={{
-            position: "fixed", bottom: 80, left: "50%", transform: "translateX(-50%)",
-            background: "rgba(30,30,30,0.95)", border: "1px solid rgba(255,255,255,0.15)",
-            color: "#fff", fontSize: 13, padding: "10px 20px", borderRadius: 24, whiteSpace: "nowrap",
-          }}>
+          <div
+            style={{
+              position: "fixed",
+              bottom: 80,
+              left: "50%",
+              transform: "translateX(-50%)",
+              background: "rgba(30,30,30,0.95)",
+              border: "1px solid rgba(255,255,255,0.15)",
+              color: "#fff",
+              fontSize: 13,
+              padding: "10px 20px",
+              borderRadius: 24,
+              whiteSpace: "nowrap",
+            }}
+          >
             {toast}
           </div>
         )}
@@ -246,23 +299,33 @@ export default function AdminPage() {
 
   // ── 지표 계산 ──
   const today = getTodayKST();
+
   const totalCount = entries.length;
   const todayCount = entries.filter((e) => e.date === today).length;
+
+  const totalShares = shareLogs.length;
+  const todayShares = shareLogs.filter(
+    (s) => timestampToKSTDate(s.created_at) === today
+  ).length;
 
   const topSongs = countBy(
     entries.map((e) => `${e.song}${e.artist ? ` — ${e.artist}` : ""}`)
   ).slice(0, 5);
 
   const topGenres = countBy(
-    entries.map((e) => e.tags?.[0] ?? "").filter(Boolean)
+    entries.map((e) => e.genre ?? "").filter(Boolean)
   ).slice(0, 3);
 
   const topMoods = countBy(
-    entries.map((e) => e.tags?.[1] ?? "").filter(Boolean)
+    entries.map((e) => e.mood ?? "").filter(Boolean)
   ).slice(0, 3);
 
   const refreshLabel = lastRefresh
-    ? lastRefresh.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+    ? lastRefresh.toLocaleTimeString("ko-KR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
     : "";
 
   // ── 대시보드 ──
@@ -275,7 +338,14 @@ export default function AdminPage() {
       }}
     >
       {/* 헤더 */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: 28,
+        }}
+      >
         <div>
           <p style={{ color: "#C4687A", fontSize: 12, letterSpacing: "0.15em", marginBottom: 4 }}>
             Play the Picture
@@ -306,10 +376,26 @@ export default function AdminPage() {
         </button>
       </div>
 
-      {/* 핵심 지표 카드 2개 */}
+      {/* 저장 지표 카드 2개 */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
         <StatCard label="전체 저장 횟수" value={totalCount} sub="누적 entries" />
         <StatCard label="오늘 저장 횟수" value={todayCount} sub={today} />
+      </div>
+
+      {/* 공유 지표 카드 2개 */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+        <StatCard
+          label="전체 공유 횟수"
+          value={totalShares}
+          sub="누적 share_logs"
+          accent="#C4687A"
+        />
+        <StatCard
+          label="오늘 공유 횟수"
+          value={todayShares}
+          sub={today}
+          accent="#C4687A"
+        />
       </div>
 
       {/* GA4 안내 섹션 */}
@@ -326,11 +412,8 @@ export default function AdminPage() {
           📊 GA4 이벤트 지표
         </p>
         <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, lineHeight: 1.6, margin: 0 }}>
-          analyze_start · result_view · share_click 이벤트는<br />
-          Google Analytics 콘솔에서 확인할 수 있어요.<br />
-          <span style={{ color: "rgba(255,255,255,0.3)" }}>
-            GA4 Data API 연동 시 이 섹션에 자동 표시 예정
-          </span>
+          analyze_start · result_view · spotify_click 등의 이벤트는
+          Google Analytics 콘솔에서 확인할 수 있어요.
         </p>
       </div>
 
@@ -341,16 +424,27 @@ export default function AdminPage() {
 
       {/* Top 3 장르 + Top 3 기분 */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-        <RankList title="🎸 장르 Top 3" items={topGenres} accent="#a0d4f0" />
-        <RankList title="🌤 기분 Top 3" items={topMoods} accent="#a0f0b0" />
+        <RankList title="🎸 선택 장르 Top 3" items={topGenres} accent="#a0d4f0" />
+        <RankList title="🌤 선택 기분 Top 3" items={topMoods} accent="#a0f0b0" />
       </div>
 
       {toast && (
-        <div style={{
-          position: "fixed", bottom: 80, left: "50%", transform: "translateX(-50%)",
-          background: "rgba(30,30,30,0.95)", border: "1px solid rgba(255,255,255,0.15)",
-          color: "#fff", fontSize: 13, padding: "10px 20px", borderRadius: 24, whiteSpace: "nowrap", zIndex: 100,
-        }}>
+        <div
+          style={{
+            position: "fixed",
+            bottom: 80,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "rgba(30,30,30,0.95)",
+            border: "1px solid rgba(255,255,255,0.15)",
+            color: "#fff",
+            fontSize: 13,
+            padding: "10px 20px",
+            borderRadius: 24,
+            whiteSpace: "nowrap",
+            zIndex: 100,
+          }}
+        >
           {toast}
         </div>
       )}
