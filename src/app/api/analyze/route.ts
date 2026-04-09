@@ -227,7 +227,7 @@ ${trackList}
     "특별함": 0~100 숫자
   },
   "hidden_emotion": "오늘의 숨은 감정 한 줄 (이모지 포함)",
-  "vibe_type": "이모지 + 오늘의 나를 표현하는 유형명 (10자 이내). 사진과 취향을 종합해 오늘의 나를 하나의 캐릭터로 표현. 곡이 아닌 오늘의 나 중심. 예: 🕺 거리의 주인공 / 🌙 새벽 감성러 / 🍃 조용한 관찰자",
+  "vibe_type": "이모지 + 오늘의 나를 표현하는 유형명 (10자 이내). 사진과 취향을 종합해 오늘의 나를 하나의 캐릭터로 표현. 곡이 아닌 오늘의 나 중심. 반드시 한글만 사용 (한자·영어·특수문자 제외). 예: 🕺 거리의 주인공 / 🌙 새벽 감성러 / 🍃 조용한 관찰자",
   "vibe_description": "오늘의 나를 한 줄로 설명 (20자 이내). 장르명 없이, 오늘 내가 어떤 사람인지 감성적으로. 위트있고 공감되는 표현. 예: 오늘 하루 내가 주인공 / 말없이 깊어지는 오늘 / 혼자여도 충분한 하루",
   "background": {
     "from": "시작 hex 색상 (어두운 톤, 곡 분위기 반영)",
@@ -350,11 +350,21 @@ export async function POST(req: NextRequest) {
 
     // 선택된 곡과 매칭되는 검증 결과에서 spotifyTrackId, albumArt 추출
     const selectedSong = (result.song as string).split(" - ")[0]?.trim() ?? result.song;
-    const matched = verifiedTracks.find(
-      (t) =>
-        t.song.toLowerCase().includes(selectedSong.toLowerCase()) ||
-        selectedSong.toLowerCase().includes(t.song.toLowerCase())
-    );
+    const selectedArtist = (result.song as string).split(" - ").slice(1).join(" - ").trim();
+
+    const matched =
+      verifiedTracks.find(
+        (t) =>
+          (t.song.toLowerCase().includes(selectedSong.toLowerCase()) ||
+            selectedSong.toLowerCase().includes(t.song.toLowerCase())) &&
+          (artistMatches(t.artist, selectedArtist) || !selectedArtist)
+      ) ??
+      verifiedTracks.find(
+        (t) =>
+          t.song.toLowerCase().includes(selectedSong.toLowerCase()) ||
+          selectedSong.toLowerCase().includes(t.song.toLowerCase())
+      ) ??
+      verifiedTracks[0]; // 매칭 실패 시 첫 번째 검증 곡으로 fallback
 
     const spotifyTrackId = matched?.spotifyTrackId || null;
     const albumArt = matched?.albumArt || null;
