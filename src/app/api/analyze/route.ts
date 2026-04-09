@@ -73,8 +73,9 @@ type VerifiedTrack = {
 };
 
 function getPopularityThreshold(genre: string): number {
-  if (genre === "인디" || genre === "재즈/어쿠스틱") return 20;
-  return 35;
+  if (genre === "인디" || genre === "재즈/어쿠스틱") return 10;
+  if (genre === "장르 발견하기") return 15;
+  return 20;
 }
 
 const EXCLUDE_KEYWORDS = [
@@ -111,27 +112,35 @@ async function verifyCandidate(
     album: { images: { url: string }[]; album_type: string };
   }[] = data.tracks?.items ?? [];
 
-  // 커버/라이브/리믹스/컴필레이션 제외 + popularity 기준 필터
-  const filtered = tracks.filter(
-    (t) => isOriginalTrack(t.name, t.album.album_type) && t.popularity >= popularityThreshold
-  );
+  // 커버/라이브/리믹스/컴필레이션 제외
+  const original = tracks.filter((t) => isOriginalTrack(t.name, t.album.album_type));
+  // popularity 기준 적용
+  const filtered = original.filter((t) => t.popularity >= popularityThreshold);
 
   if (!artist) {
-    const track = filtered[0];
+    const track = (filtered[0] ?? original[0]); // fallback: popularity 무시
     return track
       ? { song, artist, spotifyTrackId: track.id, albumArt: track.album.images[0]?.url ?? null, popularity: track.popularity }
       : null;
   }
 
-  const matched = filtered.find((track) => {
-    const sMatch = songMatches(track.name, song);
-    const aMatch = track.artists.some((a) => artistMatches(a.name, artist));
-    console.log(`[verify] "${song} - ${artist}" vs Spotify "${track.name} - ${track.artists.map(a => a.name).join(",")}" pop:${track.popularity} → song:${sMatch} artist:${aMatch}`);
-    return sMatch && aMatch;
-  });
+  const findMatch = (pool: typeof original) =>
+    pool.find((track) => {
+      const sMatch = songMatches(track.name, song);
+      const aMatch = track.artists.some((a) => artistMatches(a.name, artist));
+      console.log(`[verify] "${song} - ${artist}" vs Spotify "${track.name} - ${track.artists.map(a => a.name).join(",")}" pop:${track.popularity} → song:${sMatch} artist:${aMatch}`);
+      return sMatch && aMatch;
+    });
+
+  const matched = findMatch(filtered) ?? (() => {
+    // fallback: popularity 기준 무시하고 매칭만으로 통과
+    const fallback = findMatch(original);
+    if (fallback) console.log(`[verify] ↩ "${song} - ${artist}" popularity fallback (pop:${fallback.popularity} < ${popularityThreshold})`);
+    return fallback;
+  })();
 
   if (!matched) {
-    console.log(`[verify] ✗ "${song} - ${artist}" 매칭 실패 (후보 ${filtered.length}개 검토, threshold:${popularityThreshold})`);
+    console.log(`[verify] ✗ "${song} - ${artist}" 매칭 실패 (후보 ${original.length}개 검토, threshold:${popularityThreshold})`);
   } else {
     console.log(`[verify] ✓ "${song} - ${artist}" 매칭 성공: ${matched.id} pop:${matched.popularity}`);
   }
