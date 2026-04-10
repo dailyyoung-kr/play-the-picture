@@ -7,7 +7,7 @@ const ADMIN_PW = process.env.NEXT_PUBLIC_ADMIN_PASSWORD ?? "coldboardp1!";
 
 type PhotoLog = { id: string; created_at: string };
 type PrefLog = { id: string; created_at: string; genre: string | null; mood: string | null; listening_style: string | null };
-type AnalyzeLog = { id: string; created_at: string; status: string; response_time_ms: number | null; spotify_status: string | null };
+type AnalyzeLog = { id: string; created_at: string; status: string; response_time_ms: number | null; spotify_status: string | null; song: string | null; artist: string | null };
 type EntryRow = { id: string; date: string; song: string; artist: string; genre: string | null; mood: string | null };
 type LogRow = { id: string; created_at: string };
 type FailLog = { id: string; created_at: string; song: string | null; artist: string | null; error_reason: string | null };
@@ -205,7 +205,7 @@ export default function AdminPage() {
     const [photoRes, prefRes, analyzeRes, entriesRes, shareRes, viewsRes, tryRes, failRes] = await Promise.all([
       supabase.from("photo_upload_logs").select("id, created_at").order("created_at", { ascending: false }),
       supabase.from("preference_logs").select("id, created_at, genre, mood, listening_style").order("created_at", { ascending: false }),
-      supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, spotify_status").order("created_at", { ascending: false }),
+      supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, spotify_status, song, artist").order("created_at", { ascending: false }),
       supabase.from("entries").select("id, date, song, artist, genre, mood").order("id", { ascending: false }),
       supabase.from("share_logs").select("id, created_at").order("created_at", { ascending: false }),
       supabase.from("share_views").select("id, created_at").order("created_at", { ascending: false }),
@@ -323,7 +323,11 @@ export default function AdminPage() {
   const topGenres = fillRank(filteredPrefs.map(l => l.genre ?? "").filter(Boolean), GENRES);
   const topMoods = fillRank(filteredPrefs.map(l => l.mood ?? "").filter(Boolean), MOODS);
   const topStyles = fillRank(filteredPrefs.map(l => l.listening_style ?? "").filter(Boolean), STYLES);
-  const topSongs = countBy(filteredEntries.map(e => `${e.song}${e.artist ? ` — ${e.artist}` : ""}`)).slice(0, 5);
+  const topSongs = countBy(
+    filteredAnalyze
+      .filter(l => l.status === "success" && l.song)
+      .map(l => `${l.song}${l.artist ? ` — ${l.artist}` : ""}`)
+  ).slice(0, 5);
 
   const refreshLabel = lastRefresh
     ? lastRefresh.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
