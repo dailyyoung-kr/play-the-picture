@@ -185,7 +185,19 @@ export default function PreferencePage() {
         throw new Error(data.error || "분석에 실패했어요.");
       }
 
-      if (logId) await supabase.from("analyze_logs").update({ status: "success", response_time_ms: responseTimeMs }).eq("id", logId);
+      if (logId) {
+        const songStr = (data.song as string) ?? "";
+        const dashIdx = songStr.indexOf(" - ");
+        const logSong = dashIdx >= 0 ? songStr.slice(0, dashIdx).trim() : songStr.trim();
+        const logArtist = dashIdx >= 0 ? songStr.slice(dashIdx + 3).trim() : "";
+        await supabase.from("analyze_logs").update({
+          status: "success",
+          response_time_ms: responseTimeMs,
+          song: logSong,
+          artist: logArtist,
+          spotify_status: data.spotifyTrackId ? "found" : "not_found",
+        }).eq("id", logId);
+      }
 
       localStorage.setItem("ptp_result", JSON.stringify(data));
       localStorage.setItem("ptp_prefs", JSON.stringify({ genre: selectedGenre, mood: selectedMood }));

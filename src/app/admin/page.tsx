@@ -7,7 +7,7 @@ const ADMIN_PW = process.env.NEXT_PUBLIC_ADMIN_PASSWORD ?? "coldboardp1!";
 
 type PhotoLog = { id: string; created_at: string };
 type PrefLog = { id: string; created_at: string; genre: string | null; mood: string | null; listening_style: string | null };
-type AnalyzeLog = { id: string; created_at: string; status: string; response_time_ms: number | null };
+type AnalyzeLog = { id: string; created_at: string; status: string; response_time_ms: number | null; spotify_status: string | null };
 type EntryRow = { id: string; date: string; song: string; artist: string; genre: string | null; mood: string | null };
 type LogRow = { id: string; created_at: string };
 type FailLog = { id: string; created_at: string; song: string | null; artist: string | null; error_reason: string | null };
@@ -205,12 +205,12 @@ export default function AdminPage() {
     const [photoRes, prefRes, analyzeRes, entriesRes, shareRes, viewsRes, tryRes, failRes] = await Promise.all([
       supabase.from("photo_upload_logs").select("id, created_at").order("created_at", { ascending: false }),
       supabase.from("preference_logs").select("id, created_at, genre, mood, listening_style").order("created_at", { ascending: false }),
-      supabase.from("analyze_logs").select("id, created_at, status, response_time_ms").order("created_at", { ascending: false }),
+      supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, spotify_status").order("created_at", { ascending: false }),
       supabase.from("entries").select("id, date, song, artist, genre, mood").order("id", { ascending: false }),
       supabase.from("share_logs").select("id, created_at").order("created_at", { ascending: false }),
       supabase.from("share_views").select("id, created_at").order("created_at", { ascending: false }),
       supabase.from("try_click").select("id, created_at").order("created_at", { ascending: false }),
-      supabase.from("analyze_logs").select("id, created_at, song, artist, error_reason").eq("status", "fail").order("created_at", { ascending: false }).limit(5),
+      supabase.from("analyze_logs").select("id, created_at, song, artist, error_reason").eq("spotify_status", "not_found").order("created_at", { ascending: false }).limit(5),
     ]);
 
     if (!photoRes.error) setPhotoLogs(photoRes.data ?? []);
@@ -425,7 +425,7 @@ export default function AdminPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", margin: 0 }}>❌ 검증 실패한 곡 목록</p>
           <span style={{ background: "rgba(240,112,112,0.15)", border: "1px solid rgba(240,112,112,0.3)", borderRadius: 20, padding: "3px 10px", fontSize: 11, color: "#f07070", fontWeight: 600 }}>
-            총 {analyzeLogs.filter(l => l.status === "fail").length}회
+            총 {analyzeLogs.filter(l => l.spotify_status === "not_found").length}회
           </span>
         </div>
         {failLogs.length === 0 ? (
