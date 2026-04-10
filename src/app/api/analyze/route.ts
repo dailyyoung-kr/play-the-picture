@@ -181,7 +181,7 @@ Daughter, Beach House, James Blake, Nick Drake, Elliott Smith, Radiohead.
 [응답 형식 - JSON만 반환, 다른 텍스트 없이]
 {
   "song": "곡명 - 아티스트명",
-  "spotifyQuery": { "song": "song 필드와 동일한 곡의 Spotify 검색용 영문 제목. 반드시 같은 곡이어야 함. 예: song이 '꽃 - 아이유'면 spotifyQuery.song은 'Flower' (O) / 'Palette' (X - 다른 곡)", "artist": "Spotify 검색용 아티스트명 (영문)" },
+  "spotifyQuery": { "song": "song 필드와 동일한 곡의 Spotify 검색용 영문 제목. 반드시 같은 곡이어야 함. Spotify에 등록된 정확한 곡명 전체를 영문으로 입력 (축약하거나 일부만 입력 금지). 예: song이 '꽃 - 아이유'면 spotifyQuery.song은 'Flower' (O) / 'Palette' (X - 다른 곡). 예: 'Goodbye Seoul' (O) / 'Seoul' (X). 예: 'Through the Night' (O) / 'Night' (X)", "artist": "Spotify 검색용 아티스트명 (영문)" },
   "reason": "2-3문장. 사진에서 오늘의 이야기를 상상해서 짧은 스토리처럼 표현. 분석 리포트가 아닌 감성적이고 시적인 톤으로. 마지막 문장은 약간 신비롭거나 위트있게 마무리. 예시: '키보드 앞에 앉아 있지만 마음은 이미 퇴근한 것 같은 오늘. 이 곡은 그 틈새를 정확히 파고들어요. 오늘 이 곡을 들으면 뭔가 하나가 풀릴 것 같아요.' 존댓말(~요체) 유지.",
   "tags": [
     "1번: 장르/서브장르 (예: 인디팝, 발라드, R&B, 드림팝, 네오소울, 시티팝 / 최대 6자, # 없이 텍스트만)",
