@@ -51,7 +51,7 @@ async function findOnSpotify(
   token: string
 ): Promise<{ trackId: string; albumArt: string | null; trackName: string; trackArtist: string; rateLimited?: boolean } | null> {
   const query = artist ? `${song} ${artist}` : song;
-  const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`;
+  const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5&market=KR`;
 
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
 
@@ -73,14 +73,23 @@ async function findOnSpotify(
   const original = tracks.filter((t) => isOriginalTrack(t.name, t.album.album_type));
   const pool = original.length > 0 ? original : tracks;
 
-  // 아티스트명 + 곡명 검증: 특수문자 제거 후 소문자로 포함 여부 확인
+  // 아티스트명 + 곡명 검증: 특수문자 제거 후 소문자로 비교
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9가-힣]/g, "");
+  // 아티스트 매칭: 토큰 단위 완전 일치 (crush→acrush, iu→iuliafridrik 오매칭 방지)
+  const artistMatch = (q: string, t: string): boolean => {
+    if (q === t) return true;
+    const tokenize = (s: string) =>
+      s.replace(/([a-z0-9]+)/g, " $1 ").replace(/([가-힣]+)/g, " $1 ").trim().split(/\s+/).filter(Boolean);
+    const qTokens = tokenize(q);
+    const tTokens = tokenize(t);
+    return qTokens.every((w) => tTokens.includes(w)) || tTokens.every((w) => qTokens.includes(w));
+  };
   const queryArtist = norm(artist);
   const querySong = norm(song);
   const matched = pool.find((t) => {
     const trackArtist = norm(t.artists[0]?.name ?? "");
     const trackName = norm(t.name);
-    const artistOk = !queryArtist || trackArtist.includes(queryArtist) || queryArtist.includes(trackArtist);
+    const artistOk = !queryArtist || artistMatch(queryArtist, trackArtist);
     const songOk = !querySong || trackName.includes(querySong) || querySong.includes(trackName);
     return artistOk && songOk;
   });
@@ -146,11 +155,11 @@ function buildMainPrompt(genre: string, mood: string, listeningStyle: string, at
 
 [장르별 추천 방향]
 인디 → 한국 인디 중심. 날것의 감성, 덜 알려진 곡도 포함. 한국 곡 위주.
-K-POP → 타이틀곡 50% + 수록곡/B사이드 50% 비율로 믹스. 잘 알려진 곡과 숨은 명곡 균형있게.
-힙합/R&B → 한국/글로벌 구분 없이. 다양한 스타일 자유롭게.
+K-POP → 타이틀/수록곡 구분 없이 자유롭게. 잘 알려진 곡과 숨은 명곡 균형있게.
+힙합/R&B → 한국 곡 60%, 글로벌 40% 비중으로. 다양한 스타일 자유롭게.
 팝 → 인디팝, 드림팝, 얼터너티브팝 등 서브장르 자유롭게. 외국 곡 위주.
 재즈/어쿠스틱 → 악기 중심의 잔잔한 곡. 외국 곡 비중 허용.
-장르 발견하기 → 인디팝, 드림팝, 시티팝, 네오소울, 얼터너티브, 포스트록, 앰비언트팝, 침머, 로파이 범위 내. 월간 리스너 100만 이상. 한국/글로벌 자유.
+장르 발견하기 → 인디팝, 드림팝, 시티팝, 네오소울, 얼터너티브, 포스트록, 앰비언트팝, 침머, 로파이 범위 내. 월간 리스너 100만 이상. 한국 곡 우선으로.
 
 [피해야 할 아티스트]
 Bon Iver, The xx, Cigarettes After Sex, The National, Hozier, Phoebe Bridgers,
@@ -161,6 +170,8 @@ Daughter, Beach House, James Blake, Nick Drake, Elliott Smith, Radiohead.
 - Bloom - The Paper Kites
 - 봄날 - BTS
 - Bon Iver의 모든 곡 (아티스트 전체 제외)
+- 곡 제목에 "Interlude", "Skit", "Intro", "Outro"가 포함된 모든 트랙 (앨범 인터루드/스킷 트랙 전체 제외)
+- 곡 제목에 "Cherry Blossom"이 포함된 모든 곡 (Spotify KR에 없음). 봄 관련 한국 곡이 필요하다면 대신 추천 가능한 예시: 봄봄봄 - 로이킴, 벚꽃 엔딩 - 버스커 버스커, 봄사랑 벚꽃 말고 - 에일리, 봄이 좋냐 - 하림, 꽃 - 아이유, Blossom - 헤이즈
 
 [공통 조건]
 - 반드시 Spotify에 실제 존재하는 곡만 추천
@@ -302,8 +313,10 @@ export async function POST(req: NextRequest) {
         if (found && !found.rateLimited && found.trackId) {
           spotifyTrackId = found.trackId;
           albumArt = found.albumArt;
-          // Spotify 실제 메타데이터로 song 필드 덮어쓰기 (한국어 표기 보장)
-          finalResult = found.trackName && found.trackArtist
+          // 원본 song이 한글이면 유지, 영문이면 Spotify 메타로 덮어쓰기
+          const originalSong = (result.song as string) ?? "";
+          const hasKorean = /[\u3131-\u318E\uAC00-\uD7A3]/.test(originalSong);
+          finalResult = found.trackName && found.trackArtist && !hasKorean
             ? { ...result, song: `${found.trackName} - ${found.trackArtist}` }
             : result;
           console.log(`[analyze] ✓ Spotify 검증 성공: ${spotifyTrackId} | 표시명: ${(finalResult as Record<string,unknown>).song}`);
