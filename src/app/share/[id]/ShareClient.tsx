@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { supabase, getDeviceId } from "@/lib/supabase";
 
 interface ShareEntry {
   id: string;
@@ -66,7 +66,17 @@ export default function ShareClient({ id }: { id: string }) {
           // 공유 페이지 방문 기록 (최초 1회)
           if (!viewLogged.current) {
             viewLogged.current = true;
-            supabase.from("share_views").insert({ entry_id: id }).then(() => {});
+            const deviceId = getDeviceId();
+            supabase.from("share_views")
+              .select("id")
+              .eq("entry_id", id)
+              .eq("device_id", deviceId)
+              .maybeSingle()
+              .then(({ data }) => {
+                if (!data) {
+                  supabase.from("share_views").insert({ entry_id: id, device_id: deviceId }).then(() => {});
+                }
+              });
           }
         }
       });
@@ -76,7 +86,7 @@ export default function ShareClient({ id }: { id: string }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!entry) return;
-      const photos = entry.photos.slice(0, 3).filter(s => s.startsWith("data:"));
+      const photos = entry.photos.filter(s => s.startsWith("data:"));
       if (e.key === "Escape") setModalIndex(null);
       if (e.key === "ArrowRight") setModalIndex(i => i !== null && photos.length > 1 ? (i + 1) % photos.length : i);
       if (e.key === "ArrowLeft") setModalIndex(i => i !== null && photos.length > 1 ? (i - 1 + photos.length) % photos.length : i);
@@ -107,7 +117,17 @@ export default function ShareClient({ id }: { id: string }) {
   };
 
   const handleTryClick = () => {
-    supabase.from("try_click").insert({ entry_id: id }).then(() => {});
+    const deviceId = getDeviceId();
+    supabase.from("try_click")
+      .select("id")
+      .eq("entry_id", id)
+      .eq("device_id", deviceId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) {
+          supabase.from("try_click").insert({ entry_id: id, device_id: deviceId }).then(() => {});
+        }
+      });
     router.push("/");
   };
 
@@ -146,7 +166,7 @@ export default function ShareClient({ id }: { id: string }) {
     );
   }
 
-  const modalPhotos = entry.photos.slice(0, 3).filter(s => s.startsWith("data:"));
+  const modalPhotos = entry.photos.filter(s => s.startsWith("data:"));
   const songForShare = entry.song;
   const artistForShare = entry.artist;
 
@@ -205,7 +225,7 @@ export default function ShareClient({ id }: { id: string }) {
           </p>
 
           <div className="flex gap-2 justify-center mb-5">
-            {(entry.photos.length > 0 ? entry.photos.slice(0, 3) : PHOTO_COLORS).map((src, i) => {
+            {(entry.photos.length > 0 ? entry.photos : PHOTO_COLORS).map((src, i) => {
               const isPhoto = typeof src === "string" && src.startsWith("data:");
               const photoIdx = isPhoto ? modalPhotos.indexOf(src) : -1;
               return (

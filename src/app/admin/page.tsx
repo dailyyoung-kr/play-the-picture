@@ -397,7 +397,7 @@ export default function AdminPage() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
         <ConvCard label="분석 성공률" value={pct(successCount, analyzeStartCount)} sub={`${successCount} / ${analyzeStartCount}`} accent="#6be0a0" />
         <ConvCard label="저장 전환율" value={pct(saveCount, successCount)} sub={`${saveCount} / ${successCount}`} accent="#a0d4f0" />
-        <ConvCard label="공유율" value={pct(shareCount, saveCount)} sub={`${shareCount} / ${saveCount}`} accent="#C4687A" />
+        <ConvCard label="공유율" value={pct(shareCount, successCount)} sub={`${shareCount} / ${successCount}건`} accent="#C4687A" />
         <ConvCard label="유입 전환율" value={pct(tryCount, viewCount)} sub={`${tryCount} / ${viewCount}`} accent="#f0d080" />
       </div>
 
