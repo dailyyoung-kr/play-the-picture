@@ -48,6 +48,7 @@ export default function ShareClient({ id }: { id: string }) {
     youtubeFallback: string;
   } | null>(null);
   const [loadingLinks, setLoadingLinks] = useState(false);
+  const [modalIndex, setModalIndex] = useState<number | null>(null);
   const viewLogged = { current: false };
 
   useEffect(() => {
@@ -71,6 +72,18 @@ export default function ShareClient({ id }: { id: string }) {
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!entry) return;
+      const photos = entry.photos.slice(0, 3).filter(s => s.startsWith("data:"));
+      if (e.key === "Escape") setModalIndex(null);
+      if (e.key === "ArrowRight") setModalIndex(i => i !== null && photos.length > 1 ? (i + 1) % photos.length : i);
+      if (e.key === "ArrowLeft") setModalIndex(i => i !== null && photos.length > 1 ? (i - 1 + photos.length) % photos.length : i);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [entry]);
 
   const fetchMusicLinks = async (song: string, artist: string) => {
     setLoadingLinks(true);
@@ -133,6 +146,7 @@ export default function ShareClient({ id }: { id: string }) {
     );
   }
 
+  const modalPhotos = entry.photos.slice(0, 3).filter(s => s.startsWith("data:"));
   const songForShare = entry.song;
   const artistForShare = entry.artist;
 
@@ -191,14 +205,25 @@ export default function ShareClient({ id }: { id: string }) {
           </p>
 
           <div className="flex gap-2 justify-center mb-5">
-            {(entry.photos.length > 0 ? entry.photos.slice(0, 3) : PHOTO_COLORS).map((src, i) => (
-              <div key={i} style={{ width: 100, height: 124, borderRadius: 10, border: "1.5px solid rgba(255,255,255,0.13)", flexShrink: 0, overflow: "hidden", background: typeof src === "string" && src.startsWith("data:") ? undefined : PHOTO_COLORS[i] }}>
-                {src.startsWith("data:") && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={src} alt={`사진 ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                )}
-              </div>
-            ))}
+            {(entry.photos.length > 0 ? entry.photos.slice(0, 3) : PHOTO_COLORS).map((src, i) => {
+              const isPhoto = typeof src === "string" && src.startsWith("data:");
+              const photoIdx = isPhoto ? modalPhotos.indexOf(src) : -1;
+              return (
+                <div
+                  key={i}
+                  role={isPhoto ? "button" : undefined}
+                  tabIndex={isPhoto ? 0 : undefined}
+                  onClick={() => isPhoto && photoIdx >= 0 && setModalIndex(photoIdx)}
+                  onTouchEnd={(e) => { if (isPhoto && photoIdx >= 0) { e.preventDefault(); setModalIndex(photoIdx); } }}
+                  style={{ width: 100, height: 124, borderRadius: 10, border: "1.5px solid rgba(255,255,255,0.13)", flexShrink: 0, overflow: "hidden", background: !isPhoto ? PHOTO_COLORS[i] : undefined, cursor: isPhoto ? "pointer" : "default" }}
+                >
+                  {isPhoto && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={src} alt={`사진 ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }} />
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           <div className="text-center mb-4">
@@ -309,6 +334,50 @@ export default function ShareClient({ id }: { id: string }) {
           </>
         )}
       </div>
+
+      {/* 사진 확대 모달 */}
+      {modalIndex !== null && modalPhotos[modalIndex] && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn 0.2s ease" }}
+          onClick={() => setModalIndex(null)}
+        >
+          <button
+            onClick={() => setModalIndex(null)}
+            style={{ position: "absolute", top: 20, right: 20, background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 40, height: 40, fontSize: 20, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 201 }}
+          >
+            ✕
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={modalPhotos[modalIndex]}
+            alt={`사진 ${modalIndex + 1}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "100%", maxHeight: "90vh", objectFit: "contain", borderRadius: 8, userSelect: "none" }}
+          />
+          {modalPhotos.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setModalIndex(i => i !== null ? (i - 1 + modalPhotos.length) % modalPhotos.length : 0); }}
+              style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 44, height: 44, fontSize: 22, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+            >
+              ‹
+            </button>
+          )}
+          {modalPhotos.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setModalIndex(i => i !== null ? (i + 1) % modalPhotos.length : 0); }}
+              style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 44, height: 44, fontSize: 22, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+            >
+              ›
+            </button>
+          )}
+          {modalPhotos.length > 1 && (
+            <div style={{ position: "absolute", bottom: 24, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.55)", borderRadius: 20, padding: "5px 16px", fontSize: 13, color: "rgba(255,255,255,0.8)" }}>
+              {modalIndex + 1} / {modalPhotos.length}
+            </div>
+          )}
+          <style>{`@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }`}</style>
+        </div>
+      )}
     </div>
   );
 }
