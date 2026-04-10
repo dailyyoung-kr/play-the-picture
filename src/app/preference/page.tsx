@@ -18,6 +18,9 @@ const PHASE3_TEXTS = [
   "거의 다 됐어요",
   "더 잘 어울리는 곡이 있을 것 같네요",
   "당신이 좋아할만한 곡을 찾아볼게요",
+  "조금만 더 기다려주세요, 거의 다 됐어요",
+  "딱 한 곡이라 신중하게 고르고 있어요",
+  "플더픽이 최선을 다하고 있어요 🎵",
 ];
 
 export default function PreferencePage() {
@@ -100,9 +103,9 @@ export default function PreferencePage() {
     const timers: ReturnType<typeof setTimeout>[] = [];
     let loopInterval: ReturnType<typeof setInterval> | undefined;
 
-    // index 1~3: 3초 간격 순차 표시
+    // index 1~3: 4초 간격 순차 표시
     for (let i = 1; i <= 3; i++) {
-      const base = i * 3000;
+      const base = i * 4000;
       timers.push(setTimeout(() => setPhase3TextVisible(false), base - 400));
       const idx = i;
       timers.push(setTimeout(() => {
@@ -111,8 +114,8 @@ export default function PreferencePage() {
       }, base));
     }
 
-    // index 3 표시 후 3초(=12초)부터 4→5→3→4→5→3... 루프
-    const LOOP = [4, 5, 3];
+    // index 3 표시 후 4초(=16초)부터 4→5→6→7→8→4→5→... 루프
+    const LOOP = [4, 5, 6, 7, 8];
     let step = 0;
     timers.push(setTimeout(() => {
       loopInterval = setInterval(() => {
@@ -123,8 +126,8 @@ export default function PreferencePage() {
           setPhase3TextIndex(nextIdx);
           setPhase3TextVisible(true);
         }, 400);
-      }, 3000);
-    }, 12000));
+      }, 4000);
+    }, 16000));
 
     return () => {
       timers.forEach(clearTimeout);
