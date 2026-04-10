@@ -73,22 +73,24 @@ async function findOnSpotify(
   const original = tracks.filter((t) => isOriginalTrack(t.name, t.album.album_type));
   const pool = original.length > 0 ? original : tracks;
 
-  // 아티스트명 검증: 특수문자 제거 후 소문자로 포함 여부 확인
+  // 아티스트명 + 곡명 검증: 특수문자 제거 후 소문자로 포함 여부 확인
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9가-힣]/g, "");
   const queryArtist = norm(artist);
-  const matched = queryArtist
-    ? pool.find((t) => {
-        const trackArtist = norm(t.artists[0]?.name ?? "");
-        return trackArtist.includes(queryArtist) || queryArtist.includes(trackArtist);
-      })
-    : pool[0]; // artist 정보 없으면 검증 생략
+  const querySong = norm(song);
+  const matched = pool.find((t) => {
+    const trackArtist = norm(t.artists[0]?.name ?? "");
+    const trackName = norm(t.name);
+    const artistOk = !queryArtist || trackArtist.includes(queryArtist) || queryArtist.includes(trackArtist);
+    const songOk = !querySong || trackName.includes(querySong) || querySong.includes(trackName);
+    return artistOk && songOk;
+  });
 
   if (!matched) {
-    console.log(`[spotify] ✗ 아티스트 불일치 - 쿼리: "${artist}" | 결과: ${pool.slice(0, 3).map(t => t.artists[0]?.name).join(", ")}`);
+    console.log(`[spotify] ✗ 불일치 - 쿼리: "${song} - ${artist}" | 결과: ${pool.slice(0, 3).map(t => `"${t.name}-${t.artists[0]?.name}"`).join(", ")}`);
     return null;
   }
 
-  console.log(`[spotify] ✓ 아티스트 매칭: "${artist}" ↔ "${matched.artists[0]?.name}"`);
+  console.log(`[spotify] ✓ 매칭: "${song} - ${artist}" ↔ "${matched.name} - ${matched.artists[0]?.name}"`);
   return { trackId: matched.id, albumArt: matched.album.images[0]?.url ?? null };
 }
 
