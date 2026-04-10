@@ -126,9 +126,9 @@ function buildMainPrompt(genre: string, mood: string, listeningStyle: string, at
 - Spotify에 100% 존재하는 곡
 - 완전히 다른 아티스트와 곡으로 추천해줘\n\n`;
   } else if (attempt === 2) {
-    retryPrefix = `여전히 Spotify에서 찾지 못했어요. 장르 제한 없이, 월간 리스너 1000만 이상의 매우 유명한 아티스트의 곡으로만 추천해줘.\n\n`;
+    retryPrefix = `앞선 추천 곡들이 Spotify에 없었어요. 이번엔 장르를 완전히 바꿔서 추천해줘.\n- 사진 분위기와 100% 일치하지 않아도 돼\n- 이전에 추천한 장르와 다른 장르로\n- Spotify에 확실히 존재하는 곡만\n\n`;
   } else if (attempt >= 3) {
-    retryPrefix = `Spotify 검증이 계속 실패하고 있어요. BTS, IU, NewJeans, aespa, Taylor Swift, Billie Eilish, The Weeknd 등 전 세계적으로 유명한 아티스트 중에서 사진 분위기에 맞는 곡을 추천해줘.\n\n`;
+    retryPrefix = `Spotify 검증이 계속 실패하고 있어요. 팝 / K-POP / 힙합 중 하나를 선택해서, 월간 리스너 1000만 이상 아티스트의 확실히 존재하는 곡으로 추천해줘.\n\n`;
   }
 
   return `${retryPrefix}아래 정보를 바탕으로 사진에 가장 잘 어울리는 노래 1곡을 추천하고 결과를 반환해줘.
