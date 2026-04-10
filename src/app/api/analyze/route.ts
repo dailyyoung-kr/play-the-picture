@@ -154,6 +154,11 @@ Bon Iver, The xx, Cigarettes After Sex, The National, Hozier, Phoebe Bridgers,
 Lana Del Rey, Sufjan Stevens, Iron & Wine, Fleet Foxes, Sigur Rós, Mogwai,
 Daughter, Beach House, James Blake, Nick Drake, Elliott Smith, Radiohead.
 
+[절대 추천 금지 - 어떤 상황에서도 제외]
+- Bloom - The Paper Kites
+- 봄날 - BTS
+- Bon Iver의 모든 곡 (아티스트 전체 제외)
+
 [공통 조건]
 - 반드시 Spotify에 실제 존재하는 곡만 추천
 - 곡명과 아티스트명은 Spotify 검색에 최적화된 정확한 영문/한글로
