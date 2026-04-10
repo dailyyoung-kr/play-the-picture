@@ -75,7 +75,10 @@ export default function UploadPage() {
 
   const handleNext = () => {
     if (photos.length === 0) return;
-    supabase.from("photo_upload_logs").insert({ device_id: getDeviceId(), photo_count: photos.length });
+    supabase
+      .from("photo_upload_logs")
+      .insert({ device_id: getDeviceId(), photo_count: photos.length })
+      .then(({ error }) => { if (error) console.error("[photo_log]", error.message); });
     router.push("/preference");
   };
 

@@ -125,12 +125,10 @@ export default function PreferencePage() {
     const startTime = Date.now();
 
     // 취향 선택 로그 (fire-and-forget)
-    supabase.from("preference_logs").insert({
-      device_id: deviceId,
-      genre: selectedGenre,
-      mood: selectedMood,
-      listening_style: selectedStyle,
-    });
+    supabase
+      .from("preference_logs")
+      .insert({ device_id: deviceId, genre: selectedGenre, mood: selectedMood, listening_style: selectedStyle })
+      .then(({ error }) => { if (error) console.error("[pref_log]", error.message); });
 
     // 분석 시작 로그 (id 받아서 나중에 업데이트)
     let logId: string | null = null;
@@ -163,11 +161,11 @@ export default function PreferencePage() {
       const responseTimeMs = Date.now() - startTime;
 
       if (!res.ok) {
-        if (logId) supabase.from("analyze_logs").update({ status: "fail", response_time_ms: responseTimeMs, error_reason: data.error ?? "unknown" }).eq("id", logId);
+        if (logId) await supabase.from("analyze_logs").update({ status: "fail", response_time_ms: responseTimeMs, error_reason: data.error ?? "unknown" }).eq("id", logId);
         throw new Error(data.error || "분석에 실패했어요.");
       }
 
-      if (logId) supabase.from("analyze_logs").update({ status: "success", response_time_ms: responseTimeMs }).eq("id", logId);
+      if (logId) await supabase.from("analyze_logs").update({ status: "success", response_time_ms: responseTimeMs }).eq("id", logId);
 
       localStorage.setItem("ptp_result", JSON.stringify(data));
       localStorage.setItem("ptp_prefs", JSON.stringify({ genre: selectedGenre, mood: selectedMood }));
