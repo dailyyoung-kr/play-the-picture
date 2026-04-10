@@ -16,6 +16,8 @@ const PHASE3_TEXTS = [
   "취향을 분석하고 있어요",
   "오늘의 분위기와 어울리는 곡을 고르고 있어요",
   "거의 다 됐어요",
+  "더 잘 어울리는 곡이 있을 것 같네요",
+  "당신이 좋아할만한 곡을 찾아볼게요",
 ];
 
 export default function PreferencePage() {
@@ -84,7 +86,7 @@ export default function PreferencePage() {
     };
   }, [loading]);
 
-  // 3단계 텍스트 3초 간격 순환 (마지막에서 멈춤)
+  // 3단계 텍스트: index 0~3 순차 표시 후, index 4→5→3→4→5→3... 루프
   useEffect(() => {
     if (loadingPhase !== 2) {
       setPhase3TextIndex(0);
@@ -96,12 +98,12 @@ export default function PreferencePage() {
     setPhase3TextVisible(true);
 
     const timers: ReturnType<typeof setTimeout>[] = [];
+    let loopInterval: ReturnType<typeof setInterval> | undefined;
 
-    for (let i = 1; i < PHASE3_TEXTS.length; i++) {
+    // index 1~3: 3초 간격 순차 표시
+    for (let i = 1; i <= 3; i++) {
       const base = i * 3000;
-      // fade-out (전환 400ms 전)
       timers.push(setTimeout(() => setPhase3TextVisible(false), base - 400));
-      // 텍스트 교체 + fade-in
       const idx = i;
       timers.push(setTimeout(() => {
         setPhase3TextIndex(idx);
@@ -109,7 +111,25 @@ export default function PreferencePage() {
       }, base));
     }
 
-    return () => timers.forEach(clearTimeout);
+    // index 3 표시 후 3초(=12초)부터 4→5→3→4→5→3... 루프
+    const LOOP = [4, 5, 3];
+    let step = 0;
+    timers.push(setTimeout(() => {
+      loopInterval = setInterval(() => {
+        setPhase3TextVisible(false);
+        const nextIdx = LOOP[step % LOOP.length];
+        step++;
+        setTimeout(() => {
+          setPhase3TextIndex(nextIdx);
+          setPhase3TextVisible(true);
+        }, 400);
+      }, 3000);
+    }, 12000));
+
+    return () => {
+      timers.forEach(clearTimeout);
+      if (loopInterval) clearInterval(loopInterval);
+    };
   }, [loadingPhase]);
 
   const handleAnalyze = async () => {
