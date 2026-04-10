@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, Music } from "lucide-react";
+import { supabase, getDeviceId } from "@/lib/supabase";
 
 // 사진을 800px 이하로 압축해서 base64로 변환
 function compressImage(file: File): Promise<string> {
@@ -74,6 +75,7 @@ export default function UploadPage() {
 
   const handleNext = () => {
     if (photos.length === 0) return;
+    supabase.from("photo_upload_logs").insert({ device_id: getDeviceId(), photo_count: photos.length });
     router.push("/preference");
   };
 

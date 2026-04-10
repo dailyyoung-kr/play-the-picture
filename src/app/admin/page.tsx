@@ -5,18 +5,15 @@ import { supabase } from "@/lib/supabase";
 
 const ADMIN_PW = process.env.NEXT_PUBLIC_ADMIN_PASSWORD ?? "coldboardp1!";
 
-type EntryRow = {
-  id: string;
-  date: string;
-  song: string;
-  artist: string;
-  genre: string | null;
-  mood: string | null;
-};
-
-type LogRow = {
-  id: string;
-  created_at: string;
+type PhotoLog = { id: string; created_at: string };
+type PrefLog = { id: string; created_at: string; genre: string | null; mood: string | null };
+type AnalyzeLog = { id: string; created_at: string; status: string; response_time_ms: number | null };
+type EntryRow = { id: string; date: string; song: string; artist: string; genre: string | null; mood: string | null };
+type LogRow = { id: string; created_at: string };
+type SpotifyStatus = {
+  status: "ok" | "rate_limited" | "token_failed";
+  checkedAt: number;
+  retryAfter: number | null;
 };
 
 function getTodayKST() {
@@ -48,131 +45,15 @@ function countBy(arr: string[]): [string, number][] {
   return Object.entries(map).sort((a, b) => b[1] - a[1]);
 }
 
-function StatCard({
-  label,
-  value,
-  sub,
-  accent = "#fff",
-}: {
-  label: string;
-  value: string | number;
-  sub?: string;
-  accent?: string;
-}) {
-  return (
-    <div
-      style={{
-        background: "rgba(255,255,255,0.06)",
-        borderRadius: 14,
-        padding: "20px 22px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 4,
-      }}
-    >
-      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: "0.08em" }}>
-        {label}
-      </span>
-      <span style={{ fontSize: 36, fontWeight: 700, color: accent, lineHeight: 1.2 }}>
-        {value}
-      </span>
-      {sub && (
-        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>{sub}</span>
-      )}
-    </div>
-  );
+function pct(a: number, b: number): string {
+  if (b === 0) return "—";
+  return ((a / b) * 100).toFixed(1) + "%";
 }
-
-function RankList({
-  title,
-  items,
-  accent = "#C4687A",
-}: {
-  title: string;
-  items: [string, number][];
-  accent?: string;
-}) {
-  return (
-    <div
-      style={{
-        background: "rgba(255,255,255,0.06)",
-        borderRadius: 14,
-        padding: "20px 22px",
-      }}
-    >
-      <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 14 }}>{title}</p>
-      {items.length === 0 ? (
-        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>데이터 없음</p>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {items.map(([name, count], i) => (
-            <div key={name} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: i === 0 ? accent : "rgba(255,255,255,0.3)",
-                  width: 18,
-                  flexShrink: 0,
-                  textAlign: "right",
-                }}
-              >
-                {i + 1}
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: "#fff",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {name}
-                </div>
-                <div
-                  style={{
-                    marginTop: 4,
-                    height: 3,
-                    background: "rgba(255,255,255,0.08)",
-                    borderRadius: 2,
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    style={{
-                      height: "100%",
-                      width: `${Math.min(100, (count / (items[0][1] || 1)) * 100)}%`,
-                      background: i === 0 ? accent : "rgba(255,255,255,0.25)",
-                      borderRadius: 2,
-                    }}
-                  />
-                </div>
-              </div>
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", flexShrink: 0 }}>
-                {count}회
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-type SpotifyStatus = {
-  status: "ok" | "rate_limited" | "token_failed";
-  checkedAt: number;
-  retryAfter: number | null;
-};
 
 function useCountdown(targetMs: number | null): string {
   const [remaining, setRemaining] = useState("");
-
   useEffect(() => {
     if (!targetMs) { setRemaining(""); return; }
-
     const tick = () => {
       const diff = Math.max(0, targetMs - Date.now());
       if (diff === 0) { setRemaining("곧 초기화"); return; }
@@ -181,19 +62,102 @@ function useCountdown(targetMs: number | null): string {
       const s = Math.floor((diff % 60000) / 1000);
       setRemaining(h > 0 ? `${h}시간 ${m}분 ${s}초` : `${m}분 ${s}초`);
     };
-
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [targetMs]);
-
   return remaining;
+}
+
+function ConvCard({
+  label, value, sub, accent = "#C4687A",
+}: {
+  label: string; value: string; sub?: string; accent?: string;
+}) {
+  return (
+    <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px 18px" }}>
+      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", display: "block", marginBottom: 6 }}>{label}</span>
+      <span style={{ fontSize: 28, fontWeight: 700, color: accent, lineHeight: 1.1, display: "block" }}>{value}</span>
+      {sub && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.32)", marginTop: 4, display: "block" }}>{sub}</span>}
+    </div>
+  );
+}
+
+function RankList({
+  title, items, accent = "#C4687A",
+}: {
+  title: string; items: [string, number][]; accent?: string;
+}) {
+  return (
+    <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14, padding: "18px 20px" }}>
+      <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 14 }}>{title}</p>
+      {items.length === 0 ? (
+        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>데이터 없음</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {items.map(([name, count], i) => (
+            <div key={name} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: i === 0 ? accent : "rgba(255,255,255,0.3)", width: 18, flexShrink: 0, textAlign: "right" }}>
+                {i + 1}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {name}
+                </div>
+                <div style={{ marginTop: 4, height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${Math.min(100, (count / (items[0][1] || 1)) * 100)}%`, background: i === 0 ? accent : "rgba(255,255,255,0.25)", borderRadius: 2 }} />
+                </div>
+              </div>
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", flexShrink: 0 }}>{count}회</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FunnelStep({
+  icon, label, count, conv, isLast,
+}: {
+  icon: string; label: string; count: number; conv?: string; isLast?: boolean;
+}) {
+  return (
+    <div>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 12,
+        padding: "11px 16px",
+        background: "rgba(255,255,255,0.055)",
+        borderRadius: 12,
+      }}>
+        <span style={{ fontSize: 15, width: 22, textAlign: "center", flexShrink: 0 }}>{icon}</span>
+        <span style={{ flex: 1, fontSize: 13, color: "rgba(255,255,255,0.85)" }}>{label}</span>
+        <span style={{ fontSize: 22, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{count.toLocaleString()}</span>
+      </div>
+      {!isLast && (
+        <div style={{ display: "flex", alignItems: "center", padding: "2px 0 2px 26px", gap: 8 }}>
+          <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.12)" }} />
+          {conv && conv !== "—" && (
+            <span style={{ fontSize: 11, color: "#C4687A", fontWeight: 500 }}>↓ {conv}</span>
+          )}
+          {conv === "—" && (
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)" }}>↓</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [pw, setPw] = useState("");
   const [toast, setToast] = useState("");
+  const [tab, setTab] = useState<"today" | "all">("today");
+
+  const [photoLogs, setPhotoLogs] = useState<PhotoLog[]>([]);
+  const [prefLogs, setPrefLogs] = useState<PrefLog[]>([]);
+  const [analyzeLogs, setAnalyzeLogs] = useState<AnalyzeLog[]>([]);
   const [entries, setEntries] = useState<EntryRow[]>([]);
   const [shareLogs, setShareLogs] = useState<LogRow[]>([]);
   const [shareViews, setShareViews] = useState<LogRow[]>([]);
@@ -203,7 +167,7 @@ export default function AdminPage() {
   const [spotifyStatus, setSpotifyStatus] = useState<SpotifyStatus | null>(null);
   const [spotifyChecking, setSpotifyChecking] = useState(false);
 
-  // Spotify 429 카운트다운 — 조건부 return 전에 호출해야 Rules of Hooks 충족
+  // Spotify 429 카운트다운 — 조건부 return 전에 호출
   const retryTargetMs =
     spotifyStatus?.status === "rate_limited" && spotifyStatus.retryAfter
       ? spotifyStatus.checkedAt + spotifyStatus.retryAfter * 1000
@@ -217,31 +181,21 @@ export default function AdminPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-
-    const [entriesRes, shareRes, viewsRes, tryRes] = await Promise.all([
-      supabase
-        .from("entries")
-        .select("id, date, song, artist, genre, mood")
-        .order("id", { ascending: false }),
-      supabase
-        .from("share_logs")
-        .select("id, created_at")
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("share_views")
-        .select("id, created_at")
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("try_click")
-        .select("id, created_at")
-        .order("created_at", { ascending: false }),
+    const [photoRes, prefRes, analyzeRes, entriesRes, shareRes, viewsRes, tryRes] = await Promise.all([
+      supabase.from("photo_upload_logs").select("id, created_at").order("created_at", { ascending: false }),
+      supabase.from("preference_logs").select("id, created_at, genre, mood").order("created_at", { ascending: false }),
+      supabase.from("analyze_logs").select("id, created_at, status, response_time_ms").order("created_at", { ascending: false }),
+      supabase.from("entries").select("id, date, song, artist, genre, mood").order("id", { ascending: false }),
+      supabase.from("share_logs").select("id, created_at").order("created_at", { ascending: false }),
+      supabase.from("share_views").select("id, created_at").order("created_at", { ascending: false }),
+      supabase.from("try_click").select("id, created_at").order("created_at", { ascending: false }),
     ]);
 
-    if (entriesRes.error) {
-      showToast("entries 로드 실패");
-    } else {
-      setEntries(entriesRes.data ?? []);
-    }
+    if (!photoRes.error) setPhotoLogs(photoRes.data ?? []);
+    if (!prefRes.error) setPrefLogs(prefRes.data ?? []);
+    if (!analyzeRes.error) setAnalyzeLogs(analyzeRes.data ?? []);
+    if (entriesRes.error) showToast("entries 로드 실패");
+    else setEntries(entriesRes.data ?? []);
     if (!shareRes.error) setShareLogs(shareRes.data ?? []);
     if (!viewsRes.error) setShareViews(viewsRes.data ?? []);
     if (!tryRes.error) setTryClicks(tryRes.data ?? []);
@@ -282,77 +236,28 @@ export default function AdminPage() {
   // ── 비밀번호 화면 ──
   if (!authed) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "0 24px",
-        }}
-      >
+      <div style={{ minHeight: "100vh", background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 24px" }}>
         <div style={{ width: "100%", maxWidth: 320, textAlign: "center" }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>✦</div>
-          <p style={{ color: "#C4687A", fontSize: 13, letterSpacing: "0.15em", marginBottom: 28 }}>
-            Play the Picture
-          </p>
-          <p style={{ color: "#fff", fontSize: 17, fontWeight: 600, marginBottom: 24 }}>
-            관리자 대시보드
-          </p>
+          <p style={{ color: "#C4687A", fontSize: 13, letterSpacing: "0.15em", marginBottom: 28 }}>Play the Picture</p>
+          <p style={{ color: "#fff", fontSize: 17, fontWeight: 600, marginBottom: 24 }}>관리자 대시보드</p>
           <input
             type="password"
             value={pw}
             onChange={(e) => setPw(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleLogin()}
             placeholder="비밀번호 입력"
-            style={{
-              width: "100%",
-              background: "rgba(255,255,255,0.08)",
-              border: "1px solid rgba(255,255,255,0.15)",
-              borderRadius: 12,
-              padding: "12px 16px",
-              color: "#fff",
-              fontSize: 15,
-              outline: "none",
-              marginBottom: 12,
-              boxSizing: "border-box",
-            }}
+            style={{ width: "100%", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 12, padding: "12px 16px", color: "#fff", fontSize: 15, outline: "none", marginBottom: 12, boxSizing: "border-box" }}
           />
           <button
             onClick={handleLogin}
-            style={{
-              width: "100%",
-              background: "#C4687A",
-              border: "none",
-              borderRadius: 24,
-              padding: "13px 0",
-              color: "#fff",
-              fontSize: 14,
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
+            style={{ width: "100%", background: "#C4687A", border: "none", borderRadius: 24, padding: "13px 0", color: "#fff", fontSize: 14, fontWeight: 500, cursor: "pointer" }}
           >
             입장하기
           </button>
         </div>
-
         {toast && (
-          <div
-            style={{
-              position: "fixed",
-              bottom: 80,
-              left: "50%",
-              transform: "translateX(-50%)",
-              background: "rgba(30,30,30,0.95)",
-              border: "1px solid rgba(255,255,255,0.15)",
-              color: "#fff",
-              fontSize: 13,
-              padding: "10px 20px",
-              borderRadius: 24,
-              whiteSpace: "nowrap",
-            }}
-          >
+          <div style={{ position: "fixed", bottom: 80, left: "50%", transform: "translateX(-50%)", background: "rgba(30,30,30,0.95)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", fontSize: 13, padding: "10px 20px", borderRadius: 24, whiteSpace: "nowrap" }}>
             {toast}
           </div>
         )}
@@ -360,172 +265,149 @@ export default function AdminPage() {
     );
   }
 
-  // ── 지표 계산 ──
+  // ── 데이터 필터링 ──
   const today = getTodayKST();
+  const filterTs = (ts: string) => tab === "today" ? timestampToKSTDate(ts) === today : true;
 
-  const totalCount = entries.length;
-  const todayCount = entries.filter((e) => e.date === today).length;
+  const filteredPhotos = photoLogs.filter(l => filterTs(l.created_at));
+  const filteredPrefs = prefLogs.filter(l => filterTs(l.created_at));
+  const filteredAnalyze = analyzeLogs.filter(l => filterTs(l.created_at));
+  const filteredEntries = tab === "today" ? entries.filter(e => e.date === today) : entries;
+  const filteredShares = shareLogs.filter(l => filterTs(l.created_at));
+  const filteredViews = shareViews.filter(l => filterTs(l.created_at));
+  const filteredTry = tryClicks.filter(l => filterTs(l.created_at));
 
-  const totalShares = shareLogs.length;
-  const todayShares = shareLogs.filter((s) => timestampToKSTDate(s.created_at) === today).length;
+  // ── 퍼널 수치 ──
+  const photoCount = filteredPhotos.length;
+  const prefCount = filteredPrefs.length;
+  const analyzeStartCount = filteredAnalyze.length; // 모든 analyze_log = 분석 시작 횟수
+  const successCount = filteredAnalyze.filter(l => l.status === "success").length;
+  const failCount = filteredAnalyze.filter(l => l.status === "fail").length;
+  const saveCount = filteredEntries.length;
+  const shareCount = filteredShares.length;
+  const viewCount = filteredViews.length;
+  const tryCount = filteredTry.length;
 
-  const totalViews = shareViews.length;
-  const todayViews = shareViews.filter((s) => timestampToKSTDate(s.created_at) === today).length;
+  // ── 퍼포먼스 ──
+  const completedLogs = filteredAnalyze.filter(l => (l.status === "success" || l.status === "fail") && l.response_time_ms != null);
+  const avgResponseMs = completedLogs.length > 0
+    ? Math.round(completedLogs.reduce((sum, l) => sum + (l.response_time_ms ?? 0), 0) / completedLogs.length)
+    : null;
+  const completedTotal = successCount + failCount;
+  const failRateStr = completedTotal > 0 ? ((failCount / completedTotal) * 100).toFixed(1) + "%" : "—";
 
-  const totalTryClicks = tryClicks.length;
-  const todayTryClicks = tryClicks.filter((s) => timestampToKSTDate(s.created_at) === today).length;
-
-  const conversionRate = totalViews > 0 ? ((totalTryClicks / totalViews) * 100).toFixed(1) : "0.0";
-  const todayConversionRate =
-    todayViews > 0 ? ((todayTryClicks / todayViews) * 100).toFixed(1) : "0.0";
-
-  const topSongs = countBy(
-    entries.map((e) => `${e.song}${e.artist ? ` — ${e.artist}` : ""}`)
-  ).slice(0, 5);
-
-  const topGenres = countBy(
-    entries.map((e) => e.genre ?? "").filter(Boolean)
-  ).slice(0, 3);
-
-  const topMoods = countBy(
-    entries.map((e) => e.mood ?? "").filter(Boolean)
-  ).slice(0, 3);
+  // ── 콘텐츠 인사이트 ──
+  const topGenres = countBy(filteredPrefs.map(l => l.genre ?? "").filter(Boolean)).slice(0, 3);
+  const topMoods = countBy(filteredPrefs.map(l => l.mood ?? "").filter(Boolean)).slice(0, 3);
+  const topSongs = countBy(filteredEntries.map(e => `${e.song}${e.artist ? ` — ${e.artist}` : ""}`)).slice(0, 5);
 
   const refreshLabel = lastRefresh
-    ? lastRefresh.toLocaleTimeString("ko-KR", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      })
+    ? lastRefresh.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
     : "";
 
   // ── 대시보드 ──
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)",
-        padding: "52px 20px 40px",
-      }}
-    >
+    <div style={{ minHeight: "100vh", background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)", padding: "52px 20px 48px" }}>
       {/* 헤더 */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          marginBottom: 28,
-        }}
-      >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
         <div>
-          <p style={{ color: "#C4687A", fontSize: 12, letterSpacing: "0.15em", marginBottom: 4 }}>
-            Play the Picture
-          </p>
-          <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 700, margin: 0 }}>
-            관리자 대시보드
-          </h1>
+          <p style={{ color: "#C4687A", fontSize: 12, letterSpacing: "0.15em", marginBottom: 4 }}>Play the Picture</p>
+          <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 700, margin: 0 }}>관리자 대시보드</h1>
           {refreshLabel && (
-            <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, marginTop: 4 }}>
-              마지막 업데이트 {refreshLabel}
-            </p>
+            <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, marginTop: 4 }}>마지막 업데이트 {refreshLabel}</p>
           )}
         </div>
         <button
           onClick={fetchData}
           disabled={loading}
-          style={{
-            background: loading ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.10)",
-            border: "1px solid rgba(255,255,255,0.14)",
-            borderRadius: 20,
-            padding: "8px 16px",
-            color: loading ? "rgba(255,255,255,0.35)" : "#fff",
-            fontSize: 12,
-            cursor: loading ? "default" : "pointer",
-          }}
+          style={{ background: loading ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 20, padding: "8px 16px", color: loading ? "rgba(255,255,255,0.35)" : "#fff", fontSize: 12, cursor: loading ? "default" : "pointer" }}
         >
           {loading ? "로딩 중..." : "↻ 새로고침"}
         </button>
       </div>
 
-      {/* 저장 지표 카드 2개 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-        <StatCard label="전체 저장 횟수" value={totalCount} sub="누적 entries" />
-        <StatCard label="오늘 저장 횟수" value={todayCount} sub={today} />
+      {/* TODAY / 전체 탭 */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 22 }}>
+        {(["today", "all"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            style={{
+              padding: "7px 18px",
+              borderRadius: 20,
+              border: tab === t ? "none" : "1px solid rgba(255,255,255,0.15)",
+              background: tab === t ? "#C4687A" : "transparent",
+              color: tab === t ? "#fff" : "rgba(255,255,255,0.5)",
+              fontSize: 13,
+              fontWeight: tab === t ? 600 : 400,
+              cursor: "pointer",
+            }}
+          >
+            {t === "today" ? "오늘" : "전체"}
+          </button>
+        ))}
+        <span style={{ alignSelf: "center", fontSize: 11, color: "rgba(255,255,255,0.25)", marginLeft: 4 }}>
+          {tab === "today" ? today : "누적"}
+        </span>
       </div>
 
-      {/* 공유 지표 카드 2개 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-        <StatCard
-          label="전체 공유 횟수"
-          value={totalShares}
-          sub="누적 share_logs"
-          accent="#C4687A"
+      {/* ── 섹션: 퍼널 흐름 ── */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>FUNNEL</p>
+      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 16, padding: "16px 14px", marginBottom: 20 }}>
+        <FunnelStep icon="📷" label="사진 업로드" count={photoCount} conv={pct(prefCount, photoCount)} />
+        <FunnelStep icon="🎵" label="취향 선택" count={prefCount} conv={pct(analyzeStartCount, prefCount)} />
+        <FunnelStep icon="✦" label="분석 시작" count={analyzeStartCount} conv={pct(successCount, analyzeStartCount)} />
+        <FunnelStep icon="✓" label="분석 성공" count={successCount} conv={pct(saveCount, successCount)} />
+        <FunnelStep icon="💾" label="결과 저장" count={saveCount} conv={pct(shareCount, saveCount)} />
+        <FunnelStep icon="↑" label="공유하기" count={shareCount} conv={pct(viewCount, shareCount)} />
+        <FunnelStep icon="👁" label="공유 페이지 조회" count={viewCount} conv={pct(tryCount, viewCount)} />
+        <FunnelStep icon="→" label="나도 해보기 클릭" count={tryCount} isLast />
+      </div>
+
+      {/* ── 섹션: 핵심 전환율 ── */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>CONVERSION</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+        <ConvCard label="분석 성공률" value={pct(successCount, analyzeStartCount)} sub={`${successCount} / ${analyzeStartCount}`} accent="#6be0a0" />
+        <ConvCard label="저장 전환율" value={pct(saveCount, successCount)} sub={`${saveCount} / ${successCount}`} accent="#a0d4f0" />
+        <ConvCard label="공유율" value={pct(shareCount, saveCount)} sub={`${shareCount} / ${saveCount}`} accent="#C4687A" />
+        <ConvCard label="유입 전환율" value={pct(tryCount, viewCount)} sub={`${tryCount} / ${viewCount}`} accent="#f0d080" />
+      </div>
+
+      {/* ── 섹션: 퍼포먼스 ── */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>PERFORMANCE</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+        <ConvCard
+          label="평균 응답 시간"
+          value={avgResponseMs != null ? (avgResponseMs >= 1000 ? `${(avgResponseMs / 1000).toFixed(1)}s` : `${avgResponseMs}ms`) : "—"}
+          sub={`${completedLogs.length}건 기준`}
+          accent="#fff"
         />
-        <StatCard
-          label="오늘 공유 횟수"
-          value={todayShares}
-          sub={today}
-          accent="#C4687A"
-        />
+        <ConvCard label="분석 실패율" value={failRateStr} sub={`실패 ${failCount}건`} accent={failCount > 0 ? "#f07070" : "#6be0a0"} />
       </div>
 
-      {/* 공유 유입 지표 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-        <StatCard label="공유 페이지 방문 (전체)" value={totalViews} sub="share_views" accent="#a0d4f0" />
-        <StatCard label="공유 페이지 방문 (오늘)" value={todayViews} sub={today} accent="#a0d4f0" />
+      {/* ── 섹션: 콘텐츠 인사이트 ── */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>CONTENT</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+        <RankList title="🎸 장르 Top 3" items={topGenres} accent="#a0d4f0" />
+        <RankList title="🌤 기분 Top 3" items={topMoods} accent="#a0f0b0" />
+      </div>
+      <div style={{ marginBottom: 20 }}>
+        <RankList title="🎵 추천된 곡 Top 5" items={topSongs} accent="#C4687A" />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-        <StatCard label="나도 해보기 클릭 (전체)" value={totalTryClicks} sub="try_click" accent="#a0f0b0" />
-        <StatCard label="나도 해보기 클릭 (오늘)" value={todayTryClicks} sub={today} accent="#a0f0b0" />
-      </div>
-
-      {/* 전환율 카드 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-        <StatCard
-          label="전환율 (전체)"
-          value={`${conversionRate}%`}
-          sub="나도 해보기 ÷ 공유 페이지"
-          accent="#f0d080"
-        />
-        <StatCard
-          label="전환율 (오늘)"
-          value={`${todayConversionRate}%`}
-          sub={today}
-          accent="#f0d080"
-        />
-      </div>
-
-      {/* Spotify 상태 */}
-      <div
-        style={{
-          background: "rgba(255,255,255,0.06)",
-          borderRadius: 14,
-          padding: "18px 20px",
-          marginBottom: 10,
-        }}
-      >
+      {/* ── 섹션: Spotify API 상태 ── */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>SPOTIFY</p>
+      <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14, padding: "18px 20px", marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <p style={{ color: "#fff", fontSize: 13, fontWeight: 600, margin: 0 }}>
-            🎵 Spotify API 상태
-          </p>
+          <p style={{ color: "#fff", fontSize: 13, fontWeight: 600, margin: 0 }}>🎵 Spotify API 상태</p>
           <button
             onClick={checkSpotify}
             disabled={spotifyChecking}
-            style={{
-              background: spotifyChecking ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.10)",
-              border: "1px solid rgba(255,255,255,0.14)",
-              borderRadius: 16,
-              padding: "5px 12px",
-              color: spotifyChecking ? "rgba(255,255,255,0.3)" : "#fff",
-              fontSize: 11,
-              cursor: spotifyChecking ? "default" : "pointer",
-            }}
+            style={{ background: spotifyChecking ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 16, padding: "5px 12px", color: spotifyChecking ? "rgba(255,255,255,0.3)" : "#fff", fontSize: 11, cursor: spotifyChecking ? "default" : "pointer" }}
           >
             {spotifyChecking ? "확인 중..." : "지금 확인"}
           </button>
         </div>
-
         {!spotifyStatus && !spotifyChecking && (
           <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", margin: 0 }}>확인 전</p>
         )}
@@ -534,111 +416,26 @@ export default function AdminPage() {
         )}
         {spotifyStatus && !spotifyChecking && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {/* 상태 뱃지 */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span
-                style={{
-                  display: "inline-block",
-                  padding: "4px 12px",
-                  borderRadius: 20,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  background:
-                    spotifyStatus.status === "ok"
-                      ? "rgba(80,200,120,0.18)"
-                      : spotifyStatus.status === "rate_limited"
-                      ? "rgba(220,60,60,0.18)"
-                      : "rgba(220,180,60,0.18)",
-                  color:
-                    spotifyStatus.status === "ok"
-                      ? "#6be0a0"
-                      : spotifyStatus.status === "rate_limited"
-                      ? "#f07070"
-                      : "#f0d060",
-                  border: `1px solid ${
-                    spotifyStatus.status === "ok"
-                      ? "rgba(80,200,120,0.3)"
-                      : spotifyStatus.status === "rate_limited"
-                      ? "rgba(220,60,60,0.3)"
-                      : "rgba(220,180,60,0.3)"
-                  }`,
-                }}
-              >
-                {spotifyStatus.status === "ok"
-                  ? "● 정상"
-                  : spotifyStatus.status === "rate_limited"
-                  ? "● 429 제한 중"
-                  : "● 토큰 오류"}
-              </span>
-            </div>
-
-            {/* 마지막 확인 시간 */}
+            <span style={{
+              display: "inline-block", padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, width: "fit-content",
+              background: spotifyStatus.status === "ok" ? "rgba(80,200,120,0.18)" : spotifyStatus.status === "rate_limited" ? "rgba(220,60,60,0.18)" : "rgba(220,180,60,0.18)",
+              color: spotifyStatus.status === "ok" ? "#6be0a0" : spotifyStatus.status === "rate_limited" ? "#f07070" : "#f0d060",
+              border: `1px solid ${spotifyStatus.status === "ok" ? "rgba(80,200,120,0.3)" : spotifyStatus.status === "rate_limited" ? "rgba(220,60,60,0.3)" : "rgba(220,180,60,0.3)"}`,
+            }}>
+              {spotifyStatus.status === "ok" ? "● 정상" : spotifyStatus.status === "rate_limited" ? "● 429 제한 중" : "● 토큰 오류"}
+            </span>
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", margin: 0 }}>
-              확인 시각:{" "}
-              {new Date(spotifyStatus.checkedAt).toLocaleTimeString("ko-KR", {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-              })}
+              확인 시각: {new Date(spotifyStatus.checkedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
             </p>
-
-            {/* 429일 때 카운트다운 */}
             {spotifyStatus.status === "rate_limited" && countdown && (
-              <p style={{ fontSize: 12, color: "#f07070", margin: 0 }}>
-                초기화까지 {countdown}
-              </p>
+              <p style={{ fontSize: 12, color: "#f07070", margin: 0 }}>초기화까지 {countdown}</p>
             )}
           </div>
         )}
       </div>
 
-      {/* GA4 안내 섹션 */}
-      <div
-        style={{
-          background: "rgba(196,104,122,0.08)",
-          border: "1px solid rgba(196,104,122,0.2)",
-          borderRadius: 14,
-          padding: "16px 18px",
-          marginBottom: 10,
-        }}
-      >
-        <p style={{ color: "#C4687A", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
-          📊 GA4 이벤트 지표
-        </p>
-        <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, lineHeight: 1.6, margin: 0 }}>
-          analyze_start · result_view · spotify_click 등의 이벤트는
-          Google Analytics 콘솔에서 확인할 수 있어요.
-        </p>
-      </div>
-
-      {/* Top 5 곡 */}
-      <div style={{ marginBottom: 10 }}>
-        <RankList title="🎵 가장 많이 추천된 곡 Top 5" items={topSongs} accent="#C4687A" />
-      </div>
-
-      {/* Top 3 장르 + Top 3 기분 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-        <RankList title="🎸 선택 장르 Top 3" items={topGenres} accent="#a0d4f0" />
-        <RankList title="🌤 선택 기분 Top 3" items={topMoods} accent="#a0f0b0" />
-      </div>
-
       {toast && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 80,
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "rgba(30,30,30,0.95)",
-            border: "1px solid rgba(255,255,255,0.15)",
-            color: "#fff",
-            fontSize: 13,
-            padding: "10px 20px",
-            borderRadius: 24,
-            whiteSpace: "nowrap",
-            zIndex: 100,
-          }}
-        >
+        <div style={{ position: "fixed", bottom: 80, left: "50%", transform: "translateX(-50%)", background: "rgba(30,30,30,0.95)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", fontSize: 13, padding: "10px 20px", borderRadius: 24, whiteSpace: "nowrap", zIndex: 100 }}>
           {toast}
         </div>
       )}

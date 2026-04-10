@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, Music } from "lucide-react";
 import { trackEvent } from "@/lib/gtag";
+import { supabase, getDeviceId } from "@/lib/supabase";
 
 const GENRES = ["인디", "팝", "K-POP", "힙합/R&B", "재즈/어쿠스틱", "장르 발견하기"];
 const MOODS = ["신나", "설레", "여유로워", "복잡해", "지쳐"];
@@ -120,6 +121,28 @@ export default function PreferencePage() {
       return;
     }
 
+    const deviceId = getDeviceId();
+    const startTime = Date.now();
+
+    // 취향 선택 로그 (fire-and-forget)
+    supabase.from("preference_logs").insert({
+      device_id: deviceId,
+      genre: selectedGenre,
+      mood: selectedMood,
+      listening_style: selectedStyle,
+    });
+
+    // 분석 시작 로그 (id 받아서 나중에 업데이트)
+    let logId: string | null = null;
+    try {
+      const { data: logData } = await supabase
+        .from("analyze_logs")
+        .insert({ device_id: deviceId, status: "start" })
+        .select("id")
+        .single();
+      logId = logData?.id ?? null;
+    } catch { /* ignore */ }
+
     trackEvent("analyze_start", { genre: selectedGenre, mood: selectedMood, style: selectedStyle });
     setLoading(true);
     setError("");
@@ -137,10 +160,14 @@ export default function PreferencePage() {
       });
 
       const data = await res.json();
+      const responseTimeMs = Date.now() - startTime;
 
       if (!res.ok) {
+        if (logId) supabase.from("analyze_logs").update({ status: "fail", response_time_ms: responseTimeMs, error_reason: data.error ?? "unknown" }).eq("id", logId);
         throw new Error(data.error || "분석에 실패했어요.");
       }
+
+      if (logId) supabase.from("analyze_logs").update({ status: "success", response_time_ms: responseTimeMs }).eq("id", logId);
 
       localStorage.setItem("ptp_result", JSON.stringify(data));
       localStorage.setItem("ptp_prefs", JSON.stringify({ genre: selectedGenre, mood: selectedMood }));
