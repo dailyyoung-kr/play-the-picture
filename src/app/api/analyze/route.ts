@@ -43,13 +43,13 @@ function isOriginalTrack(trackName: string, albumType: string): boolean {
   return !EXCLUDE_KEYWORDS.some((kw) => trackName.toLowerCase().includes(kw));
 }
 
-// Spotify에서 곡 검색 → track ID + 앨범아트 반환
+// Spotify에서 곡 검색 → track ID + 앨범아트 + 실제 메타데이터 반환
 // rateLimited: true면 429로 막힌 상태
 async function findOnSpotify(
   song: string,
   artist: string,
   token: string
-): Promise<{ trackId: string; albumArt: string | null; rateLimited?: boolean } | null> {
+): Promise<{ trackId: string; albumArt: string | null; trackName: string; trackArtist: string; rateLimited?: boolean } | null> {
   const query = artist ? `${song} ${artist}` : song;
   const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`;
 
@@ -57,7 +57,7 @@ async function findOnSpotify(
 
   if (res.status === 429) {
     console.log(`[spotify] 429 레이트리밋`);
-    return { trackId: "", albumArt: null, rateLimited: true };
+    return { trackId: "", albumArt: null, trackName: "", trackArtist: "", rateLimited: true };
   }
   if (!res.ok) {
     console.log(`[spotify] HTTP ${res.status} for "${song} - ${artist}"`);
@@ -90,8 +90,9 @@ async function findOnSpotify(
     return null;
   }
 
-  console.log(`[spotify] ✓ 매칭: "${song} - ${artist}" ↔ "${matched.name} - ${matched.artists[0]?.name}"`);
-  return { trackId: matched.id, albumArt: matched.album.images[0]?.url ?? null };
+  const trackArtist = matched.artists[0]?.name ?? "";
+  console.log(`[spotify] ✓ 매칭: "${song} - ${artist}" ↔ "${matched.name} - ${trackArtist}"`);
+  return { trackId: matched.id, albumArt: matched.album.images[0]?.url ?? null, trackName: matched.name, trackArtist };
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -301,8 +302,11 @@ export async function POST(req: NextRequest) {
         if (found && !found.rateLimited && found.trackId) {
           spotifyTrackId = found.trackId;
           albumArt = found.albumArt;
-          finalResult = result;
-          console.log(`[analyze] ✓ Spotify 검증 성공: ${spotifyTrackId}`);
+          // Spotify 실제 메타데이터로 song 필드 덮어쓰기 (한국어 표기 보장)
+          finalResult = found.trackName && found.trackArtist
+            ? { ...result, song: `${found.trackName} - ${found.trackArtist}` }
+            : result;
+          console.log(`[analyze] ✓ Spotify 검증 성공: ${spotifyTrackId} | 표시명: ${(finalResult as Record<string,unknown>).song}`);
           break;
         } else if (found?.rateLimited) {
           // 429 → 재시도 없이 즉시 현재 결과 사용
