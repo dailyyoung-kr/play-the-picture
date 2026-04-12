@@ -659,42 +659,47 @@ export default function ResultPage() {
               어떻게 공유할까요?
             </p>
 
-            {/* 옵션 1: 사진 포함 (강조) */}
+            {/* 옵션 1: 사진 포함 (선택됨) */}
             <button
               onClick={() => { setShowShareModal(false); handleShare(); }}
               style={{
-                width: "100%", background: "#C4687A", border: "none",
-                borderRadius: 16, padding: "18px 20px",
+                width: "100%", background: "rgba(196,104,122,0.08)",
+                border: "1.5px solid #C4687A",
+                borderRadius: 16, padding: "16px 18px",
                 display: "flex", alignItems: "center", gap: 14,
                 cursor: "pointer", marginBottom: 10, textAlign: "left",
               }}
             >
               <div style={{
-                width: 36, height: 36, borderRadius: "50%",
-                background: "rgba(255,255,255,0.2)",
+                width: 32, height: 32, borderRadius: "50%",
+                background: "rgba(196,104,122,0.2)",
                 display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
               }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-                  <polyline points="20,6 9,17 4,12" strokeWidth="2.5" stroke="white" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <polyline points="20,6 9,17 4,12" strokeWidth="2.5" stroke="#C4687A" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </div>
               <div>
                 <p style={{ fontSize: 15, fontWeight: 600, color: "#fff", margin: 0 }}>사진 포함해서 공유</p>
-                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", margin: "3px 0 0" }}>내가 올린 사진을 친구들도 함께 볼 수 있어요</p>
+                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", margin: "3px 0 0" }}>내가 올린 사진을 친구들도 함께 볼 수 있어요</p>
               </div>
             </button>
 
-            {/* 옵션 2: 사진 없이 (서브) */}
+            {/* 옵션 2: 사진 없이 (미선택) */}
             <button
               onClick={handleShareWithoutPhotos}
               style={{
-                width: "100%", background: "none", border: "none",
-                padding: "12px 0", cursor: "pointer",
-                color: "rgba(255,255,255,0.4)", fontSize: 13,
-                textAlign: "center",
+                width: "100%", background: "transparent",
+                border: "1.5px solid rgba(255,255,255,0.1)",
+                borderRadius: 16, padding: "16px 18px",
+                display: "flex", alignItems: "center", gap: 14,
+                cursor: "pointer", marginBottom: 10, textAlign: "left",
               }}
             >
-              사진 없이 공유하기
+              <div style={{ width: 32, height: 32, flexShrink: 0 }} />
+              <div>
+                <p style={{ fontSize: 15, fontWeight: 400, color: "rgba(255,255,255,0.6)", margin: 0 }}>사진 없이 공유하기</p>
+              </div>
             </button>
 
             {/* 취소 */}
