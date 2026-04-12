@@ -17,6 +17,29 @@ type SpotifyStatus = {
   retryAfter: number | null;
 };
 
+type ImportTrack = {
+  spotifyTrackId: string;
+  song: string;
+  artist: string;
+  album: string;
+  duration: string;
+  albumArtUrl: string | null;
+  energy: number;
+  genre: string;
+  checked: boolean;
+  alreadyInDb: boolean;
+};
+
+const IMPORT_GENRES = [
+  { value: "kpop", label: "K-POP" },
+  { value: "pop", label: "팝" },
+  { value: "hiphop", label: "힙합" },
+  { value: "indie", label: "인디" },
+  { value: "rnb", label: "R&B소울" },
+  { value: "rock", label: "락" },
+  { value: "acoustic_jazz", label: "어쿠스틱재즈" },
+];
+
 function getTodayKST() {
   const kst = new Intl.DateTimeFormat("ko-KR", {
     timeZone: "Asia/Seoul",
@@ -188,6 +211,13 @@ export default function AdminPage() {
   const [spotifyStatus, setSpotifyStatus] = useState<SpotifyStatus | null>(null);
   const [spotifyChecking, setSpotifyChecking] = useState(false);
 
+  // ── 플레이리스트 가져오기 ──
+  const [importUrl, setImportUrl] = useState("");
+  const [importDefaultGenre, setImportDefaultGenre] = useState("kpop");
+  const [importTracks, setImportTracks] = useState<ImportTrack[]>([]);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importSaving, setImportSaving] = useState(false);
+
   // Spotify 429 카운트다운 — 조건부 return 전에 호출
   const retryTargetMs =
     spotifyStatus?.status === "rate_limited" && spotifyStatus.retryAfter
@@ -246,6 +276,72 @@ export default function AdminPage() {
       checkSpotify();
     }
   }, [authed, fetchData, checkSpotify]);
+
+  const handleImport = async () => {
+    if (!importUrl.trim()) { showToast("URL을 입력해줘요"); return; }
+    setImportLoading(true);
+    setImportTracks([]);
+    try {
+      const res = await fetch("/api/admin/import-playlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playlistUrl: importUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error ?? "가져오기 실패"); return; }
+
+      // 이미 DB에 있는 track_id 확인
+      const trackIds = data.tracks.map((t: { spotifyTrackId: string }) => t.spotifyTrackId);
+      const { data: existing } = await supabase
+        .from("songs")
+        .select("spotify_track_id")
+        .in("spotify_track_id", trackIds);
+      const existingIds = new Set((existing ?? []).map((r: { spotify_track_id: string }) => r.spotify_track_id));
+
+      setImportTracks(
+        data.tracks.map((t: Omit<ImportTrack, "genre" | "checked" | "alreadyInDb">) => ({
+          ...t,
+          genre: importDefaultGenre,
+          checked: !existingIds.has(t.spotifyTrackId),
+          alreadyInDb: existingIds.has(t.spotifyTrackId),
+        }))
+      );
+    } catch {
+      showToast("네트워크 오류");
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleSaveImport = async () => {
+    const toSave = importTracks.filter(t => t.checked && !t.alreadyInDb);
+    if (toSave.length === 0) { showToast("저장할 곡이 없어요"); return; }
+    setImportSaving(true);
+    try {
+      const rows = toSave.map(t => ({
+        spotify_track_id: t.spotifyTrackId,
+        song: t.song,
+        artist: t.artist,
+        spotify_query_song: t.song,
+        spotify_query_artist: t.artist,
+        album: t.album,
+        duration: t.duration,
+        genre: t.genre,
+        energy: t.energy,
+        album_art_url: t.albumArtUrl,
+      }));
+      const { error } = await supabase.from("songs").upsert(rows, { onConflict: "spotify_track_id" });
+      if (error) { showToast("저장 실패: " + error.message); return; }
+      showToast(`${toSave.length}곡 저장 완료!`);
+      setImportTracks(prev =>
+        prev.map(t => (t.checked ? { ...t, alreadyInDb: true, checked: false } : t))
+      );
+    } catch {
+      showToast("저장 중 오류 발생");
+    } finally {
+      setImportSaving(false);
+    }
+  };
 
   const handleLogin = () => {
     if (pw === ADMIN_PW) {
@@ -491,6 +587,128 @@ export default function AdminPage() {
               <p style={{ fontSize: 12, color: "#f07070", margin: 0 }}>초기화까지 {countdown}</p>
             )}
           </div>
+        )}
+      </div>
+
+      {/* ── 섹션: 플레이리스트 가져오기 ── */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>PLAYLIST</p>
+      <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14, padding: "18px 20px", marginBottom: 20 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", margin: "0 0 16px" }}>📥 플레이리스트 가져오기</p>
+
+        {/* 입력 영역 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
+          <input
+            value={importUrl}
+            onChange={e => setImportUrl(e.target.value)}
+            placeholder="https://open.spotify.com/playlist/..."
+            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, padding: "10px 12px", color: "#fff", fontSize: 13, outline: "none" }}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <select
+              value={importDefaultGenre}
+              onChange={e => setImportDefaultGenre(e.target.value)}
+              style={{ flex: 1, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, padding: "9px 12px", color: "#fff", fontSize: 13, outline: "none" }}
+            >
+              {IMPORT_GENRES.map(g => (
+                <option key={g.value} value={g.value} style={{ background: "#1a1a2e" }}>{g.label}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleImport}
+              disabled={importLoading}
+              style={{ background: importLoading ? "rgba(255,255,255,0.06)" : "#C4687A", border: "none", borderRadius: 10, padding: "9px 20px", color: importLoading ? "rgba(255,255,255,0.4)" : "#fff", fontSize: 13, fontWeight: 600, cursor: importLoading ? "default" : "pointer", whiteSpace: "nowrap" }}
+            >
+              {importLoading ? "가져오는 중..." : "가져오기"}
+            </button>
+          </div>
+        </div>
+
+        {/* 미리보기 테이블 */}
+        {importTracks.length > 0 && (
+          <>
+            {/* 전체 선택/해제 + 곡 수 */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <button
+                onClick={() => {
+                  const allChecked = importTracks.filter(t => !t.alreadyInDb).every(t => t.checked);
+                  setImportTracks(prev => prev.map(t => t.alreadyInDb ? t : { ...t, checked: !allChecked }));
+                }}
+                style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "5px 12px", color: "rgba(255,255,255,0.7)", fontSize: 12, cursor: "pointer" }}
+              >
+                {importTracks.filter(t => !t.alreadyInDb).every(t => t.checked) ? "전체 해제" : "전체 선택"}
+              </button>
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>총 {importTracks.length}곡</span>
+            </div>
+
+            {/* 헤더 */}
+            <div style={{ display: "grid", gridTemplateColumns: "20px 1fr 1fr 110px 28px", gap: 8, padding: "6px 4px", borderBottom: "1px solid rgba(255,255,255,0.08)", marginBottom: 4 }}>
+              <span />
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>곡명</span>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>아티스트</span>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>장르</span>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "center" }}>E</span>
+            </div>
+
+            {/* 트랙 행 */}
+            <div style={{ maxHeight: 400, overflowY: "auto", display: "flex", flexDirection: "column", gap: 2 }}>
+              {importTracks.map((track, i) => (
+                <div
+                  key={track.spotifyTrackId}
+                  style={{
+                    display: "grid", gridTemplateColumns: "20px 1fr 1fr 110px 28px", gap: 8, alignItems: "center",
+                    padding: "6px 4px", borderRadius: 6,
+                    background: track.alreadyInDb ? "rgba(255,255,255,0.02)" : "transparent",
+                    opacity: track.alreadyInDb ? 0.5 : 1,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={track.checked}
+                    disabled={track.alreadyInDb}
+                    onChange={e => setImportTracks(prev => prev.map((t, j) => j === i ? { ...t, checked: e.target.checked } : t))}
+                    style={{ cursor: track.alreadyInDb ? "default" : "pointer" }}
+                  />
+                  <div style={{ minWidth: 0 }}>
+                    <span style={{ fontSize: 12, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
+                      {track.song}
+                      {track.alreadyInDb && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginLeft: 5 }}>(등록됨)</span>}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {track.artist}
+                  </div>
+                  <select
+                    value={track.genre}
+                    disabled={track.alreadyInDb}
+                    onChange={e => setImportTracks(prev => prev.map((t, j) => j === i ? { ...t, genre: e.target.value } : t))}
+                    style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "4px 6px", color: "#fff", fontSize: 11, outline: "none", cursor: track.alreadyInDb ? "default" : "pointer" }}
+                  >
+                    {IMPORT_GENRES.map(g => (
+                      <option key={g.value} value={g.value} style={{ background: "#1a1a2e" }}>{g.label}</option>
+                    ))}
+                  </select>
+                  <span style={{ fontSize: 12, color: "#C4687A", textAlign: "center", fontWeight: 600 }}>{track.energy}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* 저장 버튼 */}
+            <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
+              {(() => {
+                const saveCount2 = importTracks.filter(t => t.checked && !t.alreadyInDb).length;
+                const disabled = importSaving || saveCount2 === 0;
+                return (
+                  <button
+                    onClick={handleSaveImport}
+                    disabled={disabled}
+                    style={{ background: disabled ? "rgba(255,255,255,0.08)" : "#C4687A", border: "none", borderRadius: 20, padding: "10px 24px", color: disabled ? "rgba(255,255,255,0.3)" : "#fff", fontSize: 14, fontWeight: 600, cursor: disabled ? "default" : "pointer" }}
+                  >
+                    {importSaving ? "저장 중..." : `${saveCount2}곡 저장하기`}
+                  </button>
+                );
+              })()}
+            </div>
+          </>
         )}
       </div>
 
