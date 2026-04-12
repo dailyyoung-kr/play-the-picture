@@ -59,6 +59,7 @@ export default function ResultPage() {
   } | null>(null);
   const [loadingLinks, setLoadingLinks] = useState(false);
   const [modalIndex, setModalIndex] = useState<number | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const showToast = (msg: string) => {
@@ -164,6 +165,65 @@ export default function ResultPage() {
       if (msg !== "AbortError" && !msg.includes("abort")) {
         showToast("공유에 실패했어요. 다시 시도해주세요.");
       }
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const handleShareWithoutPhotos = async () => {
+    setShowShareModal(false);
+    if (!result) return;
+    trackEvent("share_click", { song: result.song });
+    setSharing(true);
+    try {
+      const songParts = result.song.split(" - ");
+      const song = songParts[0] ?? result.song;
+      const artist = songParts.slice(1).join(" - ") ?? "";
+      const kst = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+      const today = kst.replace(/\.\s*/g, "-").replace(/-$/, "").trim();
+      const prefsRaw = localStorage.getItem("ptp_prefs");
+      const prefs: { genre?: string; mood?: string } = prefsRaw ? JSON.parse(prefsRaw) : {};
+
+      const { data, error } = await supabase
+        .from("entries")
+        .insert({
+          date: today, song, artist,
+          reason: result.reason, tags: result.tags, emotions: result.emotions,
+          vibe_type: result.vibe_type ?? "", vibe_description: result.vibe_description ?? "",
+          photos: [],
+          album_art: result.albumArt ?? null,
+          device_id: getDeviceId(),
+          genre: prefs.genre ?? null, mood: prefs.mood ?? null,
+        })
+        .select("id")
+        .single();
+
+      if (error) throw error;
+      const entryId = data.id;
+      supabase.from("share_logs").insert({ entry_id: entryId }).then(() => {});
+
+      const url = `https://play-the-picture.vercel.app/share/${entryId}`;
+      const songName = result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song;
+      const artistName = result.song.includes(" - ") ? result.song.split(" - ").slice(1).join(" - ") : "";
+
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: `${songName}${artistName ? ` — ${artistName}` : ""}`, text: "오늘의 사진으로 추천받은 노래예요. 나도 해볼까요? ✦", url });
+          return;
+        } catch (shareErr) {
+          const msg = shareErr instanceof Error ? shareErr.message : "";
+          if (msg.includes("abort") || msg === "AbortError") return;
+        }
+      }
+      try {
+        await navigator.clipboard.writeText(url);
+        showToast("링크 복사됐어요! 카카오톡에 붙여넣기해서 공유하세요 ✦");
+      } catch {
+        setShareUrl(url);
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      if (msg !== "AbortError" && !msg.includes("abort")) showToast("공유에 실패했어요. 다시 시도해주세요.");
     } finally {
       setSharing(false);
     }
@@ -528,7 +588,7 @@ export default function ResultPage() {
         {/* 친구에게 공유 */}
         <button
           className="w-full font-medium mb-2"
-          onClick={handleShare}
+          onClick={() => setShowShareModal(true)}
           disabled={sharing}
           style={{
             background: sharing ? "rgba(196,104,122,0.5)" : "#C4687A",
@@ -579,6 +639,81 @@ export default function ResultPage() {
         </button>
       </div>
 
+      {/* 공유 방식 선택 모달 */}
+      {showShareModal && (
+        <>
+          <div
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 60 }}
+            onClick={() => setShowShareModal(false)}
+          />
+          <div style={{
+            position: "fixed", bottom: 0, left: 0, right: 0,
+            background: "rgba(13,18,24,0.98)",
+            borderRadius: "20px 20px 0 0",
+            padding: "12px 20px 40px",
+            zIndex: 61,
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}>
+            <div style={{ width: 36, height: 4, background: "rgba(255,255,255,0.25)", borderRadius: 2, margin: "0 auto 20px" }} />
+            <p className="font-medium text-center" style={{ fontSize: 16, color: "#fff", marginBottom: 20 }}>
+              어떻게 공유할까요?
+            </p>
+
+            {/* 옵션 1: 사진 포함 (강조) */}
+            <button
+              onClick={() => { setShowShareModal(false); handleShare(); }}
+              style={{
+                width: "100%", background: "#C4687A", border: "none",
+                borderRadius: 16, padding: "18px 20px",
+                display: "flex", alignItems: "center", gap: 14,
+                cursor: "pointer", marginBottom: 10, textAlign: "left",
+              }}
+            >
+              <div style={{
+                width: 36, height: 36, borderRadius: "50%",
+                background: "rgba(255,255,255,0.2)",
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                  <polyline points="20,6 9,17 4,12" strokeWidth="2.5" stroke="white" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div>
+                <p style={{ fontSize: 15, fontWeight: 600, color: "#fff", margin: 0 }}>사진 포함해서 공유</p>
+                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", margin: "3px 0 0" }}>내가 올린 사진을 친구들도 함께 볼 수 있어요</p>
+              </div>
+            </button>
+
+            {/* 옵션 2: 사진 없이 (서브) */}
+            <button
+              onClick={handleShareWithoutPhotos}
+              style={{
+                width: "100%", background: "none", border: "none",
+                padding: "12px 0", cursor: "pointer",
+                color: "rgba(255,255,255,0.4)", fontSize: 13,
+                textAlign: "center",
+              }}
+            >
+              사진 없이 공유하기
+            </button>
+
+            {/* 취소 */}
+            <button
+              onClick={() => setShowShareModal(false)}
+              style={{
+                width: "100%", background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                borderRadius: 24, padding: "12px 0",
+                color: "rgba(255,255,255,0.45)", fontSize: 14,
+                cursor: "pointer", marginTop: 4,
+              }}
+            >
+              취소
+            </button>
+          </div>
+        </>
+      )}
+
       {/* 듣기 바텀시트 */}
       {showListenSheet && result && (() => {
         const songName = result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song;
@@ -587,7 +722,7 @@ export default function ResultPage() {
         const platforms = [
           {
             name: "YouTube Music에서 듣기",
-            url: musicLinks?.youtubeUrl ?? musicLinks?.youtubeFallback ?? `https://music.youtube.com/search?q=${encodeURIComponent(`${songName} ${artistName}`)}`,
+            url: musicLinks?.youtubeUrl ?? musicLinks?.youtubeFallback ?? `https://www.youtube.com/results?search_query=${encodeURIComponent(`${songName} ${artistName}`)}`,
             isDirect: !!musicLinks?.youtubeUrl,
             iconBg: "#FF0000",
             icon: (

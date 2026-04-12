@@ -36,7 +36,9 @@ function compressImage(file: File): Promise<string> {
 export default function UploadPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [photos, setPhotos] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("ptp_photos") ?? "[]"); } catch { return []; }
+  });
   const [toast, setToast] = useState("");
   const maxPhotos = 5;
 
@@ -223,7 +225,7 @@ export default function UploadPage() {
           최대 5장까지 추가할 수 있어요
         </p>
         <p className="text-right mb-6" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)" }}>
-          사진은 AI 분석에 사용되며, 저장 시에만 공유 링크에 포함돼요
+          분석 후 사진은 저장되지 않아요
         </p>
 
         <div className="flex-1" />
