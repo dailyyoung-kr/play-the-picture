@@ -268,6 +268,7 @@ export async function POST(req: NextRequest) {
     const maxAttempts = 4;
 
     let finalResult: Record<string, unknown> | null = null;
+    let lastValidResult: Record<string, unknown> | null = null;
     let spotifyTrackId: string | null = null;
     let albumArt: string | null = null;
 
@@ -297,6 +298,7 @@ export async function POST(req: NextRequest) {
         console.log(`[analyze] JSON 파싱 실패, 재시도`);
         continue;
       }
+      lastValidResult = result;
 
       const songField = result.song as string;
       const spotifyQuery = result.spotifyQuery as { song: string; artist: string } | undefined;
@@ -343,10 +345,15 @@ export async function POST(req: NextRequest) {
     }
 
     if (!finalResult) {
-      return NextResponse.json(
-        { error: "분석 중 오류가 발생했어요. 다시 시도해주세요." },
-        { status: 500 }
-      );
+      if (lastValidResult) {
+        console.log(`[analyze] finalResult null → lastValidResult로 fallback`);
+        finalResult = lastValidResult;
+      } else {
+        return NextResponse.json(
+          { error: "분석 중 오류가 발생했어요. 다시 시도해주세요." },
+          { status: 500 }
+        );
+      }
     }
 
     // spotifyQuery 필드는 응답에서 제거
