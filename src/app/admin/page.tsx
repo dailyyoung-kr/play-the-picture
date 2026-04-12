@@ -556,13 +556,23 @@ export default function AdminPage() {
       <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14, padding: "18px 20px", marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <p style={{ color: "#fff", fontSize: 13, fontWeight: 600, margin: 0 }}>🎵 Spotify API 상태</p>
-          <button
-            onClick={checkSpotify}
-            disabled={spotifyChecking}
-            style={{ background: spotifyChecking ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 16, padding: "5px 12px", color: spotifyChecking ? "rgba(255,255,255,0.3)" : "#fff", fontSize: 11, cursor: spotifyChecking ? "default" : "pointer" }}
-          >
-            {spotifyChecking ? "확인 중..." : "지금 확인"}
-          </button>
+          <div style={{ display: "flex", gap: 6 }}>
+            <a
+              href="/api/admin/spotify-auth"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ background: "rgba(30,215,96,0.12)", border: "1px solid rgba(30,215,96,0.3)", borderRadius: 16, padding: "5px 12px", color: "#1DB954", fontSize: 11, cursor: "pointer", textDecoration: "none", whiteSpace: "nowrap" }}
+            >
+              Spotify 연결
+            </a>
+            <button
+              onClick={checkSpotify}
+              disabled={spotifyChecking}
+              style={{ background: spotifyChecking ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 16, padding: "5px 12px", color: spotifyChecking ? "rgba(255,255,255,0.3)" : "#fff", fontSize: 11, cursor: spotifyChecking ? "default" : "pointer" }}
+            >
+              {spotifyChecking ? "확인 중..." : "지금 확인"}
+            </button>
+          </div>
         </div>
         {!spotifyStatus && !spotifyChecking && (
           <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", margin: 0 }}>확인 전</p>

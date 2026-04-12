@@ -1,7 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import fs from "fs";
+import path from "path";
 
-async function getSpotifyToken(): Promise<string | null> {
+const TOKENS_PATH = path.join(process.cwd(), ".spotify-tokens.json");
+
+type SpotifyTokens = {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+};
+
+async function getOAuthToken(): Promise<string | null> {
+  // .spotify-tokens.json 없으면 미연결 상태
+  if (!fs.existsSync(TOKENS_PATH)) {
+    console.log("[import-playlist] .spotify-tokens.json 없음 → Spotify 미연결");
+    return null;
+  }
+
+  let tokens: SpotifyTokens;
+  try {
+    tokens = JSON.parse(fs.readFileSync(TOKENS_PATH, "utf-8"));
+  } catch {
+    console.log("[import-playlist] 토큰 파일 파싱 실패");
+    return null;
+  }
+
+  // 아직 유효한 토큰 (만료 60초 전까지 그대로 사용)
+  if (Date.now() < tokens.expiresAt - 60_000) {
+    console.log("[import-playlist] 기존 토큰 유효, 재사용");
+    return tokens.accessToken;
+  }
+
+  // 만료됐으면 refresh
+  console.log("[import-playlist] 토큰 만료 → refresh 시도");
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
   if (!clientId || !clientSecret) return null;
@@ -12,12 +44,27 @@ async function getSpotifyToken(): Promise<string | null> {
       "Content-Type": "application/x-www-form-urlencoded",
       Authorization: "Basic " + Buffer.from(`${clientId}:${clientSecret}`).toString("base64"),
     },
-    body: "grant_type=client_credentials",
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: tokens.refreshToken,
+    }),
   });
 
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.log("[import-playlist] refresh 실패:", res.status);
+    return null;
+  }
+
   const data = await res.json();
-  return data.access_token ?? null;
+  const newTokens: SpotifyTokens = {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token ?? tokens.refreshToken,
+    expiresAt: Date.now() + data.expires_in * 1000,
+  };
+
+  fs.writeFileSync(TOKENS_PATH, JSON.stringify(newTokens, null, 2), "utf-8");
+  console.log("[import-playlist] 토큰 갱신 완료");
+  return newTokens.accessToken;
 }
 
 function formatDuration(ms: number): string {
@@ -46,19 +93,26 @@ export async function POST(req: NextRequest) {
   }
   const playlistId = match[1];
 
-  // Spotify 토큰
-  const token = await getSpotifyToken();
+  // OAuth 토큰
+  const token = await getOAuthToken();
+  console.log("[import-playlist] token:", token ? token.slice(0, 20) + "..." : null);
   if (!token) {
-    return NextResponse.json({ error: "Spotify 토큰 발급 실패" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Spotify 연결이 필요해요. 어드민 페이지에서 'Spotify 연결' 버튼을 눌러주세요." },
+      { status: 401 }
+    );
   }
 
   // 플레이리스트 트랙 가져오기
   const spotifyRes = await fetch(
-    `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100&market=KR&fields=items(track(id,name,duration_ms,album(name,images),artists(name)))`,
+    `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100&market=KR`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
 
+  console.log("[import-playlist] spotifyRes.status:", spotifyRes.status);
   if (!spotifyRes.ok) {
+    const errBody = await spotifyRes.text();
+    console.log("[import-playlist] spotifyRes error body:", errBody);
     return NextResponse.json({ error: `Spotify API 오류: ${spotifyRes.status}` }, { status: 500 });
   }
 
