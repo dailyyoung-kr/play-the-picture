@@ -11,29 +11,7 @@ type SpotifyTokens = {
   expiresAt: number;
 };
 
-async function getOAuthToken(): Promise<string | null> {
-  // .spotify-tokens.json 없으면 미연결 상태
-  if (!fs.existsSync(TOKENS_PATH)) {
-    console.log("[import-playlist] .spotify-tokens.json 없음 → Spotify 미연결");
-    return null;
-  }
-
-  let tokens: SpotifyTokens;
-  try {
-    tokens = JSON.parse(fs.readFileSync(TOKENS_PATH, "utf-8"));
-  } catch {
-    console.log("[import-playlist] 토큰 파일 파싱 실패");
-    return null;
-  }
-
-  // 아직 유효한 토큰 (만료 60초 전까지 그대로 사용)
-  if (Date.now() < tokens.expiresAt - 60_000) {
-    console.log("[import-playlist] 기존 토큰 유효, 재사용");
-    return tokens.accessToken;
-  }
-
-  // 만료됐으면 refresh
-  console.log("[import-playlist] 토큰 만료 → refresh 시도");
+async function doRefresh(refreshToken: string): Promise<string | null> {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
   if (!clientId || !clientSecret) return null;
@@ -46,7 +24,7 @@ async function getOAuthToken(): Promise<string | null> {
     },
     body: new URLSearchParams({
       grant_type: "refresh_token",
-      refresh_token: tokens.refreshToken,
+      refresh_token: refreshToken,
     }),
   });
 
@@ -56,15 +34,54 @@ async function getOAuthToken(): Promise<string | null> {
   }
 
   const data = await res.json();
-  const newTokens: SpotifyTokens = {
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token ?? tokens.refreshToken,
-    expiresAt: Date.now() + data.expires_in * 1000,
-  };
+  return data.access_token ?? null;
+}
 
-  fs.writeFileSync(TOKENS_PATH, JSON.stringify(newTokens, null, 2), "utf-8");
-  console.log("[import-playlist] 토큰 갱신 완료");
-  return newTokens.accessToken;
+async function getOAuthToken(): Promise<string | null> {
+  // ── 로컬: .spotify-tokens.json 파일 기반 (만료 추적 가능) ──
+  if (fs.existsSync(TOKENS_PATH)) {
+    try {
+      const tokens: SpotifyTokens = JSON.parse(fs.readFileSync(TOKENS_PATH, "utf-8"));
+
+      if (Date.now() < tokens.expiresAt - 60_000) {
+        console.log("[import-playlist] 파일 토큰 유효, 재사용");
+        return tokens.accessToken;
+      }
+
+      // 만료 → refresh 후 파일 갱신
+      console.log("[import-playlist] 파일 토큰 만료 → refresh");
+      const newAccess = await doRefresh(tokens.refreshToken);
+      if (newAccess) {
+        const updated: SpotifyTokens = {
+          accessToken: newAccess,
+          refreshToken: tokens.refreshToken,
+          expiresAt: Date.now() + 3600 * 1000,
+        };
+        try { fs.writeFileSync(TOKENS_PATH, JSON.stringify(updated, null, 2)); } catch { /* skip */ }
+        return newAccess;
+      }
+    } catch {
+      console.log("[import-playlist] 파일 토큰 파싱 실패, env fallback");
+    }
+  }
+
+  // ── Vercel: 환경변수 기반 ──
+  const envToken = process.env.SPOTIFY_ACCESS_TOKEN;
+  if (envToken) {
+    console.log("[import-playlist] env SPOTIFY_ACCESS_TOKEN 사용");
+    return envToken;
+  }
+
+  console.log("[import-playlist] 토큰 없음 → Spotify 미연결");
+  return null;
+}
+
+// Vercel에서 env 토큰이 만료됐을 때 호출
+async function refreshFromEnv(): Promise<string | null> {
+  const refreshToken = process.env.SPOTIFY_REFRESH_TOKEN;
+  if (!refreshToken) return null;
+  console.log("[import-playlist] env SPOTIFY_REFRESH_TOKEN으로 갱신 시도");
+  return await doRefresh(refreshToken);
 }
 
 function formatDuration(ms: number): string {
@@ -104,12 +121,24 @@ export async function POST(req: NextRequest) {
   }
 
   // 플레이리스트 트랙 가져오기
-  const spotifyRes = await fetch(
-    `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100&market=KR`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
+  const fetchPlaylist = (t: string) =>
+    fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100&market=KR`, {
+      headers: { Authorization: `Bearer ${t}` },
+    });
 
+  let spotifyRes = await fetchPlaylist(token);
   console.log("[import-playlist] spotifyRes.status:", spotifyRes.status);
+
+  // 401: 토큰 만료 → refresh 후 1회 재시도 (Vercel env 토큰 만료 대응)
+  if (spotifyRes.status === 401) {
+    console.log("[import-playlist] 401 → refresh 재시도");
+    const refreshed = await refreshFromEnv();
+    if (refreshed) {
+      spotifyRes = await fetchPlaylist(refreshed);
+      console.log("[import-playlist] refresh 후 status:", spotifyRes.status);
+    }
+  }
+
   if (!spotifyRes.ok) {
     const errBody = await spotifyRes.text();
     console.log("[import-playlist] spotifyRes error body:", errBody);

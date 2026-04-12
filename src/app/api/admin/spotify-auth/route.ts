@@ -6,7 +6,10 @@ export async function GET() {
     return NextResponse.json({ error: "SPOTIFY_CLIENT_ID 없음" }, { status: 500 });
   }
 
-  const redirectUri = "http://localhost:3000/api/admin/spotify-callback";
+  const redirectUri =
+    process.env.SPOTIFY_REDIRECT_URI ??
+    "http://localhost:3000/api/admin/spotify-callback";
+
   const scope = "playlist-read-private playlist-read-collaborative";
 
   const params = new URLSearchParams({
