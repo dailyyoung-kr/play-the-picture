@@ -11,13 +11,15 @@ interface AnalysisResult {
   song: string; // "곡명 - 아티스트명" 형식
   reason: string;
   tags: string[];
-  emotions: {
-    "행복함": number;
-    "설레임": number;
-    "에너지": number;
-    "특별함": number;
-  };
-  hidden_emotion: string;
+  // 신규 (camelCase)
+  vibeSpectrum?: { energy: number; warmth: number; social: number; special: number };
+  vibeType?: string;
+  vibeDescription?: string;
+  hiddenEmotion?: string;
+  emotionComment?: string;
+  // legacy (snake_case) — localStorage에 남아있는 구 버전 결과 호환
+  emotions?: { "행복함": number; "설레임": number; "에너지": number; "특별함": number };
+  hidden_emotion?: string;
   emotion_comment?: string;
   vibe_type?: string;
   vibe_description?: string;
@@ -28,11 +30,11 @@ interface AnalysisResult {
   discoveredGenre?: string | null;
 }
 
-const EMOTION_LABELS = [
-  { key: "행복함" as const, emoji: "😊", label: "행복함", color: "#f0d080" },
-  { key: "설레임" as const, emoji: "💗", label: "설레임", color: "#f0a0c0" },
-  { key: "에너지" as const, emoji: "⚡", label: "에너지", color: "#a0d4f0" },
-  { key: "특별함" as const, emoji: "✨", label: "특별함", color: "#a0f0b0" },
+const VIBE_SPECTRUM_AXES = [
+  { key: "energy" as const, left: "차분함", right: "에너제틱" },
+  { key: "warmth" as const, left: "쿨함",   right: "따뜻함" },
+  { key: "social" as const, left: "혼자",   right: "함께" },
+  { key: "special" as const, left: "일상적", right: "특별함" },
 ];
 
 const PHOTO_COLORS = [
@@ -89,9 +91,9 @@ export default function ResultPage() {
         artist,
         reason: result.reason,
         tags: result.tags,
-        emotions: result.emotions,
-        vibe_type: result.vibe_type ?? "",
-        vibe_description: result.vibe_description ?? "",
+        emotions: result.emotions ?? {},
+        vibe_type: result.vibeType ?? result.vibe_type ?? "",
+        vibe_description: result.vibeDescription ?? result.vibe_description ?? "",
         photos,
         album_art: result.albumArt ?? null,
         device_id: getDeviceId(),
@@ -188,8 +190,9 @@ export default function ResultPage() {
         .from("entries")
         .insert({
           date: today, song, artist,
-          reason: result.reason, tags: result.tags, emotions: result.emotions,
-          vibe_type: result.vibe_type ?? "", vibe_description: result.vibe_description ?? "",
+          reason: result.reason, tags: result.tags, emotions: result.emotions ?? {},
+          vibe_type: result.vibeType ?? result.vibe_type ?? "",
+          vibe_description: result.vibeDescription ?? result.vibe_description ?? "",
           photos: [],
           album_art: result.albumArt ?? null,
           device_id: getDeviceId(),
@@ -503,52 +506,52 @@ export default function ResultPage() {
             ✦ 사진 분위기
           </p>
 
-          {result.emotion_comment && (
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", textAlign: "center", marginBottom: 12, fontStyle: "italic" }}>
-              {result.emotion_comment}
+          {/* emotion comment */}
+          {(result.emotionComment ?? result.emotion_comment) && (
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", textAlign: "center", marginBottom: 14, fontStyle: "italic" }}>
+              {result.emotionComment ?? result.emotion_comment}
             </p>
           )}
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 10,
-              marginBottom: 10,
-            }}
-          >
-            {EMOTION_LABELS.map(({ key, emoji, label, color }) => {
-              const pct = result.emotions[key];
-              return (
-                <div
-                  key={key}
-                  style={{ background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 12px", minWidth: 0 }}
-                >
-                  <div className="flex justify-between items-center mb-2">
-                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.60)" }}>
-                      {emoji} {label}
-                    </span>
-                    <span className="font-medium" style={{ fontSize: 12, color: "rgba(255,255,255,0.85)" }}>
-                      {pct}%
-                    </span>
+          {/* 바이브 스펙트럼 */}
+          {result.vibeSpectrum && (
+            <div style={{ marginBottom: 16 }}>
+              {VIBE_SPECTRUM_AXES.map(({ key, left, right }) => {
+                const val = result.vibeSpectrum![key];
+                return (
+                  <div key={key} style={{ marginBottom: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 7 }}>
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{left}</span>
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{right}</span>
+                    </div>
+                    <div style={{ position: "relative", height: 6, background: "rgba(255,255,255,0.08)", borderRadius: 3 }}>
+                      <div style={{
+                        position: "absolute",
+                        left: `calc(${val}% - 7px)`,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        width: 14,
+                        height: 14,
+                        borderRadius: "50%",
+                        background: "#C4687A",
+                        boxShadow: "0 0 6px rgba(196,104,122,0.6)",
+                      }} />
+                    </div>
                   </div>
-                  <div style={{ height: 5, background: "rgba(255,255,255,0.10)", borderRadius: 3, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 3 }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
 
-          {/* 사진으로 분석한 내 음악 스타일 */}
-          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 12px" }}>
-            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.40)", marginBottom: 6 }}>사진으로 분석한 내 음악 스타일</p>
-            <p className="font-medium" style={{ fontSize: 15, color: "#a0f0b0", marginBottom: 4 }}>
-              {result.vibe_type ?? result.hidden_emotion}
+          {/* 오늘의 당신은 */}
+          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "12px 14px" }}>
+            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", marginBottom: 6 }}>오늘의 당신은</p>
+            <p className="font-medium" style={{ fontSize: 18, color: "#fff", marginBottom: 4 }}>
+              {result.vibeType ?? result.vibe_type ?? result.hiddenEmotion ?? result.hidden_emotion}
             </p>
-            {result.vibe_description && (
-              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.50)" }}>
-                {result.vibe_description}
+            {(result.vibeDescription ?? result.vibe_description) && (
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
+                {result.vibeDescription ?? result.vibe_description}
               </p>
             )}
           </div>
