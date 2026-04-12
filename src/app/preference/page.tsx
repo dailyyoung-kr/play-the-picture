@@ -6,11 +6,34 @@ import { Archive, Music } from "lucide-react";
 import { trackEvent } from "@/lib/gtag";
 import { supabase, getDeviceId } from "@/lib/supabase";
 
-const GENRES = ["인디", "팝", "K-POP", "힙합/R&B", "재즈/어쿠스틱", "장르 발견하기"];
-const MOODS = ["신나", "설레", "여유로워", "복잡해", "지쳐"];
-const LISTENING_STYLES = ["출근/등교길", "작업/공부", "데이트", "휴식", "산책/드라이브", "잠들기 전"];
+const GENRE_OPTIONS = [
+  { value: "discover",      label: "장르 발견하기",  apiGenre: "장르 발견하기" },
+  { value: "kpop",          label: "K-POP",          apiGenre: "K-POP" },
+  { value: "pop",           label: "팝",              apiGenre: "팝" },
+  { value: "hiphop",        label: "힙합",            apiGenre: "힙합/R&B" },
+  { value: "indie",         label: "인디",            apiGenre: "인디" },
+  { value: "rnb",           label: "R&B/소울",        apiGenre: "힙합/R&B" },
+  { value: "rock",          label: "락",              apiGenre: "팝" },
+  { value: "acoustic_jazz", label: "어쿠스틱/재즈",  apiGenre: "재즈/어쿠스틱" },
+];
+
+const ENERGY_OPTIONS = [
+  { value: 1, label: "잔잔함" },
+  { value: 2, label: "여유" },
+  { value: 3, label: "설렘" },
+  { value: 4, label: "신남" },
+  { value: 5, label: "파워풀" },
+];
+
+// energy → legacy mood/listeningStyle 매핑 (롤백 호환성)
+function getLegacyParams(energy: number) {
+  if (energy <= 2) return { mood: "여유로워", listeningStyle: "휴식" };
+  if (energy === 3) return { mood: "설레",    listeningStyle: "산책/드라이브" };
+  return              { mood: "신나",         listeningStyle: "출근/등교길" };
+}
+
 const EMOTION_LABELS = ["행복함", "설레임", "에너지", "특별함"];
-const WAVE_DELAYS = [0, 0.18, 0.36, 0.18, 0]; // 막대 5개 animation-delay
+const WAVE_DELAYS = [0, 0.18, 0.36, 0.18, 0];
 const PHASE3_TEXTS = [
   "딱 맞는 한 곡을 찾고 있어요",
   "취향을 분석하고 있어요",
@@ -25,14 +48,13 @@ const PHASE3_TEXTS = [
 
 export default function PreferencePage() {
   const router = useRouter();
-  const [selectedGenre, setSelectedGenre] = useState("인디");
-  const [selectedMood, setSelectedMood] = useState("신나");
-  const [selectedStyle, setSelectedStyle] = useState("출근/등교길");
+  const [selectedGenre, setSelectedGenre] = useState("indie");
+  const [selectedEnergy, setSelectedEnergy] = useState(3);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   // 3단계 로딩 상태
-  const [loadingPhase, setLoadingPhase] = useState(0); // 0 | 1 | 2
+  const [loadingPhase, setLoadingPhase] = useState(0);
   const [loadingPhotos, setLoadingPhotos] = useState<string[]>([]);
   const [photosFadeIn, setPhotosFadeIn] = useState(false);
   const [gaugeTargets, setGaugeTargets] = useState<number[]>([0, 0, 0, 0]);
@@ -42,7 +64,6 @@ export default function PreferencePage() {
   const [phase3TextIndex, setPhase3TextIndex] = useState(0);
   const [phase3TextVisible, setPhase3TextVisible] = useState(true);
 
-
   useEffect(() => {
     if (!loading) {
       setLoadingPhase(0);
@@ -51,12 +72,10 @@ export default function PreferencePage() {
       return;
     }
 
-    // 사진 불러오기
     const photosRaw = localStorage.getItem("ptp_photos");
     const photos: string[] = photosRaw ? JSON.parse(photosRaw) : [];
     setLoadingPhotos(photos.slice(0, 3));
 
-    // 랜덤 게이지 값 생성
     setGaugeTargets([
       Math.floor(Math.random() * 28) + 52,
       Math.floor(Math.random() * 30) + 44,
@@ -68,19 +87,12 @@ export default function PreferencePage() {
     setPhotosFadeIn(false);
     setGaugeAnimated(false);
 
-    // 사진 fade-in 시작
     const tFade = setTimeout(() => setPhotosFadeIn(true), 150);
-
-    // 1단계 → 2단계 (3초)
     const t1 = setTimeout(() => {
       setLoadingPhase(1);
       setTimeout(() => setGaugeAnimated(true), 120);
     }, 3000);
-
-    // 2단계 → 3단계 (6초)
-    const t2 = setTimeout(() => {
-      setLoadingPhase(2);
-    }, 6000);
+    const t2 = setTimeout(() => setLoadingPhase(2), 6000);
 
     return () => {
       clearTimeout(tFade);
@@ -89,7 +101,7 @@ export default function PreferencePage() {
     };
   }, [loading]);
 
-  // 3단계 텍스트: index 0~3 순차 표시 후, index 4→5→3→4→5→3... 루프
+  // 3단계 텍스트: index 0~3 순차 → 4~8 루프
   useEffect(() => {
     if (loadingPhase !== 2) {
       setPhase3TextIndex(0);
@@ -103,7 +115,6 @@ export default function PreferencePage() {
     const timers: ReturnType<typeof setTimeout>[] = [];
     let loopInterval: ReturnType<typeof setInterval> | undefined;
 
-    // index 1~3: 4초 간격 순차 표시
     for (let i = 1; i <= 3; i++) {
       const base = i * 4000;
       timers.push(setTimeout(() => setPhase3TextVisible(false), base - 400));
@@ -114,7 +125,6 @@ export default function PreferencePage() {
       }, base));
     }
 
-    // index 3 표시 후 4초(=16초)부터 4→5→6→7→8→4→5→... 루프
     const LOOP = [4, 5, 6, 7, 8];
     let step = 0;
     timers.push(setTimeout(() => {
@@ -146,14 +156,16 @@ export default function PreferencePage() {
 
     const deviceId = getDeviceId();
     const startTime = Date.now();
+    const genreOption = GENRE_OPTIONS.find(g => g.value === selectedGenre) ?? GENRE_OPTIONS[0];
+    const { mood: legacyMood, listeningStyle: legacyStyle } = getLegacyParams(selectedEnergy);
 
-    // 취향 선택 로그 (fire-and-forget)
+    // 취향 선택 로그
     supabase
       .from("preference_logs")
-      .insert({ device_id: deviceId, genre: selectedGenre, mood: selectedMood, listening_style: selectedStyle })
+      .insert({ device_id: deviceId, genre: selectedGenre, mood: legacyMood, listening_style: legacyStyle })
       .then(({ error }) => { if (error) console.error("[pref_log]", error.message); });
 
-    // 분석 시작 로그 (id 받아서 나중에 업데이트)
+    // 분석 시작 로그
     let logId: string | null = null;
     try {
       const { data: logData } = await supabase
@@ -164,7 +176,7 @@ export default function PreferencePage() {
       logId = logData?.id ?? null;
     } catch { /* ignore */ }
 
-    trackEvent("analyze_start", { genre: selectedGenre, mood: selectedMood, style: selectedStyle });
+    trackEvent("analyze_start", { genre: selectedGenre, energy: selectedEnergy });
     setLoading(true);
     setError("");
 
@@ -174,9 +186,11 @@ export default function PreferencePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           photos,
-          genre: selectedGenre,
-          mood: selectedMood,
-          listeningStyle: selectedStyle,
+          genre: genreOption.apiGenre,
+          energy: selectedEnergy,
+          // legacy 호환 (RECOMMEND_MODE=legacy 롤백 시 사용)
+          mood: legacyMood,
+          listeningStyle: legacyStyle,
         }),
       });
 
@@ -203,7 +217,7 @@ export default function PreferencePage() {
       }
 
       localStorage.setItem("ptp_result", JSON.stringify(data));
-      localStorage.setItem("ptp_prefs", JSON.stringify({ genre: selectedGenre, mood: selectedMood }));
+      localStorage.setItem("ptp_prefs", JSON.stringify({ genre: selectedGenre, energy: selectedEnergy }));
       router.push("/result");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "오류가 발생했어요. 다시 시도해주세요.");
@@ -215,9 +229,7 @@ export default function PreferencePage() {
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{
-        background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)",
-      }}
+      style={{ background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)" }}
     >
       {/* 상단 바 */}
       <div className="flex items-center justify-between px-5 pt-12 pb-5">
@@ -230,11 +242,11 @@ export default function PreferencePage() {
         <span className="font-medium" style={{ fontSize: 15, color: "#fff" }}>
           오늘의 취향
         </span>
-        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)" }}>2 / 3</span>
+        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)" }}>2 / 2</span>
       </div>
 
       <p className="text-center mb-5" style={{ fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
-        조금만 더 알려주시면 딱 맞는 노래를 찾아드릴게요
+        두 가지만 알려주시면 딱 맞는 노래를 찾아드릴게요
       </p>
 
       <div className="flex-1 flex flex-col px-5 overflow-y-auto">
@@ -242,78 +254,71 @@ export default function PreferencePage() {
         {/* 카드 1: 장르 */}
         <div className="mb-3 p-4" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14 }}>
           <p className="mb-3 font-medium" style={{ fontSize: 13, color: "rgba(255,255,255,0.90)" }}>
-            🎵 평소에 즐겨 듣는 장르는?
+            🎵 어떤 음악이 끌려요?
           </p>
           <div className="flex flex-wrap gap-2">
-            {GENRES.map((genre) => (
+            {GENRE_OPTIONS.map((g) => (
               <button
-                key={genre}
-                onClick={() => setSelectedGenre(genre)}
+                key={g.value}
+                onClick={() => setSelectedGenre(g.value)}
                 style={{
-                  background: selectedGenre === genre ? "#C4687A" : "rgba(255,255,255,0.07)",
-                  border: selectedGenre === genre ? "none" : "1px solid rgba(255,255,255,0.16)",
-                  color: selectedGenre === genre ? "#fff" : "rgba(255,255,255,0.62)",
+                  background: selectedGenre === g.value ? "#C4687A" : "rgba(255,255,255,0.07)",
+                  border: selectedGenre === g.value ? "none" : "1px solid rgba(255,255,255,0.16)",
+                  color: selectedGenre === g.value ? "#fff" : "rgba(255,255,255,0.62)",
                   borderRadius: 20,
                   padding: "6px 14px",
                   fontSize: 12,
                   cursor: "pointer",
                 }}
               >
-                {genre}
+                {g.label}
               </button>
             ))}
           </div>
         </div>
 
-        {/* 카드 2: 기분 */}
+        {/* 카드 2: 분위기 (에너지 스펙트럼) */}
         <div className="mb-3 p-4" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14 }}>
-          <p className="mb-3 font-medium" style={{ fontSize: 13, color: "rgba(255,255,255,0.90)" }}>
-            🌤️ 지금 이 순간 기분이 어때요?
+          <p className="mb-4 font-medium" style={{ fontSize: 13, color: "rgba(255,255,255,0.90)" }}>
+            🎚️ 어떤 분위기로 듣고 싶어요?
           </p>
-          <div className="flex flex-wrap gap-2">
-            {MOODS.map((mood) => (
+
+          {/* 스펙트럼 바 */}
+          <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+            {ENERGY_OPTIONS.map((opt) => (
               <button
-                key={mood}
-                onClick={() => setSelectedMood(mood)}
+                key={opt.value}
+                onClick={() => setSelectedEnergy(opt.value)}
                 style={{
-                  background: selectedMood === mood ? "rgba(160,212,160,0.18)" : "rgba(255,255,255,0.07)",
-                  border: selectedMood === mood ? "1px solid #a0d4a0" : "1px solid rgba(255,255,255,0.16)",
-                  color: selectedMood === mood ? "#a0d4a0" : "rgba(255,255,255,0.62)",
-                  borderRadius: 20,
-                  padding: "6px 14px",
-                  fontSize: 12,
+                  flex: 1,
+                  height: 40,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: selectedEnergy === opt.value
+                    ? "rgba(196,104,122,0.30)"
+                    : "rgba(255,255,255,0.07)",
+                  border: selectedEnergy === opt.value
+                    ? "1.5px solid #C4687A"
+                    : "1px solid rgba(255,255,255,0.13)",
+                  borderRadius: 10,
+                  color: selectedEnergy === opt.value ? "#fff" : "rgba(255,255,255,0.45)",
+                  fontSize: 11,
+                  fontWeight: selectedEnergy === opt.value ? 600 : 400,
                   cursor: "pointer",
+                  transition: "all 0.15s",
+                  whiteSpace: "nowrap",
                 }}
               >
-                {mood}
+                {opt.label}
               </button>
             ))}
           </div>
-        </div>
 
-        {/* 카드 3: 듣는 방식 */}
-        <div className="mb-3 p-4" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14 }}>
-          <p className="mb-3 font-medium" style={{ fontSize: 13, color: "rgba(255,255,255,0.90)" }}>
-            🎵 지금 뭐 하면서 들을 거예요?
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {LISTENING_STYLES.map((style) => (
-              <button
-                key={style}
-                onClick={() => setSelectedStyle(style)}
-                style={{
-                  background: selectedStyle === style ? "rgba(196,104,122,0.22)" : "rgba(255,255,255,0.07)",
-                  border: selectedStyle === style ? "1px solid #C4687A" : "1px solid rgba(255,255,255,0.16)",
-                  color: selectedStyle === style ? "#fff" : "rgba(255,255,255,0.62)",
-                  borderRadius: 20,
-                  padding: "6px 14px",
-                  fontSize: 12,
-                  cursor: "pointer",
-                }}
-              >
-                {style}
-              </button>
-            ))}
+          {/* 스펙트럼 라벨 */}
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "0 2px" }}>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)" }}>잔잔</span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)" }}>파워풀</span>
           </div>
         </div>
 
@@ -328,7 +333,7 @@ export default function PreferencePage() {
 
         {/* 스텝 점 */}
         <div className="flex gap-2 justify-center py-3">
-          {[false, true, false].map((active, i) => (
+          {[false, true].map((active, i) => (
             <div
               key={i}
               style={{
@@ -410,7 +415,6 @@ export default function PreferencePage() {
                     }}
                   />
                 ))}
-                {/* 사진이 없으면 플레이스홀더 */}
                 {loadingPhotos.length === 0 && (
                   <div style={{
                     width: 88, height: 110, borderRadius: 10,
@@ -461,18 +465,8 @@ export default function PreferencePage() {
           {/* ── 3단계: 곡 탐색 중 ── */}
           {loadingPhase === 2 && (
             <>
-              {/* ✦ 고정 (애니메이션 없음) */}
-              <div
-                style={{
-                  fontSize: 52,
-                  marginBottom: 28,
-                  color: "#C4687A",
-                }}
-              >
-                ✦
-              </div>
+              <div style={{ fontSize: 52, marginBottom: 28, color: "#C4687A" }}>✦</div>
 
-              {/* 순환 텍스트 — position:absolute 로 레이아웃 고정 */}
               <div
                 style={{
                   position: "relative",
@@ -505,7 +499,6 @@ export default function PreferencePage() {
                 ))}
               </div>
 
-              {/* 음악 파형 애니메이션 */}
               <div
                 style={{
                   display: "flex",
