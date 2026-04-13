@@ -138,9 +138,14 @@ export async function POST(req: NextRequest) {
       failed.push(line);
     }
 
-    // rate limit 방지: 마지막 곡 제외 500ms 딜레이
+    // rate limit 방지: 마지막 곡 제외 1000ms 딜레이
     if (i < lines.length - 1) {
-      await sleep(500);
+      await sleep(1000);
+      // 30곡마다 30초 대기 (예: 30번째 곡 처리 후)
+      if ((i + 1) % 30 === 0) {
+        console.log(`[import-text] 30곡 처리 완료 (${i + 1}곡째) → 30초 대기`);
+        await sleep(30000);
+      }
     }
   }
 
@@ -204,8 +209,46 @@ ${songList}`;
     // fallback: energy=3, genre=kpop
   }
 
-  // Supabase upsert
-  const rows = found.map((t, i) => ({
+  // 중복 확인: 이미 DB에 있는 spotify_track_id 조회
+  const foundTrackIds = found.map(t => t.spotifyTrackId);
+  const { data: existingRows } = await supabaseAdmin
+    .from("songs")
+    .select("spotify_track_id, song, artist, genre")
+    .in("spotify_track_id", foundTrackIds);
+
+  const existingMap = new Map<string, { song: string; artist: string; genre: string }>(
+    (existingRows ?? []).map(r => [r.spotify_track_id, { song: r.song, artist: r.artist, genre: r.genre }])
+  );
+
+  const duplicates: { song: string; artist: string; existingGenre: string }[] = [];
+  const newFound = found.filter((t, i) => {
+    if (existingMap.has(t.spotifyTrackId)) {
+      const existing = existingMap.get(t.spotifyTrackId)!;
+      duplicates.push({ song: t.inputSong || t.spotifySong, artist: t.inputArtist || t.spotifyArtist, existingGenre: existing.genre });
+      console.log(`[import-text] 중복 스킵: ${t.spotifySong} - ${t.spotifyArtist} (기존 장르: ${existing.genre})`);
+      return false;
+    }
+    return true;
+  });
+
+  console.log(`[import-text] 신규: ${newFound.length}곡, 중복: ${duplicates.length}곡`);
+
+  if (newFound.length === 0) {
+    return NextResponse.json({
+      success: 0,
+      failed,
+      duplicates,
+      total: lines.length,
+      genreBreakdown: {},
+    });
+  }
+
+  // 신규 곡만 insert (newFound의 index가 found 배열에서의 원래 인덱스와 달라졌으므로 재매핑)
+  const newFoundIndices = found
+    .map((t, i) => ({ t, i }))
+    .filter(({ t }) => !existingMap.has(t.spotifyTrackId));
+
+  const rows = newFoundIndices.map(({ t, i }) => ({
     spotify_track_id: t.spotifyTrackId,
     song: t.inputSong,
     artist: t.inputArtist || t.spotifyArtist,
@@ -220,10 +263,10 @@ ${songList}`;
 
   const { error } = await supabaseAdmin
     .from("songs")
-    .upsert(rows, { onConflict: "spotify_track_id" });
+    .insert(rows);
 
   if (error) {
-    console.log("[import-text] Supabase upsert 오류:", error.message);
+    console.log("[import-text] Supabase insert 오류:", error.message);
     return NextResponse.json({ error: "DB 저장 실패: " + error.message }, { status: 500 });
   }
 
@@ -234,8 +277,9 @@ ${songList}`;
   }
 
   return NextResponse.json({
-    success: found.length,
+    success: newFound.length,
     failed,
+    duplicates,
     total: lines.length,
     genreBreakdown,
   });

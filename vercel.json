@@ -2,7 +2,7 @@
   "regions": ["iad1"],
   "functions": {
     "src/app/api/admin/import-text/route.ts": {
-      "maxDuration": 60
+      "maxDuration": 120
     }
   }
 }

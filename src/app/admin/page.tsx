@@ -222,8 +222,9 @@ export default function AdminPage() {
   const [textGenre, setTextGenre] = useState("auto");
   const [textLoading, setTextLoading] = useState(false);
   const [textProgress, setTextProgress] = useState<{ current: number; total: number } | null>(null);
-  const [textResult, setTextResult] = useState<{ success: number; failed: string[]; total: number; genreBreakdown?: Record<string, number> } | null>(null);
+  const [textResult, setTextResult] = useState<{ success: number; failed: string[]; duplicates?: { song: string; artist: string; existingGenre: string }[]; total: number; genreBreakdown?: Record<string, number> } | null>(null);
   const [textCooldown, setTextCooldown] = useState(0); // 남은 쿨다운 초
+  const [textWaiting, setTextWaiting] = useState(false); // 30초 대기 중 표시
 
   // Spotify 429 카운트다운 — 조건부 return 전에 호출
   const retryTargetMs =
@@ -280,9 +281,8 @@ export default function AdminPage() {
   useEffect(() => {
     if (authed) {
       fetchData();
-      checkSpotify();
     }
-  }, [authed, fetchData, checkSpotify]);
+  }, [authed, fetchData]);
 
   const handleImport = async () => {
     if (!importUrl.trim()) { showToast("URL을 입력해줘요"); return; }
@@ -357,15 +357,32 @@ export default function AdminPage() {
 
     setTextLoading(true);
     setTextResult(null);
+    setTextWaiting(false);
     setTextProgress({ current: 0, total: lines.length });
 
-    // 진행률 시뮬레이션 (API가 순차처리하는 동안 0.5s마다 업데이트)
-    const interval = setInterval(() => {
-      setTextProgress(prev => {
-        if (!prev || prev.current >= prev.total) return prev;
-        return { ...prev, current: Math.min(prev.current + 1, prev.total - 1) };
-      });
-    }, 500);
+    // 진행률 시뮬레이션 (1000ms 딜레이 + 30곡마다 30초 대기 반영)
+    let simActive = true;
+    let simCount = 0;
+
+    const advanceSim = () => {
+      if (!simActive) return;
+      simCount++;
+      setTextProgress({ current: Math.min(simCount, lines.length - 1), total: lines.length });
+
+      if (simCount % 30 === 0 && simCount < lines.length) {
+        // 30곡마다 30초 대기 표시
+        setTextWaiting(true);
+        setTimeout(() => {
+          if (!simActive) return;
+          setTextWaiting(false);
+          setTimeout(advanceSim, 1000);
+        }, 30000);
+      } else if (simCount < lines.length - 1) {
+        setTimeout(advanceSim, 1000);
+      }
+    };
+
+    setTimeout(advanceSim, 1000);
 
     try {
       const res = await fetch("/api/admin/import-text", {
@@ -374,8 +391,9 @@ export default function AdminPage() {
         body: JSON.stringify({ songs: textSongs, genre: textGenre }),
       });
       const data = await res.json();
-      clearInterval(interval);
+      simActive = false;
       setTextProgress(null);
+      setTextWaiting(false);
 
       if (!res.ok) { showToast(data.error ?? "추가 실패"); return; }
       setTextResult(data);
@@ -389,8 +407,9 @@ export default function AdminPage() {
         });
       }, 1000);
     } catch {
-      clearInterval(interval);
+      simActive = false;
       setTextProgress(null);
+      setTextWaiting(false);
       showToast("네트워크 오류");
     } finally {
       setTextLoading(false);
@@ -629,7 +648,7 @@ export default function AdminPage() {
           </div>
         </div>
         {!spotifyStatus && !spotifyChecking && (
-          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", margin: 0 }}>확인 전</p>
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", margin: 0 }}>조회하지 않음</p>
         )}
         {spotifyChecking && (
           <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", margin: 0 }}>확인 중...</p>
@@ -812,11 +831,13 @@ export default function AdminPage() {
         {/* 진행 상태 */}
         {textProgress && (
           <div style={{ marginBottom: 12 }}>
-            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", margin: "0 0 6px" }}>
-              {textProgress.current}/{textProgress.total}곡 처리 중...
+            <p style={{ fontSize: 12, color: textWaiting ? "#f0c060" : "rgba(255,255,255,0.6)", margin: "0 0 6px" }}>
+              {textWaiting
+                ? `⏸ ${textProgress.current}/${textProgress.total}곡 처리 후 30초 대기 중...`
+                : `${textProgress.current}/${textProgress.total}곡 처리 중...`}
             </p>
             <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 4, height: 4, overflow: "hidden" }}>
-              <div style={{ background: "#5B8CFF", height: "100%", width: `${Math.round((textProgress.current / textProgress.total) * 100)}%`, transition: "width 0.4s ease" }} />
+              <div style={{ background: textWaiting ? "#f0c060" : "#5B8CFF", height: "100%", width: `${Math.round((textProgress.current / textProgress.total) * 100)}%`, transition: "width 0.4s ease" }} />
             </div>
           </div>
         )}
@@ -826,6 +847,7 @@ export default function AdminPage() {
           <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "12px 14px" }}>
             <p style={{ fontSize: 13, color: "#fff", margin: "0 0 6px", fontWeight: 600 }}>
               ✅ {textResult.success}곡 저장
+              {(textResult.duplicates?.length ?? 0) > 0 && <span style={{ color: "#f0c060", fontWeight: 400, marginLeft: 8 }}>/ ⚠️ {textResult.duplicates!.length}곡 중복</span>}
               {textResult.failed.length > 0 && <span style={{ color: "#f07070", fontWeight: 400, marginLeft: 8 }}>/ ❌ {textResult.failed.length}곡 실패</span>}
             </p>
             {textResult.genreBreakdown && Object.keys(textResult.genreBreakdown).length > 0 && (
@@ -837,6 +859,14 @@ export default function AdminPage() {
                       {g} {count}곡
                     </span>
                   ))}
+              </div>
+            )}
+            {(textResult.duplicates?.length ?? 0) > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", margin: "0 0 4px" }}>⚠️ 중복 {textResult.duplicates!.length}곡 (기존 장르 유지):</p>
+                {textResult.duplicates!.map((d, i) => (
+                  <p key={i} style={{ fontSize: 12, color: "#f0c060", margin: "2px 0" }}>• {d.song} - {d.artist} → {d.existingGenre}</p>
+                ))}
               </div>
             )}
             {textResult.failed.length > 0 && (
