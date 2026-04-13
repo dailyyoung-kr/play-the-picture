@@ -137,6 +137,7 @@ export default function ResultPage() {
         reason: result.reason,
         tags: result.tags,
         emotions: result.emotions ?? {},
+        vibe_spectrum: result.vibeSpectrum ?? null,
         vibe_type: result.vibeType ?? result.vibe_type ?? "",
         vibe_description: result.vibeDescription ?? result.vibe_description ?? "",
         photos,
@@ -236,6 +237,7 @@ export default function ResultPage() {
         .insert({
           date: today, song, artist,
           reason: result.reason, tags: result.tags, emotions: result.emotions ?? {},
+          vibe_spectrum: result.vibeSpectrum ?? null,
           vibe_type: result.vibeType ?? result.vibe_type ?? "",
           vibe_description: result.vibeDescription ?? result.vibe_description ?? "",
           photos: [],
@@ -778,6 +780,7 @@ export default function ResultPage() {
               <div style={{ width: 32, height: 32, flexShrink: 0 }} />
               <div>
                 <p style={{ fontSize: 15, fontWeight: 400, color: "rgba(255,255,255,0.6)", margin: 0 }}>사진 없이 공유하기</p>
+                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", margin: "3px 0 0" }}>추천곡과 결과만 공유해요</p>
               </div>
             </button>
 

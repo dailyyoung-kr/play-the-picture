@@ -10,29 +10,18 @@ interface ShareEntry {
   artist: string;
   reason: string;
   tags: string[];
-  emotions: {
-    "행복함": number;
-    "설레임": number;
-    "에너지": number;
-    "특별함": number;
-  };
+  vibe_spectrum?: { energy: number; warmth: number; social: number; special: number } | null;
   vibe_type: string;
   vibe_description: string;
   photos: string[];
   album_art?: string | null;
 }
 
-const EMOTION_LABELS = [
-  { key: "행복함" as const, emoji: "😊", label: "행복함", color: "#f0d080" },
-  { key: "설레임" as const, emoji: "💗", label: "설레임", color: "#f0a0c0" },
-  { key: "에너지" as const, emoji: "⚡", label: "에너지", color: "#a0d4f0" },
-  { key: "특별함" as const, emoji: "✨", label: "특별함", color: "#a0f0b0" },
-];
-
-const PHOTO_COLORS = [
-  "linear-gradient(160deg, #1a2a1a, #0a1a0a)",
-  "linear-gradient(160deg, #2a2a3a, #1a1a2a)",
-  "linear-gradient(160deg, #003850, #001830)",
+const VIBE_SPECTRUM_AXES = [
+  { key: "energy" as const, left: "차분함", right: "에너제틱" },
+  { key: "warmth" as const, left: "쿨함",   right: "따뜻함" },
+  { key: "social" as const, left: "혼자",   right: "함께" },
+  { key: "special" as const, left: "일상적", right: "특별함" },
 ];
 
 export default function ShareClient({ id }: { id: string }) {
@@ -166,7 +155,9 @@ export default function ShareClient({ id }: { id: string }) {
     );
   }
 
-  const modalPhotos = entry.photos.filter(s => s.startsWith("data:"));
+  const modalPhotos = entry.photos.filter(s => typeof s === "string" && s.startsWith("data:"));
+  const showAlbumArtFallback = modalPhotos.length === 0 && !!entry.album_art;
+  const showPhotoSection = modalPhotos.length > 0 || showAlbumArtFallback;
   const songForShare = entry.song;
   const artistForShare = entry.artist;
 
@@ -224,27 +215,28 @@ export default function ShareClient({ id }: { id: string }) {
             친구의 오늘
           </p>
 
-          <div className="flex gap-2 justify-center mb-5">
-            {(entry.photos.length > 0 ? entry.photos : PHOTO_COLORS).map((src, i) => {
-              const isPhoto = typeof src === "string" && src.startsWith("data:");
-              const photoIdx = isPhoto ? modalPhotos.indexOf(src) : -1;
-              return (
+          {showPhotoSection && (
+            <div className="flex gap-2 justify-center mb-5">
+              {modalPhotos.length > 0 ? modalPhotos.map((src, i) => (
                 <div
                   key={i}
-                  role={isPhoto ? "button" : undefined}
-                  tabIndex={isPhoto ? 0 : undefined}
-                  onClick={() => isPhoto && photoIdx >= 0 && setModalIndex(photoIdx)}
-                  onTouchEnd={(e) => { if (isPhoto && photoIdx >= 0) { e.preventDefault(); setModalIndex(photoIdx); } }}
-                  style={{ width: 100, height: 124, borderRadius: 10, border: "1.5px solid rgba(255,255,255,0.13)", flexShrink: 0, overflow: "hidden", background: !isPhoto ? PHOTO_COLORS[i] : undefined, cursor: isPhoto ? "pointer" : "default" }}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setModalIndex(i)}
+                  onTouchEnd={(e) => { e.preventDefault(); setModalIndex(i); }}
+                  style={{ width: 100, height: 124, borderRadius: 10, border: "1.5px solid rgba(255,255,255,0.13)", flexShrink: 0, overflow: "hidden", cursor: "pointer" }}
                 >
-                  {isPhoto && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={src} alt={`사진 ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }} />
-                  )}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt={`사진 ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }} />
                 </div>
-              );
-            })}
-          </div>
+              )) : (
+                <div style={{ width: 100, height: 124, borderRadius: 10, border: "1.5px solid rgba(255,255,255,0.13)", overflow: "hidden" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={entry.album_art!} alt="앨범아트" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="text-center mb-4">
             <h1 className="font-semibold mb-1" style={{ fontSize: 28, color: "#fff", letterSpacing: "-0.5px" }}>{entry.song}</h1>
@@ -260,22 +252,36 @@ export default function ShareClient({ id }: { id: string }) {
 
           <div className="mb-3 p-4" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 12 }}>
             <p className="mb-4" style={{ fontSize: 11, color: "rgba(255,255,255,0.38)" }}>✦ 사진 분위기</p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-              {EMOTION_LABELS.map(({ key, emoji, label, color }) => {
-                const pct = (entry.emotions as Record<string, number>)[key] ?? 0;
-                return (
-                  <div key={key} style={{ background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 12px", minWidth: 0 }}>
-                    <div className="flex justify-between items-center mb-2">
-                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.60)" }}>{emoji} {label}</span>
-                      <span className="font-medium" style={{ fontSize: 12, color: "rgba(255,255,255,0.85)" }}>{pct}%</span>
+
+            {entry.vibe_spectrum ? (
+              <div style={{ marginBottom: entry.vibe_type ? 12 : 0 }}>
+                {VIBE_SPECTRUM_AXES.map(({ key, left, right }) => {
+                  const val = entry.vibe_spectrum![key];
+                  return (
+                    <div key={key} style={{ marginBottom: 16 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 7 }}>
+                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{left}</span>
+                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{right}</span>
+                      </div>
+                      <div style={{ position: "relative", height: 6, background: "rgba(255,255,255,0.08)", borderRadius: 3 }}>
+                        <div style={{
+                          position: "absolute",
+                          left: `calc(${val}% - 7px)`,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          width: 14,
+                          height: 14,
+                          borderRadius: "50%",
+                          background: "#C4687A",
+                          boxShadow: "0 0 6px rgba(196,104,122,0.6)",
+                        }} />
+                      </div>
                     </div>
-                    <div style={{ height: 5, background: "rgba(255,255,255,0.10)", borderRadius: 3, overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 3 }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            ) : null}
+
             {entry.vibe_type && (
               <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 12px" }}>
                 <p style={{ fontSize: 10, color: "rgba(255,255,255,0.40)", marginBottom: 6 }}>사진으로 분석한 내 음악 스타일</p>
