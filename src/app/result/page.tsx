@@ -82,7 +82,7 @@ export default function ResultPage() {
     setTimeout(() => setToast(""), 3000);
   };
 
-  const sendFeedback = async (trackId: string, action: "like" | "skip") => {
+  const sendFeedback = async (trackId: string, action: "like" | "unlike" | "skip" | "unskip") => {
     try {
       await fetch("/api/feedback", {
         method: "POST",
@@ -95,10 +95,23 @@ export default function ResultPage() {
   };
 
   const handleFeedback = (type: "like" | "dislike") => {
-    if (feedbackGiven || !result) return;
+    if (!result) return;
     const trackId = result.spotifyTrackId;
-    if (trackId) sendFeedback(trackId, type === "like" ? "like" : "skip");
-    setFeedbackGiven(type);
+    if (!trackId) return;
+
+    if (feedbackGiven === type) {
+      // 같은 버튼 재클릭 → 해제
+      sendFeedback(trackId, type === "like" ? "unlike" : "unskip");
+      setFeedbackGiven(null);
+    } else {
+      // 다른 버튼 클릭 또는 처음 클릭
+      if (feedbackGiven !== null) {
+        // 기존 선택 취소
+        sendFeedback(trackId, feedbackGiven === "like" ? "unlike" : "unskip");
+      }
+      sendFeedback(trackId, type === "like" ? "like" : "skip");
+      setFeedbackGiven(type);
+    }
   };
 
   // 저장 후 id 반환 (이미 저장돼 있으면 캐시된 id 반환)
@@ -533,33 +546,27 @@ export default function ResultPage() {
 
           {/* 좋아요 / 싫어요 아이콘 버튼 */}
           {result.spotifyTrackId && (
-            <div className="flex justify-center gap-3 mt-3">
+            <div className="flex justify-center gap-4 mt-3">
               <button
                 onClick={() => handleFeedback("like")}
-                disabled={feedbackGiven !== null}
                 style={{
-                  display: "flex", alignItems: "center", gap: 5,
-                  background: feedbackGiven === "like" ? "rgba(196,104,122,0.2)" : "transparent",
-                  border: `1px solid ${feedbackGiven === "like" ? "#C4687A" : "rgba(255,255,255,0.2)"}`,
-                  borderRadius: 20, padding: "5px 14px",
-                  color: feedbackGiven === "like" ? "#C4687A" : "rgba(255,255,255,0.4)",
-                  fontSize: 18, cursor: feedbackGiven !== null ? "default" : "pointer",
-                  transition: "all 0.2s ease",
+                  background: "none", border: "none", padding: "4px 8px",
+                  fontSize: 20, cursor: "pointer",
+                  opacity: feedbackGiven === "like" ? 1 : feedbackGiven === "dislike" ? 0.3 : 0.55,
+                  filter: feedbackGiven === "like" ? "sepia(1) saturate(3) hue-rotate(300deg)" : "none",
+                  transition: "opacity 0.2s ease, filter 0.2s ease",
                 }}
               >
                 👍
               </button>
               <button
                 onClick={() => handleFeedback("dislike")}
-                disabled={feedbackGiven !== null}
                 style={{
-                  display: "flex", alignItems: "center", gap: 5,
-                  background: feedbackGiven === "dislike" ? "rgba(255,255,255,0.1)" : "transparent",
-                  border: `1px solid ${feedbackGiven === "dislike" ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.2)"}`,
-                  borderRadius: 20, padding: "5px 14px",
-                  color: feedbackGiven === "dislike" ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.4)",
-                  fontSize: 18, cursor: feedbackGiven !== null ? "default" : "pointer",
-                  transition: "all 0.2s ease",
+                  background: "none", border: "none", padding: "4px 8px",
+                  fontSize: 20, cursor: "pointer",
+                  opacity: feedbackGiven === "dislike" ? 1 : feedbackGiven === "like" ? 0.3 : 0.55,
+                  filter: "none",
+                  transition: "opacity 0.2s ease",
                 }}
               >
                 👎
