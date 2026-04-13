@@ -167,7 +167,7 @@ export default function PreferencePage() {
     // 취향 선택 로그
     supabase
       .from("preference_logs")
-      .insert({ device_id: deviceId, genre: selectedGenre, mood: legacyMood, listening_style: legacyStyle })
+      .insert({ device_id: deviceId, genre: selectedGenre, energy: selectedEnergy, mood: legacyMood, listening_style: legacyStyle })
       .then(({ error }) => { if (error) console.error("[pref_log]", error.message); });
 
     // 분석 시작 로그

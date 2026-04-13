@@ -6,11 +6,10 @@ import { supabase } from "@/lib/supabase";
 const ADMIN_PW = process.env.NEXT_PUBLIC_ADMIN_PASSWORD ?? "coldboardp1!";
 
 type PhotoLog = { id: string; created_at: string };
-type PrefLog = { id: string; created_at: string; genre: string | null; mood: string | null; listening_style: string | null };
-type AnalyzeLog = { id: string; created_at: string; status: string; response_time_ms: number | null; spotify_status: string | null; song: string | null; artist: string | null };
+type PrefLog = { id: string; created_at: string; genre: string | null; energy: number | null };
+type AnalyzeLog = { id: string; created_at: string; status: string; response_time_ms: number | null; song: string | null; artist: string | null };
 type EntryRow = { id: string; date: string; song: string; artist: string; genre: string | null; mood: string | null };
 type LogRow = { id: string; created_at: string };
-type FailLog = { id: string; created_at: string; song: string | null; artist: string | null; error_reason: string | null };
 type SpotifyStatus = {
   status: "ok" | "rate_limited" | "token_failed";
   checkedAt: number;
@@ -71,8 +70,7 @@ function timestampToKSTDate(ts: string): string {
 }
 
 const GENRES = ["인디", "팝", "K-POP", "힙합/R&B", "재즈/어쿠스틱", "장르 발견하기"];
-const MOODS = ["신나", "설레", "여유로워", "복잡해", "지쳐"];
-const STYLES = ["출근/등교길", "작업/공부", "데이트", "휴식", "산책/드라이브", "잠들기 전"];
+const ENERGY_LABELS = ["잔잔함", "여유", "설렘", "신남", "파워풀"];
 
 function countBy(arr: string[]): [string, number][] {
   const map: Record<string, number> = {};
@@ -204,7 +202,6 @@ export default function AdminPage() {
   const [shareLogs, setShareLogs] = useState<LogRow[]>([]);
   const [shareViews, setShareViews] = useState<LogRow[]>([]);
   const [tryClicks, setTryClicks] = useState<LogRow[]>([]);
-  const [failLogs, setFailLogs] = useState<FailLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [spotifyStatus, setSpotifyStatus] = useState<SpotifyStatus | null>(null);
@@ -240,15 +237,14 @@ export default function AdminPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [photoRes, prefRes, analyzeRes, entriesRes, shareRes, viewsRes, tryRes, failRes] = await Promise.all([
+    const [photoRes, prefRes, analyzeRes, entriesRes, shareRes, viewsRes, tryRes] = await Promise.all([
       supabase.from("photo_upload_logs").select("id, created_at").order("created_at", { ascending: false }),
-      supabase.from("preference_logs").select("id, created_at, genre, mood, listening_style").order("created_at", { ascending: false }),
-      supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, spotify_status, song, artist").order("created_at", { ascending: false }),
+      supabase.from("preference_logs").select("id, created_at, genre, energy").order("created_at", { ascending: false }),
+      supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, song, artist").order("created_at", { ascending: false }),
       supabase.from("entries").select("id, date, song, artist, genre, mood").order("id", { ascending: false }),
       supabase.from("share_logs").select("id, created_at").order("created_at", { ascending: false }),
       supabase.from("share_views").select("id, created_at").order("created_at", { ascending: false }),
       supabase.from("try_click").select("id, created_at").order("created_at", { ascending: false }),
-      supabase.from("analyze_logs").select("id, created_at, song, artist, error_reason").eq("spotify_status", "not_found").order("created_at", { ascending: false }).limit(5),
     ]);
 
     if (!photoRes.error) setPhotoLogs(photoRes.data ?? []);
@@ -259,7 +255,6 @@ export default function AdminPage() {
     if (!shareRes.error) setShareLogs(shareRes.data ?? []);
     if (!viewsRes.error) setShareViews(viewsRes.data ?? []);
     if (!tryRes.error) setTryClicks(tryRes.data ?? []);
-    if (!failRes.error) setFailLogs((failRes.data ?? []) as FailLog[]);
 
     setLastRefresh(new Date());
     setLoading(false);
@@ -490,8 +485,10 @@ export default function AdminPage() {
 
   // ── 콘텐츠 인사이트 ──
   const topGenres = fillRank(filteredPrefs.map(l => l.genre ?? "").filter(Boolean), GENRES);
-  const topMoods = fillRank(filteredPrefs.map(l => l.mood ?? "").filter(Boolean), MOODS);
-  const topStyles = fillRank(filteredPrefs.map(l => l.listening_style ?? "").filter(Boolean), STYLES);
+  const topEnergy: [string, number][] = ENERGY_LABELS.map((label, idx) => [
+    label,
+    filteredPrefs.filter(l => l.energy === idx + 1).length,
+  ]).sort((a, b) => b[1] - a[1]);
   const topSongs = countBy(
     filteredAnalyze
       .filter(l => l.status === "success" && l.song)
@@ -586,42 +583,10 @@ export default function AdminPage() {
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>CONTENT</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
         <RankList title="🎸 장르 선택 순위" items={topGenres} accent="#a0d4f0" />
-        <RankList title="🌤 기분 선택 순위" items={topMoods} accent="#a0f0b0" />
-      </div>
-      <div style={{ marginBottom: 8 }}>
-        <RankList title="🚶 상황 선택 순위" items={topStyles} accent="#f0c080" />
+        <RankList title="⚡ 에너지 선택 순위" items={topEnergy} accent="#a0f0b0" />
       </div>
       <div style={{ marginBottom: 8 }}>
         <RankList title="🎵 추천된 곡 Top 5" items={topSongs} accent="#C4687A" />
-      </div>
-      <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14, padding: "18px 20px", marginBottom: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", margin: 0 }}>❌ 검증 실패한 곡 목록</p>
-          <span style={{ background: "rgba(240,112,112,0.15)", border: "1px solid rgba(240,112,112,0.3)", borderRadius: 20, padding: "3px 10px", fontSize: 11, color: "#f07070", fontWeight: 600 }}>
-            총 {analyzeLogs.filter(l => l.spotify_status === "not_found").length}회
-          </span>
-        </div>
-        {failLogs.length === 0 ? (
-          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", margin: 0 }}>실패 기록 없음</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {failLogs.map((log) => (
-              <div key={log.id} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "10px 12px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                  <span style={{ fontSize: 13, color: "#fff", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {log.song ? `${log.song}${log.artist ? ` — ${log.artist}` : ""}` : "곡명 없음"}
-                  </span>
-                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", flexShrink: 0, whiteSpace: "nowrap" }}>
-                    {timestampToKSTShort(log.created_at)}
-                  </span>
-                </div>
-                {log.error_reason && (
-                  <p style={{ fontSize: 11, color: "#f07070", margin: "4px 0 0", opacity: 0.8 }}>{log.error_reason}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* ── 섹션: Spotify API 상태 ── */}
