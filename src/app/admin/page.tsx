@@ -22,8 +22,8 @@ const IMPORT_GENRES = [
   { value: "pop", label: "팝" },
   { value: "hiphop", label: "힙합" },
   { value: "indie", label: "인디" },
-  { value: "rnb", label: "R&B소울" },
-  { value: "acoustic_jazz", label: "어쿠스틱재즈" },
+  { value: "rnb", label: "R&B/소울" },
+  { value: "acoustic_jazz", label: "어쿠스틱/재즈" },
 ];
 
 function getTodayKST() {
