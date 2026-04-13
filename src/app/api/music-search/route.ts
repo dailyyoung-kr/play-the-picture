@@ -20,14 +20,26 @@ async function getSpotifyToken(): Promise<string | null> {
   return data.access_token ?? null;
 }
 
+// 아티스트 매칭: 토큰 단위 완전 일치 (crush→acrush, iu→iuliafridrik 오매칭 방지)
+function artistMatch(q: string, t: string): boolean {
+  if (q === t) return true;
+  const tokenize = (s: string) =>
+    s.replace(/([a-z0-9]+)/g, " $1 ").replace(/([가-힣]+)/g, " $1 ").trim().split(/\s+/).filter(Boolean);
+  const qTokens = tokenize(q);
+  const tTokens = tokenize(t);
+  return qTokens.every((w) => tTokens.includes(w)) || tTokens.every((w) => qTokens.includes(w));
+}
+
 // Spotify Track ID 검색
 async function searchSpotifyTrack(song: string, artist: string): Promise<string | null> {
   const token = await getSpotifyToken();
   if (!token) return null;
 
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9가-힣]/g, "");
+
   async function doSearch(q: string): Promise<string | null> {
     const res = await fetch(
-      `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=1`,
+      `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=5&market=KR`,
       { headers: { Authorization: `Bearer ${token!}` } }
     );
     if (!res.ok) {
@@ -35,8 +47,16 @@ async function searchSpotifyTrack(song: string, artist: string): Promise<string 
       return null;
     }
     const data = await res.json();
-    console.log("[music-search] Spotify 검색 쿼리:", q, "/ 결과:", JSON.stringify(data.tracks?.items?.map((t: { name: string; artists: { name: string }[]; id: string }) => ({ name: t.name, artist: t.artists[0]?.name, id: t.id }))));
-    return data.tracks?.items?.[0]?.id ?? null;
+    const items = data.tracks?.items ?? [];
+    console.log("[music-search] Spotify 검색 쿼리:", q, "/ 결과:", JSON.stringify(items.map((t: { name: string; artists: { name: string }[]; id: string }) => ({ name: t.name, artist: t.artists[0]?.name, id: t.id }))));
+
+    if (!artist) return items[0]?.id ?? null;
+
+    const queryArtist = norm(artist);
+    const matched = items.find((t: { name: string; artists: { name: string }[] }) =>
+      artistMatch(queryArtist, norm(t.artists[0]?.name ?? ""))
+    );
+    return matched?.id ?? null;
   }
 
   // 1차: track:/artist: 필드 검색
@@ -49,18 +69,33 @@ async function searchSpotifyTrack(song: string, artist: string): Promise<string 
   return await doSearch(fallbackQuery);
 }
 
+const YT_BLOCK_KEYWORDS = ["news", "breaking", "속보", "참사", "사고", "재난", "사망", "뉴스", "warning", "live breaking"];
+
 // YouTube Video ID 검색
 async function searchYouTubeVideo(query: string): Promise<string | null> {
   const apiKey = process.env.YOUTUBE_API_KEY;
   if (!apiKey) return null;
 
+  console.log("[music-search] YouTube 검색 쿼리:", query);
+
   const res = await fetch(
-    `https://www.googleapis.com/youtube/v3/search?part=id&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&maxResults=1&key=${apiKey}`
+    `https://www.googleapis.com/youtube/v3/search?part=id,snippet&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&maxResults=5&order=relevance&key=${apiKey}`
   );
 
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.log("[music-search] YouTube 응답 오류:", res.status);
+    return null;
+  }
   const data = await res.json();
-  return data.items?.[0]?.id?.videoId ?? null;
+  const items = data.items ?? [];
+  console.log("[music-search] YouTube 결과:", JSON.stringify(items.map((v: { id: { videoId: string }; snippet: { title: string } }) => ({ id: v.id?.videoId, title: v.snippet?.title }))));
+
+  const filtered = items.filter((v: { id: { videoId: string }; snippet: { title: string } }) => {
+    const title = (v.snippet?.title ?? "").toLowerCase();
+    return !YT_BLOCK_KEYWORDS.some((kw) => title.includes(kw));
+  });
+
+  return filtered[0]?.id?.videoId ?? null;
 }
 
 export async function GET(req: NextRequest) {
@@ -84,10 +119,10 @@ export async function GET(req: NextRequest) {
       ? `https://open.spotify.com/track/${spotifyId}`
       : null,
     youtubeUrl: youtubeId
-      ? `https://music.youtube.com/watch?v=${youtubeId}`
+      ? `https://www.youtube.com/watch?v=${youtubeId}`
       : null,
     // fallback: 검색 URL
     spotifyFallback: `https://open.spotify.com/search/${encodeURIComponent(query)}`,
-    youtubeFallback: `https://music.youtube.com/search?q=${encodeURIComponent(query)}`,
+    youtubeFallback: `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`,
   });
 }

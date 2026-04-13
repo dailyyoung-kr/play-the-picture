@@ -7,6 +7,15 @@ import { Archive, Music } from "lucide-react";
 import { getDeviceId } from "@/lib/device";
 import { trackEvent } from "@/lib/gtag";
 
+type SongQueueItem = {
+  song: string;
+  spotifyTrackId: string | null;
+  albumArt: string | null;
+  reason: string;
+  tags: string[];
+  background?: { from: string; to: string };
+};
+
 interface AnalysisResult {
   song: string; // "곡명 - 아티스트명" 형식
   reason: string;
@@ -28,6 +37,8 @@ interface AnalysisResult {
   albumArt?: string | null;
   isGenreDiscovery?: boolean;
   discoveredGenre?: string | null;
+  // 5곡 대기열
+  songQueue?: SongQueueItem[];
 }
 
 const VIBE_SPECTRUM_AXES = [
@@ -48,6 +59,8 @@ export default function ResultPage() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [photos, setPhotos] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  // 좋아요/싫어요 피드백
+  const [feedbackGiven, setFeedbackGiven] = useState<"like" | "dislike" | null>(null);
   const [sharing, setSharing] = useState(false);
   const [savedEntryId, setSavedEntryId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
@@ -67,6 +80,25 @@ export default function ResultPage() {
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(""), 3000);
+  };
+
+  const sendFeedback = async (trackId: string, action: "like" | "skip") => {
+    try {
+      await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ spotifyTrackId: trackId, action }),
+      });
+    } catch {
+      // 피드백 실패는 조용히 무시
+    }
+  };
+
+  const handleFeedback = (type: "like" | "dislike") => {
+    if (feedbackGiven || !result) return;
+    const trackId = result.spotifyTrackId;
+    if (trackId) sendFeedback(trackId, type === "like" ? "like" : "skip");
+    setFeedbackGiven(type);
   };
 
   // 저장 후 id 반환 (이미 저장돼 있으면 캐시된 id 반환)
@@ -317,7 +349,7 @@ export default function ResultPage() {
     const raw = localStorage.getItem("ptp_result");
     const photosRaw = localStorage.getItem("ptp_photos");
     if (raw) {
-      const parsed = JSON.parse(raw);
+      const parsed: AnalysisResult = JSON.parse(raw);
       setResult(parsed);
       trackEvent("result_view", { song: parsed.song });
     }
@@ -498,6 +530,42 @@ export default function ResultPage() {
               당신이 좋아할 것 같은 장르 : {result.discoveredGenre}
             </p>
           )}
+
+          {/* 좋아요 / 싫어요 아이콘 버튼 */}
+          {result.spotifyTrackId && (
+            <div className="flex justify-center gap-3 mt-3">
+              <button
+                onClick={() => handleFeedback("like")}
+                disabled={feedbackGiven !== null}
+                style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  background: feedbackGiven === "like" ? "rgba(196,104,122,0.2)" : "transparent",
+                  border: `1px solid ${feedbackGiven === "like" ? "#C4687A" : "rgba(255,255,255,0.2)"}`,
+                  borderRadius: 20, padding: "5px 14px",
+                  color: feedbackGiven === "like" ? "#C4687A" : "rgba(255,255,255,0.4)",
+                  fontSize: 18, cursor: feedbackGiven !== null ? "default" : "pointer",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                👍
+              </button>
+              <button
+                onClick={() => handleFeedback("dislike")}
+                disabled={feedbackGiven !== null}
+                style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  background: feedbackGiven === "dislike" ? "rgba(255,255,255,0.1)" : "transparent",
+                  border: `1px solid ${feedbackGiven === "dislike" ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.2)"}`,
+                  borderRadius: 20, padding: "5px 14px",
+                  color: feedbackGiven === "dislike" ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.4)",
+                  fontSize: 18, cursor: feedbackGiven !== null ? "default" : "pointer",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                👎
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 감정 분석 카드 */}
@@ -566,6 +634,7 @@ export default function ResultPage() {
             {result.reason}
           </p>
         </div>
+
 
       </div>
       </div>

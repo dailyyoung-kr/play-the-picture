@@ -7,8 +7,8 @@ export async function GET() {
   }
 
   const redirectUri =
-    process.env.SPOTIFY_REDIRECT_URI ??
-    "http://localhost:3000/api/admin/spotify-callback";
+    process.env.SPOTIFY_REDIRECT_URI || "http://localhost:3000/api/admin/spotify-callback";
+  console.log("[spotify-auth] redirectUri:", redirectUri);
 
   const scope = "playlist-read-private playlist-read-collaborative";
 

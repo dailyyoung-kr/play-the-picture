@@ -122,9 +122,26 @@ export async function newRecommend(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const genre = (body.genre as string) ?? "discover";
+  const genreMap: Record<string, string> = {
+    "K-POP": "kpop",
+    "팝": "pop",
+    "힙합": "hiphop",
+    "힙합/R&B": "hiphop",
+    "인디": "indie",
+    "R&B/소울": "rnb",
+    "락": "indie",
+    "어쿠스틱/재즈": "acoustic_jazz",
+    "재즈/어쿠스틱": "acoustic_jazz",
+    "장르 발견하기": "discover",
+    // legacy preference apiGenre 호환
+    "힙합R&B": "hiphop",
+  };
+
+  const rawGenre = (body.genre as string) ?? "discover";
+  const genre = genreMap[rawGenre] ?? rawGenre;
   const energy = Number(body.energy) || 3;
   const isDiscover = genre === "discover";
+  console.log(`[new] genre 변환: "${rawGenre}" → "${genre}"`);
 
   // ── STEP 1: Supabase에서 후보곡 필터링 ──
 

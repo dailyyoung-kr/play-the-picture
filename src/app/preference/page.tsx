@@ -10,11 +10,10 @@ const GENRE_OPTIONS = [
   { value: "discover",      label: "장르 발견하기",  apiGenre: "장르 발견하기" },
   { value: "kpop",          label: "K-POP",          apiGenre: "K-POP" },
   { value: "pop",           label: "팝",              apiGenre: "팝" },
-  { value: "hiphop",        label: "힙합",            apiGenre: "힙합/R&B" },
+  { value: "hiphop",        label: "힙합",            apiGenre: "힙합" },
   { value: "indie",         label: "인디",            apiGenre: "인디" },
-  { value: "rnb",           label: "R&B/소울",        apiGenre: "힙합/R&B" },
-  { value: "rock",          label: "락",              apiGenre: "팝" },
-  { value: "acoustic_jazz", label: "어쿠스틱/재즈",  apiGenre: "재즈/어쿠스틱" },
+  { value: "rnb",           label: "R&B/소울",        apiGenre: "R&B/소울" },
+  { value: "acoustic_jazz", label: "어쿠스틱/재즈",  apiGenre: "어쿠스틱/재즈" },
 ];
 
 const ENERGY_OPTIONS = [
@@ -32,7 +31,12 @@ function getLegacyParams(energy: number) {
   return              { mood: "신나",         listeningStyle: "출근/등교길" };
 }
 
-const EMOTION_LABELS = ["행복함", "설레임", "에너지", "특별함"];
+const VIBE_AXES = [
+  { left: "차분함", right: "에너제틱" },
+  { left: "쿨함",   right: "따뜻함" },
+  { left: "혼자",   right: "함께" },
+  { left: "일상적", right: "특별함" },
+];
 const WAVE_DELAYS = [0, 0.18, 0.36, 0.18, 0];
 const PHASE3_TEXTS = [
   "딱 맞는 한 곡을 찾고 있어요",
@@ -77,9 +81,10 @@ export default function PreferencePage() {
     setLoadingPhotos(photos.slice(0, 3));
 
     setGaugeTargets([
-      Math.floor(Math.random() * 28) + 52,
-      Math.floor(Math.random() * 30) + 44,
-      Math.floor(Math.random() * 32) + 38,
+      Math.floor(Math.random() * 60) + 20,  // 차분함 ↔ 에너제틱
+      Math.floor(Math.random() * 60) + 20,  // 쿨함 ↔ 따뜻함
+      Math.floor(Math.random() * 60) + 20,  // 혼자 ↔ 함께
+      Math.floor(Math.random() * 60) + 20,  // 일상적 ↔ 특별함
       Math.floor(Math.random() * 26) + 54,
     ]);
 
@@ -432,29 +437,32 @@ export default function PreferencePage() {
             </>
           )}
 
-          {/* ── 2단계: 감정 게이지 ── */}
+          {/* ── 2단계: 바이브 스펙트럼 ── */}
           {loadingPhase === 1 && (
             <>
               <p style={{ color: "#C4687A", fontSize: 13, marginBottom: 28, textAlign: "center", letterSpacing: "0.04em" }}>
-                오늘의 분위기를 파악했어요 ✦
+                사진의 분위기를 파악했어요 ✦
               </p>
-              <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 18 }}>
-                {EMOTION_LABELS.map((label, i) => (
-                  <div key={label}>
+              <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 20 }}>
+                {VIBE_AXES.map(({ left, right }, i) => (
+                  <div key={left}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 7 }}>
-                      <span style={{ fontSize: 13, color: "rgba(255,255,255,0.75)" }}>{label}</span>
-                      <span style={{ fontSize: 12, color: "#C4687A", fontWeight: 500 }}>{gaugeTargets[i]}%</span>
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{left}</span>
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{right}</span>
                     </div>
-                    <div style={{ height: 5, background: "rgba(255,255,255,0.09)", borderRadius: 3, overflow: "hidden" }}>
-                      <div
-                        style={{
-                          height: "100%",
-                          width: gaugeAnimated ? `${gaugeTargets[i]}%` : "0%",
-                          background: "linear-gradient(to right, #C4687A, #e8a0b0)",
-                          borderRadius: 3,
-                          transition: `width ${0.75 + i * 0.12}s cubic-bezier(0.4, 0, 0.2, 1) ${i * 0.08}s`,
-                        }}
-                      />
+                    <div style={{ position: "relative", height: 6, background: "rgba(255,255,255,0.08)", borderRadius: 3 }}>
+                      <div style={{
+                        position: "absolute",
+                        left: gaugeAnimated ? `calc(${gaugeTargets[i]}% - 7px)` : "calc(50% - 7px)",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        width: 14,
+                        height: 14,
+                        borderRadius: "50%",
+                        background: "#C4687A",
+                        boxShadow: "0 0 6px rgba(196,104,122,0.6)",
+                        transition: `left ${0.75 + i * 0.12}s cubic-bezier(0.4, 0, 0.2, 1) ${i * 0.1}s`,
+                      }} />
                     </div>
                   </div>
                 ))}

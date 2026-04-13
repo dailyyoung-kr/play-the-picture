@@ -13,8 +13,9 @@ export async function GET() {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          justifyContent: "space-between",
-          padding: "50px 80px",
+          justifyContent: "center",
+          padding: "40px 80px",
+          gap: 32,
         }}
       >
         {/* 상단 40%: 브랜드 텍스트 영역 */}
@@ -23,7 +24,7 @@ export async function GET() {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 12,
+            gap: 24,
           }}
         >
           <div

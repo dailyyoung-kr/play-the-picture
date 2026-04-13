@@ -66,9 +66,15 @@ async function getOAuthToken(): Promise<string | null> {
   }
 
   // ── Vercel: 환경변수 기반 ──
+  const refreshToken = process.env.SPOTIFY_REFRESH_TOKEN;
+  if (refreshToken) {
+    console.log("[import-playlist] refresh token으로 새 access token 발급");
+    const freshToken = await doRefresh(refreshToken);
+    if (freshToken) return freshToken;
+  }
   const envToken = process.env.SPOTIFY_ACCESS_TOKEN;
   if (envToken) {
-    console.log("[import-playlist] env SPOTIFY_ACCESS_TOKEN 사용");
+    console.log("[import-playlist] env SPOTIFY_ACCESS_TOKEN fallback 사용");
     return envToken;
   }
 

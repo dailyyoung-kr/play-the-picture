@@ -36,7 +36,6 @@ const IMPORT_GENRES = [
   { value: "hiphop", label: "힙합" },
   { value: "indie", label: "인디" },
   { value: "rnb", label: "R&B소울" },
-  { value: "rock", label: "락" },
   { value: "acoustic_jazz", label: "어쿠스틱재즈" },
 ];
 
@@ -218,6 +217,14 @@ export default function AdminPage() {
   const [importLoading, setImportLoading] = useState(false);
   const [importSaving, setImportSaving] = useState(false);
 
+  // ── 텍스트로 곡 추가 ──
+  const [textSongs, setTextSongs] = useState("");
+  const [textGenre, setTextGenre] = useState("auto");
+  const [textLoading, setTextLoading] = useState(false);
+  const [textProgress, setTextProgress] = useState<{ current: number; total: number } | null>(null);
+  const [textResult, setTextResult] = useState<{ success: number; failed: string[]; total: number; genreBreakdown?: Record<string, number> } | null>(null);
+  const [textCooldown, setTextCooldown] = useState(0); // 남은 쿨다운 초
+
   // Spotify 429 카운트다운 — 조건부 return 전에 호출
   const retryTargetMs =
     spotifyStatus?.status === "rate_limited" && spotifyStatus.retryAfter
@@ -340,6 +347,53 @@ export default function AdminPage() {
       showToast("저장 중 오류 발생");
     } finally {
       setImportSaving(false);
+    }
+  };
+
+  const handleTextImport = async () => {
+    if (!textSongs.trim()) { showToast("곡 목록을 입력해줘요"); return; }
+    const lines = textSongs.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length === 0) { showToast("곡 목록이 비어있어요"); return; }
+
+    setTextLoading(true);
+    setTextResult(null);
+    setTextProgress({ current: 0, total: lines.length });
+
+    // 진행률 시뮬레이션 (API가 순차처리하는 동안 0.5s마다 업데이트)
+    const interval = setInterval(() => {
+      setTextProgress(prev => {
+        if (!prev || prev.current >= prev.total) return prev;
+        return { ...prev, current: Math.min(prev.current + 1, prev.total - 1) };
+      });
+    }, 500);
+
+    try {
+      const res = await fetch("/api/admin/import-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ songs: textSongs, genre: textGenre }),
+      });
+      const data = await res.json();
+      clearInterval(interval);
+      setTextProgress(null);
+
+      if (!res.ok) { showToast(data.error ?? "추가 실패"); return; }
+      setTextResult(data);
+      showToast(`${data.success}곡 저장 완료!`);
+      // 60초 쿨다운 시작
+      setTextCooldown(60);
+      const cooldownInterval = setInterval(() => {
+        setTextCooldown(prev => {
+          if (prev <= 1) { clearInterval(cooldownInterval); return 0; }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch {
+      clearInterval(interval);
+      setTextProgress(null);
+      showToast("네트워크 오류");
+    } finally {
+      setTextLoading(false);
     }
   };
 
@@ -719,6 +773,81 @@ export default function AdminPage() {
               })()}
             </div>
           </>
+        )}
+      </div>
+
+      {/* ── 섹션: 텍스트로 곡 추가 ── */}
+      <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14, padding: "18px 20px", marginBottom: 20 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", margin: "0 0 16px" }}>✏️ 텍스트로 곡 추가</p>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
+          <textarea
+            value={textSongs}
+            onChange={e => setTextSongs(e.target.value)}
+            placeholder={"곡명 - 아티스트 (한 줄에 하나씩)\n예: Blueming - IU\nCherry Blossom Ending - Busker Busker"}
+            rows={6}
+            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, padding: "10px 12px", color: "#fff", fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", lineHeight: 1.6 }}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <select
+              value={textGenre}
+              onChange={e => setTextGenre(e.target.value)}
+              style={{ flex: 1, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, padding: "9px 12px", color: "#fff", fontSize: 13, outline: "none" }}
+            >
+              <option value="auto" style={{ background: "#1a1a2e" }}>🤖 자동 분류 (AI)</option>
+              {IMPORT_GENRES.map(g => (
+                <option key={g.value} value={g.value} style={{ background: "#1a1a2e" }}>{g.label}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleTextImport}
+              disabled={textLoading || textCooldown > 0}
+              style={{ background: (textLoading || textCooldown > 0) ? "rgba(255,255,255,0.06)" : "#5B8CFF", border: "none", borderRadius: 10, padding: "9px 20px", color: (textLoading || textCooldown > 0) ? "rgba(255,255,255,0.4)" : "#fff", fontSize: 13, fontWeight: 600, cursor: (textLoading || textCooldown > 0) ? "default" : "pointer", whiteSpace: "nowrap" }}
+            >
+              {textLoading ? "처리 중..." : textCooldown > 0 ? `${textCooldown}초 후 등록 가능` : "추가하기"}
+            </button>
+          </div>
+        </div>
+
+        {/* 진행 상태 */}
+        {textProgress && (
+          <div style={{ marginBottom: 12 }}>
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", margin: "0 0 6px" }}>
+              {textProgress.current}/{textProgress.total}곡 처리 중...
+            </p>
+            <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 4, height: 4, overflow: "hidden" }}>
+              <div style={{ background: "#5B8CFF", height: "100%", width: `${Math.round((textProgress.current / textProgress.total) * 100)}%`, transition: "width 0.4s ease" }} />
+            </div>
+          </div>
+        )}
+
+        {/* 결과 */}
+        {textResult && (
+          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "12px 14px" }}>
+            <p style={{ fontSize: 13, color: "#fff", margin: "0 0 6px", fontWeight: 600 }}>
+              ✅ {textResult.success}곡 저장
+              {textResult.failed.length > 0 && <span style={{ color: "#f07070", fontWeight: 400, marginLeft: 8 }}>/ ❌ {textResult.failed.length}곡 실패</span>}
+            </p>
+            {textResult.genreBreakdown && Object.keys(textResult.genreBreakdown).length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+                {Object.entries(textResult.genreBreakdown)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([g, count]) => (
+                    <span key={g} style={{ background: "rgba(91,140,255,0.15)", border: "1px solid rgba(91,140,255,0.3)", borderRadius: 20, padding: "3px 10px", fontSize: 12, color: "#8FB4FF" }}>
+                      {g} {count}곡
+                    </span>
+                  ))}
+              </div>
+            )}
+            {textResult.failed.length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", margin: "0 0 4px" }}>검색 실패한 곡:</p>
+                {textResult.failed.map((f, i) => (
+                  <p key={i} style={{ fontSize: 12, color: "#f07070", margin: "2px 0" }}>• {f}</p>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
