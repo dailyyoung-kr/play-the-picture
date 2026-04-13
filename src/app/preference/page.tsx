@@ -24,7 +24,7 @@ const ENERGY_OPTIONS = [
   { value: 5, label: "파워풀" },
 ];
 
-// energy → legacy mood/listeningStyle 매핑 (롤백 호환성)
+// energy → preference_logs DB 저장용 mood/listeningStyle 매핑
 function getLegacyParams(energy: number) {
   if (energy <= 2) return { mood: "여유로워", listeningStyle: "휴식" };
   if (energy === 3) return { mood: "설레",    listeningStyle: "산책/드라이브" };
@@ -193,9 +193,6 @@ export default function PreferencePage() {
           photos,
           genre: genreOption.apiGenre,
           energy: selectedEnergy,
-          // legacy 호환 (RECOMMEND_MODE=legacy 롤백 시 사용)
-          mood: legacyMood,
-          listeningStyle: legacyStyle,
         }),
       });
 

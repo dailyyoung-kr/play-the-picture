@@ -7,27 +7,17 @@ import { Archive, Music } from "lucide-react";
 import { getDeviceId } from "@/lib/device";
 import { trackEvent } from "@/lib/gtag";
 
-type SongQueueItem = {
-  song: string;
-  spotifyTrackId: string | null;
-  albumArt: string | null;
-  reason: string;
-  tags: string[];
-  background?: { from: string; to: string };
-};
-
 interface AnalysisResult {
   song: string; // "곡명 - 아티스트명" 형식
   reason: string;
   tags: string[];
-  // 신규 (camelCase)
   vibeSpectrum?: { energy: number; warmth: number; social: number; special: number };
   vibeType?: string;
   vibeDescription?: string;
   hiddenEmotion?: string;
   emotionComment?: string;
-  // legacy (snake_case) — localStorage에 남아있는 구 버전 결과 호환
-  emotions?: { "행복함": number; "설레임": number; "에너지": number; "특별함": number };
+  // snake_case — localStorage에 저장된 구버전 결과 호환용
+  emotions?: Record<string, number>;
   hidden_emotion?: string;
   emotion_comment?: string;
   vibe_type?: string;
@@ -37,8 +27,6 @@ interface AnalysisResult {
   albumArt?: string | null;
   isGenreDiscovery?: boolean;
   discoveredGenre?: string | null;
-  // 5곡 대기열
-  songQueue?: SongQueueItem[];
 }
 
 const VIBE_SPECTRUM_AXES = [
