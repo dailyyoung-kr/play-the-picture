@@ -537,29 +537,53 @@ export default function ResultPage() {
           {/* 좋아요 / 싫어요 아이콘 버튼 */}
           {result.spotifyTrackId && (
             <div className="flex justify-center gap-4 mt-3">
+              {/* 좋아요 */}
               <button
                 onClick={() => handleFeedback("like")}
                 style={{
                   background: "none", border: "none", padding: "4px 8px",
-                  fontSize: 20, cursor: "pointer",
-                  opacity: feedbackGiven === "like" ? 1 : feedbackGiven === "dislike" ? 0.3 : 0.55,
-                  filter: feedbackGiven === "like" ? "sepia(1) saturate(3) hue-rotate(300deg)" : "none",
-                  transition: "opacity 0.2s ease, filter 0.2s ease",
+                  cursor: "pointer",
+                  color: feedbackGiven === "like" ? "#fff" : "#999",
+                  opacity: feedbackGiven === "dislike" ? 0.3 : 1,
+                  transition: "color 0.18s ease, opacity 0.18s ease",
                 }}
               >
-                👍
+                {feedbackGiven === "like" ? (
+                  /* filled */
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M2 20h2a1 1 0 0 0 1-1v-7a1 1 0 0 0-1-1H2v9zm19-9h-6l1.12-5.06A1 1 0 0 0 15.15 5L9 11v9h9.31a2 2 0 0 0 1.98-1.69l1.12-6.5A2 2 0 0 0 21 11z"/>
+                  </svg>
+                ) : (
+                  /* outline */
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/>
+                    <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+                  </svg>
+                )}
               </button>
+              {/* 싫어요 */}
               <button
                 onClick={() => handleFeedback("dislike")}
                 style={{
                   background: "none", border: "none", padding: "4px 8px",
-                  fontSize: 20, cursor: "pointer",
-                  opacity: feedbackGiven === "dislike" ? 1 : feedbackGiven === "like" ? 0.3 : 0.55,
-                  filter: "none",
-                  transition: "opacity 0.2s ease",
+                  cursor: "pointer",
+                  color: feedbackGiven === "dislike" ? "#fff" : "#999",
+                  opacity: feedbackGiven === "like" ? 0.3 : 1,
+                  transition: "color 0.18s ease, opacity 0.18s ease",
                 }}
               >
-                👎
+                {feedbackGiven === "dislike" ? (
+                  /* filled */
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M22 4h-2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h2V4zm-19 9h6l-1.12 5.06A1 1 0 0 0 8.85 19L15 13V4H5.69a2 2 0 0 0-1.98 1.69l-1.12 6.5A2 2 0 0 0 3 13z"/>
+                  </svg>
+                ) : (
+                  /* outline */
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/>
+                    <path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/>
+                  </svg>
+                )}
               </button>
             </div>
           )}

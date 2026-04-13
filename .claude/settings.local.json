@@ -83,7 +83,8 @@
       "Bash(echo \"exit: $?\")",
       "Bash(pkill -f \"next dev\")",
       "Bash(echo \"PID: $!\")",
-      "Bash(echo \"EXIT:$?\")"
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(grep -v \"^$\")"
     ]
   }
 }
