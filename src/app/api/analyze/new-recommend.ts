@@ -49,7 +49,17 @@ function balancedSample(arr: SongRow[], maxPerGenre: number): SongRow[] {
   for (const genre of Object.keys(byGenre)) {
     result.push(...shuffleAndSlice(byGenre[genre], maxPerGenre));
   }
-  return shuffleAndSlice(result, result.length); // 장르 순서 섞기
+  return shuffleAndSlice(result, result.length);
+}
+
+// 아티스트 다양성: 같은 아티스트 최대 maxPerArtist곡으로 제한
+function limitPerArtist(arr: SongRow[], maxPerArtist: number): SongRow[] {
+  const count: Record<string, number> = {};
+  return arr.filter(song => {
+    const key = song.artist.toLowerCase();
+    count[key] = (count[key] ?? 0) + 1;
+    return count[key] <= maxPerArtist;
+  });
 }
 
 function buildNewPrompt(
@@ -148,47 +158,64 @@ export async function newRecommend(
   const energyMin = Math.max(1, energy - 1);
   const energyMax = Math.min(5, energy + 1);
 
-  // 1차 조회: genre + energy ±1 범위
-  const primaryQuery = isDiscover
-    ? supabase.from("songs").select("*").gte("energy", energyMin).lte("energy", energyMax)
-    : supabase.from("songs").select("*").eq("genre", genre).gte("energy", energyMin).lte("energy", energyMax);
+  let candidates: SongRow[] = [];
 
-  const { data: rawCandidates, error: dbError } = await primaryQuery;
+  if (isDiscover) {
+    // discover: energy ±1 범위로 바로 조회
+    const { data, error } = await supabase.from("songs").select("*").gte("energy", energyMin).lte("energy", energyMax);
+    if (error) {
+      console.error("[new] DB 조회 오류:", error.message);
+      return NextResponse.json({ error: "곡 데이터를 불러오지 못했어요." }, { status: 500 });
+    }
+    candidates = (data ?? []) as SongRow[];
+    if (candidates.length < 10) {
+      const { data: fallback } = await supabase.from("songs").select("*");
+      candidates = (fallback ?? []) as SongRow[];
+    }
+    console.log(`[new] discover 후보: ${candidates.length}곡`);
+  } else {
+    // 1차: genre + energy 정확 매칭
+    const { data: exact, error } = await supabase.from("songs").select("*").eq("genre", genre).eq("energy", energy);
+    if (error) {
+      console.error("[new] DB 조회 오류:", error.message);
+      return NextResponse.json({ error: "곡 데이터를 불러오지 못했어요." }, { status: 500 });
+    }
+    candidates = (exact ?? []) as SongRow[];
+    console.log(`[new] 1차 정확매칭: ${candidates.length}곡 (genre=${genre}, energy=${energy})`);
 
-  if (dbError) {
-    console.error("[new] DB 조회 오류:", dbError.message);
-    return NextResponse.json({ error: "곡 데이터를 불러오지 못했어요." }, { status: 500 });
-  }
+    // 2차: genre + energy ±1
+    if (candidates.length < 20) {
+      const { data: expanded } = await supabase.from("songs").select("*").eq("genre", genre).gte("energy", energyMin).lte("energy", energyMax);
+      candidates = (expanded ?? []) as SongRow[];
+      console.log(`[new] 2차 확장: ${candidates.length}곡 (energy=${energyMin}~${energyMax})`);
+    }
 
-  let candidates = (rawCandidates ?? []) as SongRow[];
-  console.log(`[new] 1차 후보: ${candidates.length}곡 (genre=${genre}, energy=${energyMin}~${energyMax})`);
-
-  // 후보 10개 미만 → energy 필터 제거 후 재조회
-  if (candidates.length < 10) {
-    console.log(`[new] 후보 부족 (${candidates.length}곡) → energy 제한 해제 후 재조회`);
-    const fallbackQuery = isDiscover
-      ? supabase.from("songs").select("*")
-      : supabase.from("songs").select("*").eq("genre", genre);
-    const { data: fallbackData } = await fallbackQuery;
-    candidates = (fallbackData ?? []) as SongRow[];
-    console.log(`[new] 확장 후보: ${candidates.length}곡`);
+    // 3차: genre 전체 (energy 제한 없음)
+    if (candidates.length < 10) {
+      const { data: fallback } = await supabase.from("songs").select("*").eq("genre", genre);
+      candidates = (fallback ?? []) as SongRow[];
+      console.log(`[new] 3차 fallback: ${candidates.length}곡 (energy 제한 없음)`);
+    }
   }
 
   if (candidates.length === 0) {
     return NextResponse.json({ error: "해당 조건의 곡이 없어요. 다른 장르나 분위기를 선택해주세요." }, { status: 404 });
   }
 
-  // 후보 50개 초과 → 샘플링
+  // 샘플링 (상한 30곡)
   let finalCandidates: SongRow[];
   if (isDiscover) {
-    // discover: 장르별 균등 샘플링 (각 장르 최대 7곡)
-    finalCandidates = balancedSample(candidates, 7).slice(0, 50);
-  } else if (candidates.length > 50) {
-    finalCandidates = shuffleAndSlice(candidates, 50);
+    // discover: 장르별 최대 5곡씩 균등 샘플링, 30곡 상한
+    finalCandidates = balancedSample(candidates, 5).slice(0, 30);
+  } else if (candidates.length > 30) {
+    finalCandidates = shuffleAndSlice(candidates, 30);
   } else {
     finalCandidates = shuffleAndSlice(candidates, candidates.length);
   }
-  console.log(`[new] 최종 후보: ${finalCandidates.length}곡`);
+
+  // 아티스트 다양성: 같은 아티스트 최대 2곡
+  finalCandidates = limitPerArtist(finalCandidates, 2);
+  console.log(`[new] 아티스트 필터 후: ${finalCandidates.length}곡`);
 
   // ── STEP 2: Claude에게 사진 + 후보곡 전달 ──
 
