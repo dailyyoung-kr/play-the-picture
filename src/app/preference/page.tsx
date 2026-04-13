@@ -445,6 +445,15 @@ export default function PreferencePage() {
           {/* ── 2단계: 바이브 스펙트럼 ── */}
           {loadingPhase === 1 && (
             <>
+              <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+                {loadingPhotos.map((src, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={i} src={src} alt="" style={{ width: 72, height: 90, objectFit: "cover", borderRadius: 8, border: "1.5px solid rgba(255,255,255,0.14)", opacity: 0.65 }} />
+                ))}
+                {loadingPhotos.length === 0 && (
+                  <div style={{ width: 72, height: 90, borderRadius: 8, background: "rgba(255,255,255,0.06)", border: "1.5px solid rgba(255,255,255,0.1)" }} />
+                )}
+              </div>
               <p style={{ color: "#C4687A", fontSize: 13, marginBottom: 28, textAlign: "center", letterSpacing: "0.04em" }}>
                 사진의 분위기를 파악했어요 ✦
               </p>
@@ -478,6 +487,15 @@ export default function PreferencePage() {
           {/* ── 3단계: 곡 탐색 중 ── */}
           {loadingPhase === 2 && (
             <>
+              <div style={{ display: "flex", gap: 8, marginBottom: 28 }}>
+                {loadingPhotos.map((src, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={i} src={src} alt="" style={{ width: 72, height: 90, objectFit: "cover", borderRadius: 8, border: "1.5px solid rgba(255,255,255,0.14)", opacity: 0.5 }} />
+                ))}
+                {loadingPhotos.length === 0 && (
+                  <div style={{ width: 72, height: 90, borderRadius: 8, background: "rgba(255,255,255,0.06)", border: "1.5px solid rgba(255,255,255,0.1)" }} />
+                )}
+              </div>
               <div style={{ fontSize: 52, marginBottom: 28, color: "#C4687A" }}>✦</div>
 
               <div
