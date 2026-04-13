@@ -485,7 +485,7 @@ export default function AdminPage() {
 
   // ── 콘텐츠 인사이트 ──
   const topGenres = fillRank(filteredPrefs.map(l => l.genre ?? "").filter(Boolean), GENRES);
-  const topEnergy: [string, number][] = ENERGY_LABELS.map((label, idx) => [
+  const topEnergy: [string, number][] = ENERGY_LABELS.map((label, idx): [string, number] => [
     label,
     filteredPrefs.filter(l => l.energy === idx + 1).length,
   ]).sort((a, b) => b[1] - a[1]);
