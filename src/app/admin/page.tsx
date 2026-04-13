@@ -57,7 +57,17 @@ function timestampToKSTDate(ts: string): string {
   return kst.replace(/\.\s*/g, "-").replace(/-$/, "").trim();
 }
 
-const GENRES = ["인디", "팝", "K-POP", "힙합/R&B", "재즈/어쿠스틱", "장르 발견하기"];
+// DB에 저장된 genre 값 → 표시명 매핑
+const GENRE_KEYS = ["discover", "kpop", "pop", "hiphop", "indie", "rnb", "acoustic_jazz"];
+const GENRE_LABEL: Record<string, string> = {
+  discover: "장르 발견하기",
+  kpop: "K-POP",
+  pop: "팝",
+  hiphop: "힙합",
+  indie: "인디",
+  rnb: "R&B/소울",
+  acoustic_jazz: "어쿠스틱/재즈",
+};
 const ENERGY_LABELS = ["잔잔함", "여유", "설렘", "신남", "파워풀"];
 
 function countBy(arr: string[]): [string, number][] {
@@ -68,10 +78,6 @@ function countBy(arr: string[]): [string, number][] {
   return Object.entries(map).sort((a, b) => b[1] - a[1]);
 }
 
-function fillRank(arr: string[], fixed: string[]): [string, number][] {
-  const map: Record<string, number> = Object.fromEntries(countBy(arr));
-  return fixed.map(k => [k, map[k] ?? 0] as [string, number]).sort((a, b) => b[1] - a[1]);
-}
 
 function pct(a: number, b: number): string {
   if (b === 0) return "—";
@@ -399,7 +405,10 @@ export default function AdminPage() {
   const failRateStr = completedTotal > 0 ? ((failCount / completedTotal) * 100).toFixed(1) + "%" : "—";
 
   // ── 콘텐츠 인사이트 ──
-  const topGenres = fillRank(filteredPrefs.map(l => l.genre ?? "").filter(Boolean), GENRES);
+  const topGenres: [string, number][] = GENRE_KEYS.map((key): [string, number] => [
+    GENRE_LABEL[key] ?? key,
+    filteredPrefs.filter(l => l.genre === key).length,
+  ]).sort((a, b) => b[1] - a[1]);
   const topEnergy: [string, number][] = ENERGY_LABELS.map((label, idx): [string, number] => [
     label,
     filteredPrefs.filter(l => l.energy === idx + 1).length,
@@ -464,7 +473,7 @@ export default function AdminPage() {
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>FUNNEL</p>
       <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 16, padding: "16px 14px", marginBottom: 20 }}>
         <FunnelStep icon="📷" label="사진 업로드" count={photoCount} conv={pct(prefCount, photoCount)} />
-        <FunnelStep icon="🎵" label="취향 선택" count={prefCount} conv={pct(analyzeStartCount, prefCount)} />
+        <FunnelStep icon="🎵" label="장르·에너지 선택" count={prefCount} conv={pct(analyzeStartCount, prefCount)} />
         <FunnelStep icon="✦" label="분석 시작" count={analyzeStartCount} conv={pct(successCount, analyzeStartCount)} />
         <FunnelStep icon="✓" label="분석 성공" count={successCount} conv={pct(saveCount, successCount)} />
         <FunnelStep icon="💾" label="결과 저장" count={saveCount} conv={pct(shareCount, saveCount)} />
