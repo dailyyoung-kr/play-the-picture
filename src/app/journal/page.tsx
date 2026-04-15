@@ -85,6 +85,7 @@ export default function JournalPage() {
     });
     if (res.ok) {
       setEntries(prev => prev.filter(e => e.id !== deleteTarget.id));
+      if (selectedEntry?.id === deleteTarget.id) setSelectedEntry(null);
       showToast("기록이 삭제됐어요");
     } else {
       showToast("삭제에 실패했어요. 다시 시도해주세요.");
@@ -524,6 +525,18 @@ export default function JournalPage() {
             >
               ▶  다시 듣기
             </button>
+
+            {/* 기록 삭제 */}
+            <p
+              onClick={() => setDeleteTarget(selectedEntry)}
+              style={{
+                textAlign: "center", fontSize: 12,
+                color: "rgba(255,255,255,0.35)",
+                marginTop: 12, cursor: "pointer",
+              }}
+            >
+              기록 삭제하기
+            </p>
           </div>
         </div>
       )}
