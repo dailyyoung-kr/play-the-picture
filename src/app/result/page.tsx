@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { Archive, Music } from "lucide-react";
 import { getDeviceId } from "@/lib/device";
 import { trackEvent } from "@/lib/gtag";
+import { pixelViewContent, pixelLead } from "@/lib/fpixel";
 
 interface AnalysisResult {
   song: string; // "곡명 - 아티스트명" 형식
@@ -160,13 +161,18 @@ export default function ResultPage() {
   const handleShare = async () => {
     if (!result) return;
     trackEvent("share_click", { song: result.song });
+    pixelLead();
     setSharing(true);
     try {
       const entryId = await saveEntry();
       if (!entryId) throw new Error("저장 실패");
 
       // 공유 로그 기록 (에러 나도 공유 흐름은 계속)
-      supabase.from("share_logs").insert({ entry_id: entryId }).then(() => {});
+      fetch("/api/log-share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entry_id: entryId }),
+      }).catch(() => {});
 
       const url = `https://play-the-picture.vercel.app/share/${entryId}`;
       const songName = result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song;
@@ -210,6 +216,7 @@ export default function ResultPage() {
     setShowShareModal(false);
     if (!result) return;
     trackEvent("share_click", { song: result.song });
+    pixelLead();
     setSharing(true);
     try {
       const songParts = result.song.split(" - ");
@@ -238,7 +245,11 @@ export default function ResultPage() {
 
       if (error) throw error;
       const entryId = data.id;
-      supabase.from("share_logs").insert({ entry_id: entryId }).then(() => {});
+      fetch("/api/log-share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entry_id: entryId }),
+      }).catch(() => {});
 
       const url = `https://play-the-picture.vercel.app/share/${entryId}`;
       const songName = result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song;
@@ -355,6 +366,7 @@ export default function ResultPage() {
       const parsed: AnalysisResult = JSON.parse(raw);
       setResult(parsed);
       trackEvent("result_view", { song: parsed.song });
+      pixelViewContent(parsed.song);
     }
     if (photosRaw) setPhotos(JSON.parse(photosRaw));
   }, []);
@@ -446,18 +458,14 @@ export default function ResultPage() {
         {/* 사진 (업로드 수에 따라 유동적으로) */}
         {(() => {
           const count = photos.length;
-          const slotW = count === 1 ? 200 : count === 2 ? 160 : 100;
-          const slotH = count === 1 ? 250 : count === 2 ? 200 : 124;
+          const slotSize = count === 1 ? 100 : count === 2 ? 88 : count === 3 ? 80 : count === 4 ? 72 : 64;
+          const gap = count <= 3 ? 6 : 5;
           const displayItems = count > 0 ? photos : PHOTO_COLORS;
 
           return (
             <div
-              className={count === 1 ? "flex justify-center mb-5" : "flex mb-5"}
-              style={
-                count >= 4
-                  ? { gap: 8, overflowX: "auto", scrollbarWidth: "none", msOverflowStyle: "none" as React.CSSProperties["msOverflowStyle"], paddingBottom: 2 }
-                  : { gap: 8, justifyContent: count === 1 ? "center" : "center" }
-              }
+              className="flex mb-5"
+              style={{ gap, alignItems: "center", justifyContent: "flex-start" }}
             >
               {displayItems.map((src, i) => {
                 const isPhoto = typeof src === "string" && src.startsWith("data:");
@@ -469,10 +477,10 @@ export default function ResultPage() {
                     onClick={() => isPhoto && setModalIndex(i)}
                     onTouchEnd={(e) => { if (isPhoto) { e.preventDefault(); setModalIndex(i); } }}
                     style={{
-                      width: slotW,
-                      height: slotH,
-                      borderRadius: 10,
-                      border: "1.5px solid rgba(255,255,255,0.2)",
+                      width: slotSize,
+                      height: slotSize,
+                      borderRadius: 14,
+                      border: "1px solid rgba(255,255,255,0.12)",
                       flexShrink: 0,
                       overflow: "hidden",
                       background: isPhoto ? undefined : PHOTO_COLORS[i % PHOTO_COLORS.length],
@@ -482,7 +490,7 @@ export default function ResultPage() {
                   >
                     {isPhoto && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={src} alt={`사진 ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none", display: "block" }} />
+                      <img src={src} alt={`사진 ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", pointerEvents: "none", display: "block" }} />
                     )}
                   </div>
                 );
@@ -707,7 +715,7 @@ export default function ResultPage() {
             fontSize: 14, cursor: saving ? "default" : "pointer",
           }}
         >
-          {saving ? "저장 중..." : "저장하기"}
+          {saving ? "저장 중..." : "아카이브에 저장하기"}
         </button>
 
         {/* 다시 해보기 — 텍스트 링크 */}

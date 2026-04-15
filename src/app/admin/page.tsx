@@ -224,14 +224,14 @@ export default function AdminPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [photoRes, prefRes, analyzeRes, entriesRes, shareRes, viewsRes, tryRes] = await Promise.all([
+    const [photoRes, prefRes, analyzeRes, entriesRes, shareRes, logRowsRes] = await Promise.all([
       supabase.from("photo_upload_logs").select("id, created_at").order("created_at", { ascending: false }),
       supabase.from("preference_logs").select("id, created_at, genre, energy").order("created_at", { ascending: false }),
       supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, song, artist").order("created_at", { ascending: false }),
       supabase.from("entries").select("id, date, song, artist, genre, mood").order("id", { ascending: false }),
       supabase.from("share_logs").select("id, created_at").order("created_at", { ascending: false }),
-      supabase.from("share_views").select("id, created_at").order("created_at", { ascending: false }),
-      supabase.from("try_click").select("id, created_at").order("created_at", { ascending: false }),
+      // share_views / try_click — RLS 우회 위해 supabaseAdmin 경유 서버 API 사용
+      fetch("/api/admin/log-rows").then(r => r.json()) as Promise<{ shareViews: LogRow[]; tryClicks: LogRow[] }>,
     ]);
 
     if (!photoRes.error) setPhotoLogs(photoRes.data ?? []);
@@ -240,8 +240,9 @@ export default function AdminPage() {
     if (entriesRes.error) showToast("entries 로드 실패");
     else setEntries(entriesRes.data ?? []);
     if (!shareRes.error) setShareLogs(shareRes.data ?? []);
-    if (!viewsRes.error) setShareViews(viewsRes.data ?? []);
-    if (!tryRes.error) setTryClicks(tryRes.data ?? []);
+    else console.error("[admin] share_logs SELECT 실패:", shareRes.error.message);
+    setShareViews(logRowsRes.shareViews ?? []);
+    setTryClicks(logRowsRes.tryClicks ?? []);
 
     setLastRefresh(new Date());
     setLoading(false);
@@ -411,7 +412,7 @@ export default function AdminPage() {
   ]).sort((a, b) => b[1] - a[1]);
   const topEnergy: [string, number][] = ENERGY_LABELS.map((label, idx): [string, number] => [
     label,
-    filteredPrefs.filter(l => l.energy === idx + 1).length,
+    filteredPrefs.filter(l => Number(l.energy) === idx + 1).length,
   ]).sort((a, b) => b[1] - a[1]);
   const topSongs = countBy(
     filteredAnalyze

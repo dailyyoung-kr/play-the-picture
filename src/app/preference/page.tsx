@@ -164,19 +164,12 @@ export default function PreferencePage() {
     const genreOption = GENRE_OPTIONS.find(g => g.value === selectedGenre) ?? GENRE_OPTIONS[0];
     const { mood: legacyMood, listeningStyle: legacyStyle } = getLegacyParams(selectedEnergy);
 
-    // 취향 선택 로그 (energy 컬럼 있으면 포함, 없으면 기본 필드만)
-    supabase
-      .from("preference_logs")
-      .insert({ device_id: deviceId, genre: selectedGenre, energy: selectedEnergy, mood: legacyMood, listening_style: legacyStyle })
-      .then(({ error }) => {
-        if (error) {
-          // energy 컬럼 없을 경우 fallback
-          supabase
-            .from("preference_logs")
-            .insert({ device_id: deviceId, genre: selectedGenre, mood: legacyMood, listening_style: legacyStyle })
-            .then(({ error: e2 }) => { if (e2) console.error("[pref_log]", e2.message); });
-        }
-      });
+    // 취향 선택 로그 (서버 API 경유 → supabaseAdmin으로 RLS 우회)
+    fetch("/api/log-preference", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ genre: selectedGenre, energy: selectedEnergy }),
+    }).catch(() => {});
 
     // 분석 시작 로그
     let logId: string | null = null;
@@ -290,7 +283,7 @@ export default function PreferencePage() {
         {/* 카드 2: 분위기 (에너지 스펙트럼) */}
         <div className="mb-3 p-4" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14 }}>
           <p className="mb-4 font-medium" style={{ fontSize: 13, color: "rgba(255,255,255,0.90)" }}>
-            🎚️ 어떤 분위기로 듣고 싶어요?
+            🎚️ 어떤 바이브로 듣고 싶어요?
           </p>
 
           {/* 스펙트럼 바 */}

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, getDeviceId } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
+import { pixelLead } from "@/lib/fpixel";
 
 interface ShareEntry {
   id: string;
@@ -38,8 +39,24 @@ export default function ShareClient({ id }: { id: string }) {
   } | null>(null);
   const [loadingLinks, setLoadingLinks] = useState(false);
   const [modalIndex, setModalIndex] = useState<number | null>(null);
-  const viewLogged = { current: false };
+  const viewLogged = useRef(false);
 
+  // 공유 페이지 방문 기록 — entries fetch와 독립적으로 마운트 즉시 실행
+  useEffect(() => {
+    if (!id || viewLogged.current) return;
+    viewLogged.current = true;
+    fetch("/api/log-share-view", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entry_id: id }),
+    })
+      .then(r => r.json())
+      .then(d => console.log("[share-view]", d))
+      .catch(e => console.error("[share-view] 실패:", e));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  // entries 데이터 로드
   useEffect(() => {
     if (!id) return;
     supabase
@@ -52,21 +69,6 @@ export default function ShareClient({ id }: { id: string }) {
           setNotFound(true);
         } else {
           setEntry(data as ShareEntry);
-          // 공유 페이지 방문 기록 (최초 1회)
-          if (!viewLogged.current) {
-            viewLogged.current = true;
-            const deviceId = getDeviceId();
-            supabase.from("share_views")
-              .select("id")
-              .eq("entry_id", id)
-              .eq("device_id", deviceId)
-              .maybeSingle()
-              .then(({ data }) => {
-                if (!data) {
-                  supabase.from("share_views").insert({ entry_id: id, device_id: deviceId }).then(() => {});
-                }
-              });
-          }
         }
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -106,17 +108,16 @@ export default function ShareClient({ id }: { id: string }) {
   };
 
   const handleTryClick = () => {
-    const deviceId = getDeviceId();
-    supabase.from("try_click")
-      .select("id")
-      .eq("entry_id", id)
-      .eq("device_id", deviceId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!data) {
-          supabase.from("try_click").insert({ entry_id: id, device_id: deviceId }).then(() => {});
-        }
-      });
+    pixelLead({ source: "share_page" });
+    // 나도 해보기 클릭 기록 (supabaseAdmin 경유 RLS 우회)
+    fetch("/api/log-try-click", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entry_id: id }),
+    })
+      .then(r => r.json())
+      .then(d => console.log("[try-click]", d))
+      .catch(e => console.error("[try-click] 실패:", e));
     router.push("/");
   };
 
