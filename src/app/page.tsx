@@ -232,7 +232,7 @@ export default function UploadPage() {
           최대 5장까지 추가할 수 있어요
         </p>
         <p className="text-right" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", marginBottom: 20 }}>
-          사진은 공유하지 않으면 저장되지 않아요
+          사진은 노래 추천에만 사용돼요
         </p>
 
         {/* 사진 추가 버튼 */}
