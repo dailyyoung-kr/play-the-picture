@@ -7,6 +7,20 @@ import { Archive, Music } from "lucide-react";
 import { getDeviceId } from "@/lib/device";
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
+const WEEK_DAYS = ["월", "화", "수", "목", "금", "토", "일"];
+
+function getMondayOf(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay(); // 0=일, 1=월
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function toDateStr(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
 const VIBE_SPECTRUM_AXES = [
   { key: "energy" as const, left: "차분함", right: "에너제틱" },
@@ -47,7 +61,10 @@ export default function JournalPage() {
   } | null>(null);
   const [loadingLinks, setLoadingLinks] = useState(false);
   const [swipedEntryId, setSwipedEntryId] = useState<string | null>(null);
+  const [calendarView, setCalendarView] = useState<"week" | "month">("week");
+  const [weekStartDate, setWeekStartDate] = useState(() => getMondayOf(new Date()));
   const touchStartX = useRef(0);
+  const calendarTouchStartX = useRef(0);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -76,6 +93,27 @@ export default function JournalPage() {
     else if (diff < -20) setSwipedEntryId(null);
   };
 
+  const prevWeek = () => setWeekStartDate(prev => { const d = new Date(prev); d.setDate(d.getDate() - 7); return d; });
+  const nextWeek = () => setWeekStartDate(prev => { const d = new Date(prev); d.setDate(d.getDate() + 7); return d; });
+
+  const handleCalendarSwipeStart = (e: React.TouchEvent) => { calendarTouchStartX.current = e.touches[0].clientX; };
+  const handleCalendarSwipeEnd = (e: React.TouchEvent) => {
+    const diff = calendarTouchStartX.current - e.changedTouches[0].clientX;
+    if (diff > 50) nextWeek();
+    else if (diff < -50) prevWeek();
+  };
+
+  const handleViewToggle = () => {
+    if (calendarView === "week") {
+      setCurrentYear(weekStartDate.getFullYear());
+      setCurrentMonth(weekStartDate.getMonth());
+    } else {
+      const refDate = selectedDate ? new Date(selectedDate + "T00:00:00") : today;
+      setWeekStartDate(getMondayOf(refDate));
+    }
+    setCalendarView(v => v === "week" ? "month" : "week");
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     const deviceId = getDeviceId();
@@ -94,9 +132,17 @@ export default function JournalPage() {
   };
 
   useEffect(() => {
-    const from = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-01`;
-    const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const to = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    let from: string, to: string;
+    if (calendarView === "week") {
+      const weekEnd = new Date(weekStartDate);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      from = toDateStr(weekStartDate);
+      to = toDateStr(weekEnd);
+    } else {
+      from = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-01`;
+      const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
+      to = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    }
     const deviceId = getDeviceId();
     getSupabaseWithDeviceId()
       .from("entries")
@@ -107,7 +153,21 @@ export default function JournalPage() {
       .eq("device_id", deviceId)
       .order("created_at", { ascending: false })
       .then(({ data }) => setEntries(data ?? []));
-  }, [currentYear, currentMonth]);
+  }, [calendarView, weekStartDate, currentYear, currentMonth]);
+
+  const todayStr = today.toISOString().slice(0, 10);
+
+  // 주간 뷰 날짜 7개 (월~일)
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStartDate);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+
+  const weekStart = weekDays[0];
+  const weekEnd = weekDays[6];
+  const weekNum = Math.ceil(weekStart.getDate() / 7);
+  const weekLabel = `${weekStart.getFullYear()}년 ${weekStart.getMonth() + 1}월 ${weekNum}주차`;
 
   // 날짜별 entries 맵
   const entriesByDate: Record<string, Entry[]> = {};
@@ -152,81 +212,175 @@ export default function JournalPage() {
         Play the Picture
       </div>
 
-      {/* 월 네비게이션 */}
-      <div className="flex items-center justify-between px-5 py-4">
-        <button onClick={prevMonth} style={{ fontSize: 20, color: "rgba(255,255,255,0.55)", background: "none", border: "none", cursor: "pointer" }}>←</button>
-        <span className="font-semibold" style={{ fontSize: 17, color: "#fff" }}>
-          {currentYear}년 {currentMonth + 1}월
-        </span>
-        <button onClick={nextMonth} style={{ fontSize: 20, color: "rgba(255,255,255,0.55)", background: "none", border: "none", cursor: "pointer" }}>→</button>
+      {/* 네비게이션 + 뷰 토글 */}
+      <div className="flex items-center justify-between px-5 py-3">
+        {calendarView === "week" ? (
+          <button onClick={prevWeek} style={{ fontSize: 20, color: "rgba(255,255,255,0.55)", background: "none", border: "none", cursor: "pointer" }}>←</button>
+        ) : (
+          <button onClick={prevMonth} style={{ fontSize: 20, color: "rgba(255,255,255,0.55)", background: "none", border: "none", cursor: "pointer" }}>←</button>
+        )}
+        <div className="flex flex-col items-center gap-1">
+          <span className="font-semibold" style={{ fontSize: 15, color: "#fff" }}>
+            {calendarView === "week" ? weekLabel : `${currentYear}년 ${currentMonth + 1}월`}
+          </span>
+          <button
+            onClick={handleViewToggle}
+            style={{ fontSize: 10, color: "rgba(255,255,255,0.40)", background: "rgba(255,255,255,0.07)", border: "none", borderRadius: 10, padding: "2px 8px", cursor: "pointer" }}
+          >
+            {calendarView === "week" ? "월간 보기" : "주간 보기"}
+          </button>
+        </div>
+        {calendarView === "week" ? (
+          <button onClick={nextWeek} style={{ fontSize: 20, color: "rgba(255,255,255,0.55)", background: "none", border: "none", cursor: "pointer" }}>→</button>
+        ) : (
+          <button onClick={nextMonth} style={{ fontSize: 20, color: "rgba(255,255,255,0.55)", background: "none", border: "none", cursor: "pointer" }}>→</button>
+        )}
       </div>
 
-      {/* 요일 헤더 */}
-      <div className="px-4" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 6 }}>
-        {DAYS.map((d, i) => (
-          <div key={d} className="text-center" style={{
-            fontSize: 11,
-            color: i === 0 ? "rgba(255,100,100,0.65)" : i === 6 ? "rgba(100,160,255,0.65)" : "rgba(255,255,255,0.30)",
-            padding: "3px 0",
-          }}>
-            {d}
-          </div>
-        ))}
-      </div>
+      {calendarView === "week" ? (
+        /* ── 주간 뷰 ── */
+        <div
+          onTouchStart={handleCalendarSwipeStart}
+          onTouchEnd={handleCalendarSwipeEnd}
+          style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", padding: "0 12px", marginBottom: 8 }}
+        >
+          {weekDays.map((date, i) => {
+            const dateStr = toDateStr(date);
+            const dayEntries = entriesByDate[dateStr] ?? [];
+            const hasEntry = dayEntries.length > 0;
+            const entryCount = dayEntries.length;
+            const isToday = dateStr === todayStr;
+            const isSelected = dateStr === selectedDate;
+            const isSunday = i === 6;
+            const isSaturday = i === 5;
 
-      {/* 날짜 그리드 */}
-      <div className="px-4 mb-4" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
-        {calendarCells.map((day, i) => {
-          if (!day) return <div key={`empty-${i}`} />;
-          const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-          const hasEntry = !!entriesByDate[dateStr]?.length;
-          const isToday = dateStr === today.toISOString().slice(0, 10);
-          const isSelected = dateStr === selectedDate;
-          const isSunday = (i % 7) === 0;
-          const isSaturday = (i % 7) === 6;
-
-          return (
-            <button
-              key={dateStr}
-              onClick={() => handleDateClick(dateStr)}
-              style={{
-                padding: "8px 0 6px",
-                borderRadius: 10,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 4,
-                background: isSelected ? "rgba(196,104,122,0.22)" : isToday ? "rgba(255,255,255,0.07)" : "transparent",
-                border: isSelected ? "1px solid rgba(196,104,122,0.6)" : isToday ? "1px solid rgba(255,255,255,0.18)" : "1px solid transparent",
-                cursor: "pointer",
-              }}
-            >
-              <span style={{
-                fontSize: 14,
-                fontWeight: isSelected || hasEntry ? 600 : 400,
-                color: isSelected ? "#fff"
-                  : isSunday ? "rgba(255,110,110,0.85)"
-                  : isSaturday ? "rgba(110,170,255,0.85)"
-                  : "rgba(255,255,255,0.75)",
+            return (
+              <button
+                key={dateStr}
+                onClick={() => handleDateClick(dateStr)}
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, background: "none", border: "none", cursor: "pointer", padding: "4px 0" }}
+              >
+                {/* 요일 */}
+                <span style={{ fontSize: 10, color: isSunday ? "rgba(255,100,100,0.65)" : isSaturday ? "rgba(100,160,255,0.65)" : "rgba(255,255,255,0.35)" }}>
+                  {WEEK_DAYS[i]}
+                </span>
+                {/* 원형 날짜 */}
+                <div style={{
+                  width: 34, height: 34, borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: isSelected ? "#C4687A" : hasEntry ? "rgba(196,104,122,0.25)" : "transparent",
+                  border: isSelected ? "none"
+                    : isToday ? "1.5px solid rgba(255,255,255,0.65)"
+                    : hasEntry ? "1.5px solid rgba(196,104,122,0.7)"
+                    : "1px solid rgba(255,255,255,0.15)",
+                }}>
+                  <span style={{
+                    fontSize: 14, fontWeight: hasEntry || isSelected ? 600 : 400,
+                    color: isSelected ? "#fff"
+                      : hasEntry ? "#fff"
+                      : isSunday ? "rgba(255,100,100,0.65)"
+                      : isSaturday ? "rgba(100,160,255,0.65)"
+                      : "rgba(255,255,255,0.35)",
+                  }}>
+                    {date.getDate()}
+                  </span>
+                </div>
+                {/* 기록 개수 — 2개 이상일 때만 */}
+                {entryCount >= 2 ? (
+                  <span style={{ fontSize: 9, color: "rgba(196,104,122,0.9)", lineHeight: 1 }}>
+                    {entryCount}
+                  </span>
+                ) : (
+                  <span style={{ fontSize: 9, opacity: 0 }}>0</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        /* ── 월간 뷰 ── */
+        <>
+          {/* 요일 헤더 */}
+          <div className="px-4" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 }}>
+            {DAYS.map((d, i) => (
+              <div key={d} className="text-center" style={{
+                fontSize: 10,
+                color: i === 0 ? "rgba(255,100,100,0.65)" : i === 6 ? "rgba(100,160,255,0.65)" : "rgba(255,255,255,0.28)",
+                padding: "3px 0",
               }}>
-                {day}
-              </span>
-              {/* 기록 표시: 핑크 점 */}
-              <div style={{ height: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {hasEntry ? (
-                  <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#C4687A" }} />
-                ) : null}
+                {d}
               </div>
-            </button>
-          );
-        })}
-      </div>
+            ))}
+          </div>
+
+          {/* 날짜 그리드 */}
+          <div className="px-4 mb-3" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+            {calendarCells.map((day, i) => {
+              if (!day) return <div key={`empty-${i}`} />;
+              const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+              const dayEntries = entriesByDate[dateStr] ?? [];
+              const hasEntry = dayEntries.length > 0;
+              const entryCount = dayEntries.length;
+              const isToday = dateStr === todayStr;
+              const isSelected = dateStr === selectedDate;
+              const isSunday = (i % 7) === 0;
+              const isSaturday = (i % 7) === 6;
+
+              return (
+                <button
+                  key={dateStr}
+                  onClick={() => handleDateClick(dateStr)}
+                  style={{
+                    padding: "6px 0 4px",
+                    borderRadius: 10,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 2,
+                    background: "transparent",
+                    border: "1px solid transparent",
+                    cursor: "pointer",
+                  }}
+                >
+                  {/* 원형 날짜 */}
+                  <div style={{
+                    width: 28, height: 28, borderRadius: "50%",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    background: isSelected ? "#C4687A" : hasEntry ? "rgba(196,104,122,0.22)" : "transparent",
+                    border: isSelected ? "none"
+                      : isToday ? "1.5px solid rgba(255,255,255,0.60)"
+                      : hasEntry ? "1.5px solid rgba(196,104,122,0.6)"
+                      : "1.5px solid rgba(255,255,255,0.08)",
+                  }}>
+                    <span style={{
+                      fontSize: 12, fontWeight: hasEntry || isSelected ? 600 : 400,
+                      color: isSelected ? "#fff"
+                        : hasEntry ? "#fff"
+                        : isSunday ? "rgba(255,100,100,0.65)"
+                        : isSaturday ? "rgba(100,160,255,0.65)"
+                        : "rgba(255,255,255,0.45)",
+                    }}>
+                      {day}
+                    </span>
+                  </div>
+                  {/* 기록 개수 — 2개 이상일 때만 */}
+                  {entryCount >= 2 && (
+                    <span style={{ fontSize: 8, color: "rgba(196,104,122,0.9)", lineHeight: 1 }}>
+                      {entryCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {/* 구분선 */}
       <div style={{ height: "0.5px", background: "rgba(255,255,255,0.08)", margin: "0 0 16px" }} />
 
       {/* 선택된 날짜 기록 목록 */}
-      <div className="flex-1 px-5 overflow-y-auto">
+      <div className="flex-1 px-5 overflow-y-auto" style={{ paddingTop: 16 }}>
         {selectedDate && (
           <>
             <div className="flex items-center gap-2 mb-3">
@@ -326,14 +480,13 @@ export default function JournalPage() {
                           <button
                             onClick={(e) => { e.stopPropagation(); handleListenClick(entry); }}
                             style={{
-                              background: "none", border: "none", cursor: "pointer",
-                              fontSize: 13, color: "rgba(255,255,255,0.40)",
-                              padding: "2px 4px", lineHeight: 1,
+                              width: 32, height: 32, borderRadius: "50%",
+                              background: "#C4687A", border: "none", cursor: "pointer",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              flexShrink: 0,
                             }}
-                            onMouseEnter={e => (e.currentTarget.style.color = "#fff")}
-                            onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.40)")}
                           >
-                            ▶
+                            <span style={{ fontSize: 11, color: "#fff", marginLeft: 2, lineHeight: 1 }}>▶</span>
                           </button>
                         </div>
                       </div>
