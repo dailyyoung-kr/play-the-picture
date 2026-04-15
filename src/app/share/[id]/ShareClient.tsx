@@ -219,25 +219,44 @@ export default function ShareClient({ id }: { id: string }) {
             친구의 오늘
           </p>
 
-          {showPhotoSection && (
-            <div className="flex gap-2 justify-center mb-5">
-              {modalPhotos.length > 0 ? modalPhotos.map((src, i) => (
-                <div
-                  key={i}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setModalIndex(i)}
-                  onTouchEnd={(e) => { e.preventDefault(); setModalIndex(i); }}
-                  style={{ width: 100, height: 124, borderRadius: 10, border: "1.5px solid rgba(255,255,255,0.13)", flexShrink: 0, overflow: "hidden", cursor: "pointer" }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt={`사진 ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }} />
-                </div>
-              )) : (
-                <div style={{ width: 100, height: 124, borderRadius: 10, border: "1.5px solid rgba(255,255,255,0.13)", overflow: "hidden" }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={entry.album_art!} alt="앨범아트" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                </div>
+          {showPhotoSection && (() => {
+            const count = modalPhotos.length || 1;
+            const slotSize = count === 1 ? 140 : count === 2 ? 120 : count === 3 ? 100 : count === 4 ? 80 : 64;
+            return (
+              <div style={{ display: "flex", gap: 5, justifyContent: "center", flexWrap: "nowrap", marginBottom: 12 }}>
+                {modalPhotos.length > 0 ? modalPhotos.map((src, i) => (
+                  <div
+                    key={i}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setModalIndex(i)}
+                    onTouchEnd={(e) => { e.preventDefault(); setModalIndex(i); }}
+                    style={{ width: slotSize, height: slotSize, borderRadius: 14, border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0, overflow: "hidden", cursor: "pointer" }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt={`사진 ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none", display: "block" }} />
+                  </div>
+                )) : (
+                  <div style={{ width: 100, height: 100, borderRadius: 14, border: "1px solid rgba(255,255,255,0.12)", overflow: "hidden" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={entry.album_art!} alt="앨범아트" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* 오늘의 당신은 */}
+          {entry.vibe_type && (
+            <div style={{ width: "100%", marginBottom: 12, background: "rgba(255,255,255,0.05)", borderRadius: 14, padding: "12px 14px", textAlign: "center" }}>
+              <p style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", marginBottom: 5 }}>오늘의 당신은</p>
+              <p className="font-medium" style={{ fontSize: 16, color: "#fff", marginBottom: 5, lineHeight: 1.35 }}>
+                {entry.vibe_type}
+              </p>
+              {entry.vibe_description && (
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>
+                  {entry.vibe_description}
+                </p>
               )}
             </div>
           )}
@@ -254,61 +273,48 @@ export default function ShareClient({ id }: { id: string }) {
             </div>
           </div>
 
-          <div className="mb-3 p-4" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 12 }}>
-            <p className="mb-4" style={{ fontSize: 11, color: "rgba(255,255,255,0.38)" }}>✦ 사진 분위기</p>
-
-            {entry.vibe_spectrum ? (
-              <div style={{ marginBottom: entry.vibe_type ? 12 : 0 }}>
+          {entry.vibe_spectrum && (
+            <div className="mb-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "10px 14px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px" }}>
                 {VIBE_SPECTRUM_AXES.map(({ key, left, right }) => {
                   const val = entry.vibe_spectrum![key];
                   return (
-                    <div key={key} style={{ marginBottom: 16 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 7 }}>
-                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{left}</span>
-                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{right}</span>
+                    <div key={key} style={{ paddingBottom: 2 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{left}</span>
+                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{right}</span>
                       </div>
-                      <div style={{ position: "relative", height: 6, background: "rgba(255,255,255,0.08)", borderRadius: 3 }}>
+                      <div style={{ position: "relative", height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 2 }}>
                         <div style={{
                           position: "absolute",
-                          left: `calc(${val}% - 7px)`,
+                          left: `calc(${val}% - 5px)`,
                           top: "50%",
                           transform: "translateY(-50%)",
-                          width: 14,
-                          height: 14,
+                          width: 10, height: 10,
                           borderRadius: "50%",
                           background: "#C4687A",
-                          boxShadow: "0 0 6px rgba(196,104,122,0.6)",
+                          boxShadow: "0 0 4px rgba(196,104,122,0.6)",
                         }} />
                       </div>
                     </div>
                   );
                 })}
               </div>
-            ) : null}
+            </div>
+          )}
 
-            {entry.vibe_type && (
-              <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 12px" }}>
-                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.40)", marginBottom: 6 }}>사진으로 분석한 내 음악 스타일</p>
-                <p className="font-medium" style={{ fontSize: 15, color: "#a0f0b0", marginBottom: 4 }}>{entry.vibe_type}</p>
-                {entry.vibe_description && <p style={{ fontSize: 11, color: "rgba(255,255,255,0.50)" }}>{entry.vibe_description}</p>}
-              </div>
-            )}
-          </div>
-
-          <div className="mb-5" style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "14px 16px", marginTop: 12 }}>
+          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "14px 16px", marginTop: 12, marginBottom: 20 }}>
             <p className="font-medium mb-2" style={{ fontSize: 10, color: "#f0d080", letterSpacing: "0.05em" }}>플더픽이 추천한 이유</p>
             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.8 }}>{entry.reason}</p>
           </div>
-        </div>
 
-        <div className="px-5">
-          <button className="w-full font-medium mb-2" onClick={handleListenClick}
-            style={{ background: "#fff", border: "none", borderRadius: 24, padding: 14, color: "#0d1218", fontSize: 14, cursor: "pointer" }}>
-            ▶  지금 바로 듣기
-          </button>
-          <button className="w-full font-medium mb-5" onClick={handleTryClick}
+          <button className="w-full font-medium mb-2" onClick={handleTryClick}
             style={{ background: "#C4687A", border: "none", borderRadius: 24, padding: 14, color: "#fff", fontSize: 14, cursor: "pointer" }}>
             나도 해보기 ✦
+          </button>
+          <button className="w-full font-medium mb-8" onClick={handleListenClick}
+            style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 24, padding: 13, color: "rgba(255,255,255,0.75)", fontSize: 13, cursor: "pointer" }}>
+            ▶  지금 바로 듣기
           </button>
         </div>
 
