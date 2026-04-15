@@ -7,6 +7,7 @@ import { Archive, Music } from "lucide-react";
 import { getDeviceId } from "@/lib/device";
 import { trackEvent } from "@/lib/gtag";
 import { pixelViewContent, pixelLead } from "@/lib/fpixel";
+import { isAnalyticsEnabled } from "@/lib/analytics";
 
 interface AnalysisResult {
   song: string; // "곡명 - 아티스트명" 형식
@@ -168,11 +169,13 @@ export default function ResultPage() {
       if (!entryId) throw new Error("저장 실패");
 
       // 공유 로그 기록 (에러 나도 공유 흐름은 계속)
-      fetch("/api/log-share", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entry_id: entryId }),
-      }).catch(() => {});
+      if (isAnalyticsEnabled()) {
+        fetch("/api/log-share", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ entry_id: entryId }),
+        }).catch(() => {});
+      }
 
       const url = `https://play-the-picture.vercel.app/share/${entryId}`;
       const songName = result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song;
@@ -455,7 +458,7 @@ export default function ResultPage() {
           플더픽의 추천곡
         </p>
 
-        {/* 사진 (업로드 수에 따라 유동적으로) */}
+        {/* ── 섹션 1: 사진 + 오늘의 당신은 (세로 배치 통일) ── */}
         {(() => {
           const count = photos.length;
           const slotSize = count === 1 ? 100 : count === 2 ? 88 : count === 3 ? 80 : count === 4 ? 72 : 64;
@@ -463,200 +466,125 @@ export default function ResultPage() {
           const displayItems = count > 0 ? photos : PHOTO_COLORS;
 
           return (
-            <div
-              className="flex mb-5"
-              style={{ gap, alignItems: "center", justifyContent: "flex-start" }}
-            >
-              {displayItems.map((src, i) => {
-                const isPhoto = typeof src === "string" && src.startsWith("data:");
-                return (
-                  <div
-                    key={i}
-                    role={isPhoto ? "button" : undefined}
-                    tabIndex={isPhoto ? 0 : undefined}
-                    onClick={() => isPhoto && setModalIndex(i)}
-                    onTouchEnd={(e) => { if (isPhoto) { e.preventDefault(); setModalIndex(i); } }}
-                    style={{
-                      width: slotSize,
-                      height: slotSize,
-                      borderRadius: 14,
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      flexShrink: 0,
-                      overflow: "hidden",
-                      background: isPhoto ? undefined : PHOTO_COLORS[i % PHOTO_COLORS.length],
-                      cursor: isPhoto ? "pointer" : "default",
-                      WebkitTapHighlightColor: "transparent",
-                    }}
-                  >
-                    {isPhoto && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={src} alt={`사진 ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", pointerEvents: "none", display: "block" }} />
-                    )}
-                  </div>
-                );
-              })}
+            <div style={{ display: "flex", flexDirection: "column", marginBottom: 10 }}>
+              {/* 사진 행: 가운데 정렬 */}
+              <div style={{ display: "flex", gap, justifyContent: "center", flexWrap: "wrap", alignContent: "flex-start" }}>
+                {displayItems.map((src, i) => {
+                  const isPhoto = typeof src === "string" && src.startsWith("data:");
+                  return (
+                    <div
+                      key={i}
+                      role={isPhoto ? "button" : undefined}
+                      tabIndex={isPhoto ? 0 : undefined}
+                      onClick={() => isPhoto && setModalIndex(i)}
+                      onTouchEnd={(e) => { if (isPhoto) { e.preventDefault(); setModalIndex(i); } }}
+                      style={{
+                        width: slotSize, height: slotSize,
+                        borderRadius: 14,
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        flexShrink: 0, overflow: "hidden",
+                        background: isPhoto ? undefined : PHOTO_COLORS[i % PHOTO_COLORS.length],
+                        cursor: isPhoto ? "pointer" : "default",
+                        WebkitTapHighlightColor: "transparent",
+                      }}
+                    >
+                      {isPhoto && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={src} alt={`사진 ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", pointerEvents: "none", display: "block" }} />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {/* 캐릭터 섹션: 가운데 정렬 */}
+              <div style={{
+                width: "100%", marginTop: 12,
+                background: "rgba(255,255,255,0.05)", borderRadius: 14, padding: "12px 14px",
+                display: "flex", flexDirection: "column", justifyContent: "center",
+                textAlign: "center",
+              }}>
+                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", marginBottom: 5 }}>오늘의 당신은</p>
+                <p className="font-medium" style={{ fontSize: 16, color: "#fff", marginBottom: 5, lineHeight: 1.35 }}>
+                  {result.vibeType ?? result.vibe_type ?? result.hiddenEmotion ?? result.hidden_emotion}
+                </p>
+                {(result.vibeDescription ?? result.vibe_description) && (
+                  <p style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>
+                    {result.vibeDescription ?? result.vibe_description}
+                  </p>
+                )}
+              </div>
             </div>
           );
         })()}
 
-        {/* 노래 정보 */}
-        <div className="text-center mb-4" style={{ position: "relative", zIndex: 2 }}>
-          {/* 장르 발견하기 배지 */}
-          {result.isGenreDiscovery && (
-            <div className="flex justify-center" style={{ marginBottom: 8 }}>
-              <span style={{
-                fontSize: 11, color: "#C4687A",
-                border: "1px solid #C4687A",
-                padding: "3px 10px", borderRadius: 20,
-              }}>
-                오늘의 새로운 발견 🔭
-              </span>
-            </div>
-          )}
-          <h1 className="font-semibold mb-1" style={{ fontSize: 28, color: "#fff", letterSpacing: "-0.5px" }}>
-            {result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song}
-          </h1>
-          <p className="mb-3" style={{ fontSize: 13, color: "rgba(255,255,255,0.48)" }}>
-            {result.song.includes(" - ") ? result.song.split(" - ").slice(1).join(" - ") : ""}
-          </p>
-          <div className="flex gap-2 justify-center flex-wrap mb-2">
-            {result.tags.map((tag) => (
-              <span
-                key={tag}
-                style={{
-                  fontSize: 11,
-                  padding: "4px 10px",
-                  borderRadius: 20,
-                  border: "1px solid rgba(255,255,255,0.22)",
-                  color: "rgba(255,255,255,0.78)",
-                }}
-              >
-                #{tag.replace(/^#+/, "")}
-              </span>
-            ))}
-          </div>
-          {/* 발견된 장르 */}
-          {result.isGenreDiscovery && result.discoveredGenre && (
-            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
-              당신이 좋아할 것 같은 장르 : {result.discoveredGenre}
-            </p>
-          )}
-
-          {/* 좋아요 / 싫어요 아이콘 버튼 */}
-          {result.spotifyTrackId && (
-            <div className="flex justify-center gap-4 mt-3">
-              {/* 좋아요 */}
-              <button
-                onClick={() => handleFeedback("like")}
-                style={{
-                  background: "none", border: "none", padding: "4px 8px",
-                  cursor: "pointer",
-                  color: feedbackGiven === "like" ? "#fff" : "#999",
-                  opacity: feedbackGiven === "dislike" ? 0.3 : 1,
-                  transition: "color 0.18s ease, opacity 0.18s ease",
-                }}
-              >
-                {feedbackGiven === "like" ? (
-                  /* filled */
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M2 20h2a1 1 0 0 0 1-1v-7a1 1 0 0 0-1-1H2v9zm19-9h-6l1.12-5.06A1 1 0 0 0 15.15 5L9 11v9h9.31a2 2 0 0 0 1.98-1.69l1.12-6.5A2 2 0 0 0 21 11z"/>
-                  </svg>
-                ) : (
-                  /* outline */
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/>
-                    <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
-                  </svg>
-                )}
-              </button>
-              {/* 싫어요 */}
-              <button
-                onClick={() => handleFeedback("dislike")}
-                style={{
-                  background: "none", border: "none", padding: "4px 8px",
-                  cursor: "pointer",
-                  color: feedbackGiven === "dislike" ? "#fff" : "#999",
-                  opacity: feedbackGiven === "like" ? 0.3 : 1,
-                  transition: "color 0.18s ease, opacity 0.18s ease",
-                }}
-              >
-                {feedbackGiven === "dislike" ? (
-                  /* filled */
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M22 4h-2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h2V4zm-19 9h6l-1.12 5.06A1 1 0 0 0 8.85 19L15 13V4H5.69a2 2 0 0 0-1.98 1.69l-1.12 6.5A2 2 0 0 0 3 13z"/>
-                  </svg>
-                ) : (
-                  /* outline */
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/>
-                    <path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/>
-                  </svg>
-                )}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* 감정 분석 카드 */}
-        <div className="mb-3 p-4" style={{ background: "rgba(13,18,24,0.85)", borderRadius: 12, position: "relative", zIndex: 2, isolation: "isolate" }}>
-          <p className="mb-4" style={{ fontSize: 11, color: "rgba(255,255,255,0.38)" }}>
-            ✦ 사진 분위기
-          </p>
-
-          {/* emotion comment */}
-          {(result.emotionComment ?? result.emotion_comment) && (
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", textAlign: "center", marginBottom: 14, fontStyle: "italic" }}>
-              {result.emotionComment ?? result.emotion_comment}
-            </p>
-          )}
-
-          {/* 바이브 스펙트럼 */}
-          {result.vibeSpectrum && (
-            <div style={{ marginBottom: 16 }}>
+        {/* ── 섹션 2: 바이브 스펙트럼 (2x2 그리드) ── */}
+        {result.vibeSpectrum && (
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "10px 14px", marginBottom: 10 }}>
+            {(result.emotionComment ?? result.emotion_comment) && (
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", marginBottom: 8, fontStyle: "italic", textAlign: "center", lineHeight: 1.4 }}>
+                {result.emotionComment ?? result.emotion_comment}
+              </p>
+            )}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px" }}>
               {VIBE_SPECTRUM_AXES.map(({ key, left, right }) => {
                 const val = result.vibeSpectrum![key];
                 return (
-                  <div key={key} style={{ marginBottom: 16 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 7 }}>
-                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{left}</span>
-                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{right}</span>
+                  <div key={key} style={{ paddingBottom: 2 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{left}</span>
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{right}</span>
                     </div>
-                    <div style={{ position: "relative", height: 6, background: "rgba(255,255,255,0.08)", borderRadius: 3 }}>
+                    <div style={{ position: "relative", height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 2 }}>
                       <div style={{
                         position: "absolute",
-                        left: `calc(${val}% - 7px)`,
+                        left: `calc(${val}% - 5px)`,
                         top: "50%",
                         transform: "translateY(-50%)",
-                        width: 14,
-                        height: 14,
+                        width: 10, height: 10,
                         borderRadius: "50%",
                         background: "#C4687A",
-                        boxShadow: "0 0 6px rgba(196,104,122,0.6)",
+                        boxShadow: "0 0 4px rgba(196,104,122,0.6)",
                       }} />
                     </div>
                   </div>
                 );
               })}
             </div>
-          )}
-
-          {/* 오늘의 당신은 */}
-          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "12px 14px" }}>
-            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", marginBottom: 6 }}>오늘의 당신은</p>
-            <p className="font-medium" style={{ fontSize: 18, color: "#fff", marginBottom: 4 }}>
-              {result.vibeType ?? result.vibe_type ?? result.hiddenEmotion ?? result.hidden_emotion}
-            </p>
-            {(result.vibeDescription ?? result.vibe_description) && (
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
-                {result.vibeDescription ?? result.vibe_description}
-              </p>
-            )}
           </div>
+        )}
+
+        {/* ── 섹션 3: 곡 정보 ── */}
+        <div style={{ position: "relative", zIndex: 2, marginBottom: 10 }}>
+          {result.isGenreDiscovery && (
+            <div className="flex justify-center" style={{ marginBottom: 6 }}>
+              <span style={{ fontSize: 11, color: "#C4687A", border: "1px solid #C4687A", padding: "3px 10px", borderRadius: 20 }}>
+                오늘의 새로운 발견 🔭
+              </span>
+            </div>
+          )}
+          <h1 className="font-semibold" style={{ fontSize: 26, color: "#fff", letterSpacing: "-0.5px", textAlign: "center", marginBottom: 4 }}>
+            {result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song}
+          </h1>
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.48)", textAlign: "center", marginBottom: 8 }}>
+            {result.song.includes(" - ") ? result.song.split(" - ").slice(1).join(" - ") : ""}
+          </p>
+          <div className="flex gap-2 justify-center flex-wrap" style={{ marginBottom: 6 }}>
+            {result.tags.map((tag) => (
+              <span key={tag} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 20, border: "1px solid rgba(255,255,255,0.22)", color: "rgba(255,255,255,0.78)" }}>
+                #{tag.replace(/^#+/, "")}
+              </span>
+            ))}
+          </div>
+          {result.isGenreDiscovery && result.discoveredGenre && (
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", textAlign: "center", marginBottom: 6 }}>
+              당신이 좋아할 것 같은 장르 : {result.discoveredGenre}
+            </p>
+          )}
         </div>
 
-        {/* 플더픽이 추천한 이유 */}
-        <div className="mb-5" style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "14px 16px", marginTop: 12 }}>
-          <p className="font-medium mb-2" style={{ fontSize: 10, color: "#f0d080", letterSpacing: "0.05em" }}>
+        {/* ── 섹션 4: 추천 이유 ── */}
+        <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "12px 16px", marginBottom: 10 }}>
+          <p className="font-medium" style={{ fontSize: 10, color: "#f0d080", letterSpacing: "0.05em", marginBottom: 6 }}>
             플더픽이 추천한 이유
           </p>
           <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.8 }}>
@@ -664,31 +592,15 @@ export default function ResultPage() {
           </p>
         </div>
 
-
       </div>
       </div>
       {/* 캡처 영역 끝 */}
 
       <div className="px-5 pb-2">
 
-        {/* 지금 바로 듣기 */}
+        {/* Primary: 친구에게 공유하기 */}
         <button
-          className="w-full font-medium mb-2"
-          onClick={handleListenClick}
-          style={{
-            background: "rgba(255,255,255,0.92)",
-            border: "none",
-            borderRadius: 24, padding: 14,
-            color: "#0d1218",
-            fontSize: 14, cursor: "pointer",
-          }}
-        >
-          ▶  지금 바로 듣기
-        </button>
-
-        {/* 친구에게 공유 */}
-        <button
-          className="w-full font-medium mb-2"
+          className="w-full font-medium mb-3"
           onClick={() => setShowShareModal(true)}
           disabled={sharing}
           style={{
@@ -699,28 +611,44 @@ export default function ResultPage() {
             fontSize: 14, cursor: sharing ? "default" : "pointer",
           }}
         >
-          {sharing ? "공유 중..." : "친구에게 공유"}
+          {sharing ? "공유 중..." : "친구에게 공유하기"}
         </button>
 
-        {/* 저장하기 */}
-        <button
-          className="w-full mb-3"
-          onClick={handleSaveToSupabase}
-          disabled={saving}
-          style={{
-            background: "transparent",
-            border: "1px solid rgba(255,255,255,0.3)",
-            borderRadius: 24, padding: 14,
-            color: saving ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.7)",
-            fontSize: 14, cursor: saving ? "default" : "pointer",
-          }}
-        >
-          {saving ? "저장 중..." : "아카이브에 저장하기"}
-        </button>
+        {/* Secondary: 듣기 + 저장 나란히 */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+          <button
+            className="font-medium"
+            onClick={handleListenClick}
+            style={{
+              flex: 1,
+              background: "rgba(255,255,255,0.08)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              borderRadius: 24, padding: 13,
+              color: "#fff",
+              fontSize: 13, cursor: "pointer",
+            }}
+          >
+            ▶ 지금 바로 듣기
+          </button>
+          <button
+            onClick={handleSaveToSupabase}
+            disabled={saving}
+            style={{
+              flex: 1,
+              background: "rgba(255,255,255,0.08)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              borderRadius: 24, padding: 13,
+              color: saving ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.85)",
+              fontSize: 13, cursor: saving ? "default" : "pointer",
+            }}
+          >
+            {saving ? "저장 중..." : "아카이브에 저장하기"}
+          </button>
+        </div>
 
         {/* 다시 해보기 — 텍스트 링크 */}
         <button
-          className="w-full mb-4"
+          className="w-full"
           onClick={() => {
             localStorage.removeItem("ptp_photos");
             localStorage.removeItem("ptp_result");
@@ -738,6 +666,35 @@ export default function ResultPage() {
         >
           다른 사진으로 다시 해보기
         </button>
+
+        {/* 좋아요/싫어요 */}
+        {result.spotifyTrackId && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, marginBottom: 4, paddingTop: 4 }}>
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", margin: 0 }}>이 곡이 마음에 드셨나요?</p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => handleFeedback("like")}
+                style={{ background: "none", border: "none", padding: "4px 8px", cursor: "pointer", color: feedbackGiven === "like" ? "#fff" : "#999", opacity: feedbackGiven === "dislike" ? 0.3 : 1, transition: "color 0.18s ease, opacity 0.18s ease" }}
+              >
+                {feedbackGiven === "like" ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2 20h2a1 1 0 0 0 1-1v-7a1 1 0 0 0-1-1H2v9zm19-9h-6l1.12-5.06A1 1 0 0 0 15.15 5L9 11v9h9.31a2 2 0 0 0 1.98-1.69l1.12-6.5A2 2 0 0 0 21 11z"/></svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                )}
+              </button>
+              <button
+                onClick={() => handleFeedback("dislike")}
+                style={{ background: "none", border: "none", padding: "4px 8px", cursor: "pointer", color: feedbackGiven === "dislike" ? "#fff" : "#999", opacity: feedbackGiven === "like" ? 0.3 : 1, transition: "color 0.18s ease, opacity 0.18s ease" }}
+              >
+                {feedbackGiven === "dislike" ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M22 4h-2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h2V4zm-19 9h6l-1.12 5.06A1 1 0 0 0 8.85 19L15 13V4H5.69a2 2 0 0 0-1.98 1.69l-1.12 6.5A2 2 0 0 0 3 13z"/></svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 공유 방식 선택 모달 */}

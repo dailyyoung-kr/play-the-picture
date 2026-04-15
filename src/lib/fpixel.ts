@@ -1,3 +1,5 @@
+import { isAnalyticsEnabled } from "./analytics";
+
 export const PIXEL_ID = "950900540860087";
 
 type FbqFn = (
@@ -7,6 +9,7 @@ type FbqFn = (
 ) => void;
 
 function fbq(action: string, event: string, params?: Record<string, unknown>) {
+  if (!isAnalyticsEnabled()) return;
   if (typeof window === "undefined") return;
   const w = window as Window & { fbq?: FbqFn };
   w.fbq?.(action, event, params);

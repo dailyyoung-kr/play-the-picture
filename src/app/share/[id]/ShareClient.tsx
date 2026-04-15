@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { pixelLead } from "@/lib/fpixel";
+import { isAnalyticsEnabled } from "@/lib/analytics";
 
 interface ShareEntry {
   id: string;
@@ -43,7 +44,7 @@ export default function ShareClient({ id }: { id: string }) {
 
   // 공유 페이지 방문 기록 — entries fetch와 독립적으로 마운트 즉시 실행
   useEffect(() => {
-    if (!id || viewLogged.current) return;
+    if (!id || viewLogged.current || !isAnalyticsEnabled()) return;
     viewLogged.current = true;
     fetch("/api/log-share-view", {
       method: "POST",
@@ -110,14 +111,16 @@ export default function ShareClient({ id }: { id: string }) {
   const handleTryClick = () => {
     pixelLead({ source: "share_page" });
     // 나도 해보기 클릭 기록 (supabaseAdmin 경유 RLS 우회)
-    fetch("/api/log-try-click", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ entry_id: id }),
-    })
-      .then(r => r.json())
-      .then(d => console.log("[try-click]", d))
-      .catch(e => console.error("[try-click] 실패:", e));
+    if (isAnalyticsEnabled()) {
+      fetch("/api/log-try-click", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entry_id: id }),
+      })
+        .then(r => r.json())
+        .then(d => console.log("[try-click]", d))
+        .catch(e => console.error("[try-click] 실패:", e));
+    }
     router.push("/");
   };
 

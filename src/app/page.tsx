@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Archive, Music } from "lucide-react";
 import { supabase, getDeviceId } from "@/lib/supabase";
 import { pixelInitiateCheckout } from "@/lib/fpixel";
+import { isAnalyticsEnabled } from "@/lib/analytics";
 
 // 사진을 800px 이하로 압축해서 base64로 변환
 function compressImage(file: File): Promise<string> {
@@ -78,10 +79,12 @@ export default function UploadPage() {
 
   const handleNext = () => {
     if (photos.length === 0) return;
-    supabase
-      .from("photo_upload_logs")
-      .insert({ device_id: getDeviceId(), photo_count: photos.length })
-      .then(({ error }) => { if (error) console.error("[photo_log]", error.message); });
+    if (isAnalyticsEnabled()) {
+      supabase
+        .from("photo_upload_logs")
+        .insert({ device_id: getDeviceId(), photo_count: photos.length })
+        .then(({ error }) => { if (error) console.error("[photo_log]", error.message); });
+    }
     pixelInitiateCheckout();
     router.push("/preference");
   };

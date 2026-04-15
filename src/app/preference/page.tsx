@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Archive, Music } from "lucide-react";
 import { trackEvent } from "@/lib/gtag";
 import { supabase, getDeviceId } from "@/lib/supabase";
+import { isAnalyticsEnabled } from "@/lib/analytics";
 
 const GENRE_OPTIONS = [
   { value: "discover",      label: "장르 발견하기",  apiGenre: "장르 발견하기" },
@@ -78,7 +79,7 @@ export default function PreferencePage() {
 
     const photosRaw = localStorage.getItem("ptp_photos");
     const photos: string[] = photosRaw ? JSON.parse(photosRaw) : [];
-    setLoadingPhotos(photos.slice(0, 3));
+    setLoadingPhotos(photos);
 
     setGaugeTargets([
       Math.floor(Math.random() * 60) + 20,  // 차분함 ↔ 에너제틱
@@ -165,22 +166,26 @@ export default function PreferencePage() {
     const { mood: legacyMood, listeningStyle: legacyStyle } = getLegacyParams(selectedEnergy);
 
     // 취향 선택 로그 (서버 API 경유 → supabaseAdmin으로 RLS 우회)
-    fetch("/api/log-preference", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ genre: selectedGenre, energy: selectedEnergy }),
-    }).catch(() => {});
+    if (isAnalyticsEnabled()) {
+      fetch("/api/log-preference", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ genre: selectedGenre, energy: selectedEnergy }),
+      }).catch(() => {});
+    }
 
     // 분석 시작 로그
     let logId: string | null = null;
-    try {
-      const { data: logData } = await supabase
-        .from("analyze_logs")
-        .insert({ device_id: deviceId, status: "start" })
-        .select("id")
-        .single();
-      logId = logData?.id ?? null;
-    } catch { /* ignore */ }
+    if (isAnalyticsEnabled()) {
+      try {
+        const { data: logData } = await supabase
+          .from("analyze_logs")
+          .insert({ device_id: deviceId, status: "start" })
+          .select("id")
+          .single();
+        logId = logData?.id ?? null;
+      } catch { /* ignore */ }
+    }
 
     trackEvent("analyze_start", { genre: selectedGenre, energy: selectedEnergy });
     setLoading(true);
@@ -205,7 +210,7 @@ export default function PreferencePage() {
         throw new Error(data.error || "분석에 실패했어요.");
       }
 
-      if (logId) {
+      if (isAnalyticsEnabled() && logId) {
         const songStr = (data.song as string) ?? "";
         const dashIdx = songStr.indexOf(" - ");
         const logSong = dashIdx >= 0 ? songStr.slice(0, dashIdx).trim() : songStr.trim();
@@ -400,32 +405,35 @@ export default function PreferencePage() {
           {/* ── 1단계: 사진 분석 중 ── */}
           {loadingPhase === 0 && (
             <>
-              <div style={{ display: "flex", gap: 10, marginBottom: 36 }}>
-                {loadingPhotos.map((src, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={i}
-                    src={src}
-                    alt=""
-                    style={{
-                      width: 88,
-                      height: 110,
-                      objectFit: "cover",
-                      borderRadius: 10,
-                      border: "1.5px solid rgba(255,255,255,0.18)",
-                      opacity: photosFadeIn ? 1.0 : 0.35,
-                      transition: "opacity 2.6s ease",
-                    }}
-                  />
-                ))}
-                {loadingPhotos.length === 0 && (
-                  <div style={{
-                    width: 88, height: 110, borderRadius: 10,
-                    background: "rgba(255,255,255,0.07)",
-                    border: "1.5px solid rgba(255,255,255,0.12)",
-                  }} />
-                )}
-              </div>
+              {(() => {
+                const n = loadingPhotos.length;
+                const sz = n === 1 ? 100 : n === 2 ? 88 : n === 3 ? 80 : n === 4 ? 72 : 64;
+                const gap = n <= 3 ? 6 : 5;
+                return (
+                  <div style={{ display: "flex", gap, justifyContent: "center", flexWrap: "wrap", marginBottom: 36 }}>
+                    {loadingPhotos.map((src, i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={i}
+                        src={src}
+                        alt=""
+                        style={{
+                          width: sz, height: sz,
+                          objectFit: "cover",
+                          borderRadius: 14,
+                          border: "1.5px solid rgba(255,255,255,0.18)",
+                          opacity: photosFadeIn ? 1.0 : 0.35,
+                          transition: "opacity 2.6s ease",
+                          flexShrink: 0,
+                        }}
+                      />
+                    ))}
+                    {loadingPhotos.length === 0 && (
+                      <div style={{ width: 88, height: 88, borderRadius: 14, background: "rgba(255,255,255,0.07)", border: "1.5px solid rgba(255,255,255,0.12)" }} />
+                    )}
+                  </div>
+                );
+              })()}
               <p style={{ color: "#fff", fontSize: 17, fontWeight: 500, textAlign: "center", letterSpacing: "-0.3px" }}>
                 사진 속 오늘을 읽고 있어요 🔍
               </p>
@@ -438,15 +446,22 @@ export default function PreferencePage() {
           {/* ── 2단계: 바이브 스펙트럼 ── */}
           {loadingPhase === 1 && (
             <>
-              <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
-                {loadingPhotos.map((src, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img key={i} src={src} alt="" style={{ width: 72, height: 90, objectFit: "cover", borderRadius: 8, border: "1.5px solid rgba(255,255,255,0.14)", opacity: 0.65 }} />
-                ))}
-                {loadingPhotos.length === 0 && (
-                  <div style={{ width: 72, height: 90, borderRadius: 8, background: "rgba(255,255,255,0.06)", border: "1.5px solid rgba(255,255,255,0.1)" }} />
-                )}
-              </div>
+              {(() => {
+                const n = loadingPhotos.length;
+                const sz = n === 1 ? 72 : n === 2 ? 64 : n === 3 ? 58 : n === 4 ? 52 : 46;
+                const gap = n <= 3 ? 6 : 5;
+                return (
+                  <div style={{ display: "flex", gap, justifyContent: "center", flexWrap: "wrap", marginBottom: 24 }}>
+                    {loadingPhotos.map((src, i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={i} src={src} alt="" style={{ width: sz, height: sz, objectFit: "cover", borderRadius: 14, border: "1.5px solid rgba(255,255,255,0.14)", opacity: 0.65, flexShrink: 0 }} />
+                    ))}
+                    {loadingPhotos.length === 0 && (
+                      <div style={{ width: 72, height: 72, borderRadius: 14, background: "rgba(255,255,255,0.06)", border: "1.5px solid rgba(255,255,255,0.1)" }} />
+                    )}
+                  </div>
+                );
+              })()}
               <p style={{ color: "#C4687A", fontSize: 13, marginBottom: 28, textAlign: "center", letterSpacing: "0.04em" }}>
                 사진의 분위기를 파악했어요 ✦
               </p>
@@ -480,15 +495,22 @@ export default function PreferencePage() {
           {/* ── 3단계: 곡 탐색 중 ── */}
           {loadingPhase === 2 && (
             <>
-              <div style={{ display: "flex", gap: 8, marginBottom: 28 }}>
-                {loadingPhotos.map((src, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img key={i} src={src} alt="" style={{ width: 72, height: 90, objectFit: "cover", borderRadius: 8, border: "1.5px solid rgba(255,255,255,0.14)", opacity: 0.5 }} />
-                ))}
-                {loadingPhotos.length === 0 && (
-                  <div style={{ width: 72, height: 90, borderRadius: 8, background: "rgba(255,255,255,0.06)", border: "1.5px solid rgba(255,255,255,0.1)" }} />
-                )}
-              </div>
+              {(() => {
+                const n = loadingPhotos.length;
+                const sz = n === 1 ? 72 : n === 2 ? 64 : n === 3 ? 58 : n === 4 ? 52 : 46;
+                const gap = n <= 3 ? 6 : 5;
+                return (
+                  <div style={{ display: "flex", gap, justifyContent: "center", flexWrap: "wrap", marginBottom: 28 }}>
+                    {loadingPhotos.map((src, i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={i} src={src} alt="" style={{ width: sz, height: sz, objectFit: "cover", borderRadius: 14, border: "1.5px solid rgba(255,255,255,0.14)", opacity: 0.5, flexShrink: 0 }} />
+                    ))}
+                    {loadingPhotos.length === 0 && (
+                      <div style={{ width: 72, height: 72, borderRadius: 14, background: "rgba(255,255,255,0.06)", border: "1.5px solid rgba(255,255,255,0.1)" }} />
+                    )}
+                  </div>
+                );
+              })()}
               <div style={{ fontSize: 52, marginBottom: 28, color: "#C4687A" }}>✦</div>
 
               <div
