@@ -12,7 +12,7 @@ async function fetchEntry(id: string) {
   );
   const { data } = await supabaseAdmin
     .from("entries")
-    .select("song, artist, album_art")
+    .select("song, artist, album_art, vibe_type")
     .eq("id", id)
     .single();
   return data;
@@ -26,8 +26,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: "Play the Picture" };
   }
 
-  const title = `${data.song} — ${data.artist}`;
-  const description = "오늘의 사진으로 추천받은 노래예요. 나도 해볼까요? ✦";
+  const vibeType = data.vibe_type ?? "";
+  const title = vibeType
+    ? `${vibeType}의 오늘의 노래 | Play the Picture`
+    : `${data.song} — ${data.artist} | Play the Picture`;
+  const description = `${data.song} — ${data.artist}. 사진에서 어떤 노래가 나올지 궁금하다면?`;
   const url = `https://play-the-picture.vercel.app/share/${id}`;
 
   const ogImageUrl = `https://play-the-picture.vercel.app/api/og?id=${id}`;

@@ -454,11 +454,6 @@ export default function ResultPage() {
         {/* ── 섹션 2: 바이브 스펙트럼 (2x2 그리드) ── */}
         {result.vibeSpectrum && (
           <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "10px 14px", marginBottom: 10 }}>
-            {(result.emotionComment ?? result.emotion_comment) && (
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", marginBottom: 8, fontStyle: "italic", textAlign: "center", lineHeight: 1.4 }}>
-                {result.emotionComment ?? result.emotion_comment}
-              </p>
-            )}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px" }}>
               {VIBE_SPECTRUM_AXES.map(({ key, left, right }) => {
                 const val = result.vibeSpectrum![key];
