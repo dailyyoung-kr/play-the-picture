@@ -28,8 +28,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const vibeType = data.vibe_type ?? "";
   const title = vibeType
-    ? `${vibeType}의 오늘의 노래 | Play the Picture`
-    : `${data.song} — ${data.artist} | Play the Picture`;
+    ? `${vibeType}의 오늘의 노래`
+    : `${data.song} — ${data.artist}`;
   const description = `${data.song} — ${data.artist}. 사진에서 어떤 노래가 나올지 궁금하다면?`;
   const url = `https://play-the-picture.vercel.app/share/${id}`;
 
