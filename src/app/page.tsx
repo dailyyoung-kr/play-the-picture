@@ -106,31 +106,33 @@ export default function UploadPage() {
         onChange={handleFileSelect}
       />
 
+      {/* 메인 콘텐츠 — 세로 중앙 정렬 */}
+      <div className="flex-1 flex flex-col justify-center">
+
       {/* 상단 앱 이름 */}
       <div
-        className="text-center pt-12 pb-7"
+        className="text-center pb-7"
         style={{ fontSize: 15, letterSpacing: "0.2em", color: "#C4687A", fontFamily: "var(--font-dm-sans)", fontWeight: 300 }}
       >
         Play the Picture
       </div>
 
       {/* 본문 */}
-      <div className="flex-1 flex flex-col px-5">
+      <div className="flex flex-col px-5">
         {/* 헤드라인 */}
         <h1
           className="font-semibold mb-3"
           style={{ fontSize: 26, color: "#fff", lineHeight: 1.35, letterSpacing: "-0.5px" }}
         >
-          매번 노래 고르기<br />귀찮지 않아요?
+          오늘의 사진은<br />어떤 노래일까?
         </h1>
 
         {/* 부제목 */}
         <p
           className="mb-7"
-          style={{ fontSize: 14, color: "rgba(255,255,255,0.52)", lineHeight: 2.2 }}
+          style={{ fontSize: 14, color: "rgba(255,255,255,0.52)", lineHeight: 1.7 }}
         >
-          지금 생각나는 사진 몇 장이면<br />
-          AI가 오늘의 딱 맞는 한 곡을 찾아드려요
+          AI가 사진 속 분위기를 읽고, 딱 맞는 한 곡을 골라줘요
         </p>
 
         {/* 섹션 타이틀 + 카운트 배지 */}
@@ -226,14 +228,12 @@ export default function UploadPage() {
         </div>
 
         {/* 안내 문구 */}
-        <p className="text-right" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)" }}>
+        <p className="text-right" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", marginTop: 12 }}>
           최대 5장까지 추가할 수 있어요
         </p>
-        <p className="text-right mb-6" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)" }}>
+        <p className="text-right" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", marginBottom: 20 }}>
           사진은 공유하지 않으면 저장되지 않아요
         </p>
-
-        <div className="flex-1" />
 
         {/* 사진 추가 버튼 */}
         <button
@@ -286,6 +286,7 @@ export default function UploadPage() {
           ))}
         </div>
       </div>
+      </div>{/* 메인 콘텐츠 wrapper 끝 */}
 
       {/* 토스트 메시지 */}
       {toast && (
