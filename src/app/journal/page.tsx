@@ -8,12 +8,12 @@ import { getDeviceId } from "@/lib/device";
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
-const EMOTION_LABELS = [
-  { key: "행복함", emoji: "😊", color: "#f0d080" },
-  { key: "설레임", emoji: "💗", color: "#f0a0c0" },
-  { key: "에너지", emoji: "⚡", color: "#a0d4f0" },
-  { key: "특별함", emoji: "✨", color: "#a0f0b0" },
-] as const;
+const VIBE_SPECTRUM_AXES = [
+  { key: "energy" as const, left: "차분함", right: "에너제틱" },
+  { key: "warmth" as const, left: "쿨함",   right: "따뜻함" },
+  { key: "social" as const, left: "혼자",   right: "함께" },
+  { key: "special" as const, left: "일상적", right: "특별함" },
+];
 
 
 function formatTime(isoString: string) {
@@ -78,10 +78,16 @@ export default function JournalPage() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    const { error } = await getSupabaseWithDeviceId().from("entries").delete().eq("id", deleteTarget.id);
-    if (!error) {
+    const deviceId = getDeviceId();
+    const res = await fetch(`/api/entries/${deleteTarget.id}`, {
+      method: "DELETE",
+      headers: { "x-device-id": deviceId },
+    });
+    if (res.ok) {
       setEntries(prev => prev.filter(e => e.id !== deleteTarget.id));
       showToast("기록이 삭제됐어요");
+    } else {
+      showToast("삭제에 실패했어요. 다시 시도해주세요.");
     }
     setDeleteTarget(null);
   };
@@ -414,22 +420,81 @@ export default function JournalPage() {
               <button onClick={() => setSelectedEntry(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 18, cursor: "pointer" }}>✕</button>
             </div>
 
-            {/* 사진 */}
-            {selectedEntry.photos?.length > 0 && (
-              <div className="flex gap-2 justify-center mb-4">
-                {selectedEntry.photos.slice(0, 3).map((src, i) => (
-                  <div key={i} style={{ width: 90, height: 112, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.13)", flexShrink: 0 }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  </div>
-                ))}
+            {/* 섹션 1: 사진 */}
+            {selectedEntry.photos?.length > 0 && (() => {
+              const count = selectedEntry.photos.length;
+              const slotSize = count === 1 ? 110 : count === 2 ? 95 : count === 3 ? 80 : count === 4 ? 72 : 64;
+              const gap = count <= 3 ? 6 : 5;
+              return (
+                <div style={{ display: "flex", gap, justifyContent: "center", flexWrap: "nowrap", marginBottom: 12 }}>
+                  {selectedEntry.photos.map((src, i) => (
+                    <div key={i} style={{ width: slotSize, height: slotSize, borderRadius: 14, overflow: "hidden", border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+            {/* 섹션 2: 오늘의 당신은 */}
+            {selectedEntry.vibe_type && (
+              <div style={{
+                width: "100%", marginBottom: 10,
+                background: "rgba(255,255,255,0.05)", borderRadius: 14, padding: "12px 14px",
+                textAlign: "center",
+              }}>
+                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", marginBottom: 5 }}>오늘의 당신은</p>
+                <p className="font-medium" style={{ fontSize: 16, color: "#fff", marginBottom: 5, lineHeight: 1.35 }}>
+                  {selectedEntry.vibe_type}
+                </p>
+                {selectedEntry.vibe_description && (
+                  <p style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>
+                    {selectedEntry.vibe_description}
+                  </p>
+                )}
               </div>
             )}
 
-            {/* 노래 */}
-            <div className="text-center mb-4">
-              <h2 className="font-semibold mb-1" style={{ fontSize: 22, color: "#fff", letterSpacing: "-0.5px" }}>{selectedEntry.song}</h2>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.48)", marginBottom: 10 }}>{selectedEntry.artist}</p>
+            {/* 섹션 3: 바이브 스펙트럼 (2x2 그리드) */}
+            {selectedEntry.vibe_spectrum && (
+              <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "10px 14px", marginBottom: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px" }}>
+                  {VIBE_SPECTRUM_AXES.map(({ key, left, right }) => {
+                    const val = selectedEntry.vibe_spectrum![key];
+                    return (
+                      <div key={key} style={{ paddingBottom: 2 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{left}</span>
+                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{right}</span>
+                        </div>
+                        <div style={{ position: "relative", height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 2 }}>
+                          <div style={{
+                            position: "absolute",
+                            left: `calc(${val}% - 5px)`,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            width: 10, height: 10,
+                            borderRadius: "50%",
+                            background: "#C4687A",
+                            boxShadow: "0 0 4px rgba(196,104,122,0.6)",
+                          }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 섹션 4: 곡 정보 */}
+            <div style={{ marginBottom: 10, textAlign: "center" }}>
+              <h2 className="font-semibold" style={{ fontSize: 22, color: "#fff", letterSpacing: "-0.5px", marginBottom: 4 }}>
+                {selectedEntry.song}
+              </h2>
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.48)", marginBottom: 8 }}>
+                {selectedEntry.artist}
+              </p>
               <div className="flex gap-2 justify-center flex-wrap">
                 {selectedEntry.tags?.map((tag) => (
                   <span key={tag} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 20, border: "1px solid rgba(255,255,255,0.22)", color: "rgba(255,255,255,0.78)" }}>
@@ -439,39 +504,11 @@ export default function JournalPage() {
               </div>
             </div>
 
-            {/* 감정 분석 */}
-            <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 12, padding: "14px", marginBottom: 12 }}>
-              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", marginBottom: 12 }}>✦ 감정 분석</p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
-                {EMOTION_LABELS.map(({ key, emoji, color }) => {
-                  const pct = selectedEntry.emotions?.[key] ?? 0;
-                  return (
-                    <div key={key} style={{ background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 12px", minWidth: 0 }}>
-                      <div className="flex justify-between items-center mb-2">
-                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.60)" }}>{emoji} {key}</span>
-                        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.85)" }}>{pct}%</span>
-                      </div>
-                      <div style={{ height: 5, background: "rgba(255,255,255,0.10)", borderRadius: 3, overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 3 }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {selectedEntry.vibe_type && (
-                <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 12px" }}>
-                  <p style={{ fontSize: 10, color: "rgba(255,255,255,0.40)", marginBottom: 4 }}>사진으로 보는 오늘의 선곡</p>
-                  <p style={{ fontSize: 14, color: "#a0f0b0", marginBottom: 3 }}>{selectedEntry.vibe_type}</p>
-                  {selectedEntry.vibe_description && (
-                    <p style={{ fontSize: 11, color: "rgba(255,255,255,0.50)" }}>{selectedEntry.vibe_description}</p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* 왜 이 노래 */}
-            <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "14px", marginBottom: 16 }}>
-              <p style={{ fontSize: 10, color: "#f0d080", marginBottom: 8 }}>왜 이 노래?</p>
+            {/* 섹션 5: 플더픽이 추천한 이유 */}
+            <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "12px 16px", marginBottom: 16 }}>
+              <p className="font-medium" style={{ fontSize: 10, color: "#f0d080", letterSpacing: "0.05em", marginBottom: 6 }}>
+                플더픽이 추천한 이유
+              </p>
               <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.8 }}>{selectedEntry.reason}</p>
             </div>
 

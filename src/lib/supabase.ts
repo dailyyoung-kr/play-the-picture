@@ -38,6 +38,7 @@ export interface Entry {
   emotions: Record<string, number>;
   vibe_type: string;
   vibe_description: string;
+  vibe_spectrum?: { energy: number; warmth: number; social: number; special: number } | null;
   photos: string[];
   album_art?: string | null;
   device_id?: string | null;
