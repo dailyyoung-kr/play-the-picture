@@ -419,6 +419,11 @@ export default function AdminPage() {
       .filter(l => l.status === "success" && l.song)
       .map(l => `${l.song}${l.artist ? ` — ${l.artist}` : ""}`)
   ).slice(0, 5);
+  const topSavedSongs = countBy(
+    filteredEntries
+      .filter(e => e.song)
+      .map(e => `${e.song}${e.artist ? ` — ${e.artist}` : ""}`)
+  ).slice(0, 5);
 
   const refreshLabel = lastRefresh
     ? lastRefresh.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
@@ -512,6 +517,9 @@ export default function AdminPage() {
       </div>
       <div style={{ marginBottom: 8 }}>
         <RankList title="🎵 추천된 곡 Top 5" items={topSongs} accent="#C4687A" />
+      </div>
+      <div style={{ marginBottom: 8 }}>
+        <RankList title="💾 가장 많이 저장된 곡 Top 5" items={topSavedSongs} accent="#7ec8e3" />
       </div>
 
       {/* ── 섹션: Spotify API 상태 ── */}
