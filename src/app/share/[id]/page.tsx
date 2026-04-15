@@ -5,11 +5,12 @@ import ShareClient from "./ShareClient";
 type Props = { params: Promise<{ id: string }> };
 
 async function fetchEntry(id: string) {
-  const supabase = createClient(
+  // supabaseAdmin 사용: RLS 활성화 후에도 OG 메타데이터 생성 정상 동작
+  const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
-  const { data } = await supabase
+  const { data } = await supabaseAdmin
     .from("entries")
     .select("song, artist, album_art")
     .eq("id", id)

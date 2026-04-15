@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, Entry } from "@/lib/supabase";
+import { getSupabaseWithDeviceId, Entry } from "@/lib/supabase";
 import { Archive, Music } from "lucide-react";
 import { getDeviceId } from "@/lib/device";
 
@@ -14,6 +14,7 @@ const EMOTION_LABELS = [
   { key: "에너지", emoji: "⚡", color: "#a0d4f0" },
   { key: "특별함", emoji: "✨", color: "#a0f0b0" },
 ] as const;
+
 
 function formatTime(isoString: string) {
   const d = new Date(isoString);
@@ -37,6 +38,7 @@ export default function JournalPage() {
   const [deleteTarget, setDeleteTarget] = useState<Entry | null>(null);
   const [toast, setToast] = useState("");
   const [showListenSheet, setShowListenSheet] = useState(false);
+  const [listeningEntry, setListeningEntry] = useState<Entry | null>(null);
   const [musicLinks, setMusicLinks] = useState<{
     spotifyUrl: string | null;
     youtubeUrl: string | null;
@@ -44,6 +46,8 @@ export default function JournalPage() {
     youtubeFallback: string;
   } | null>(null);
   const [loadingLinks, setLoadingLinks] = useState(false);
+  const [swipedEntryId, setSwipedEntryId] = useState<string | null>(null);
+  const touchStartX = useRef(0);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -51,6 +55,7 @@ export default function JournalPage() {
   };
 
   const handleListenClick = (entry: Entry) => {
+    setListeningEntry(entry);
     setMusicLinks(null);
     setShowListenSheet(true);
     setLoadingLinks(true);
@@ -61,9 +66,19 @@ export default function JournalPage() {
       .finally(() => setLoadingLinks(false));
   };
 
+  const handleSwipeStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleSwipeEnd = (e: React.TouchEvent, entryId: string) => {
+    const diff = touchStartX.current - e.changedTouches[0].clientX;
+    if (diff > 60) setSwipedEntryId(entryId);
+    else if (diff < -20) setSwipedEntryId(null);
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    const { error } = await supabase.from("entries").delete().eq("id", deleteTarget.id);
+    const { error } = await getSupabaseWithDeviceId().from("entries").delete().eq("id", deleteTarget.id);
     if (!error) {
       setEntries(prev => prev.filter(e => e.id !== deleteTarget.id));
       showToast("기록이 삭제됐어요");
@@ -76,7 +91,7 @@ export default function JournalPage() {
     const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
     const to = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
     const deviceId = getDeviceId();
-    supabase
+    getSupabaseWithDeviceId()
       .from("entries")
       .select("*")
       .gte("date", from)
@@ -189,11 +204,11 @@ export default function JournalPage() {
               }}>
                 {day}
               </span>
-              {/* 기록 있으면 핑크 점 */}
-              <div style={{ height: 5, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {hasEntry && (
+              {/* 기록 표시: 핑크 점 */}
+              <div style={{ height: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {hasEntry ? (
                   <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#C4687A" }} />
-                )}
+                ) : null}
               </div>
             </button>
           );
@@ -224,63 +239,100 @@ export default function JournalPage() {
               </p>
             ) : (
               <div className="flex flex-col gap-2">
-                {selectedEntries.map((entry) => (
-                  <button
-                    key={entry.id}
-                    onClick={() => setSelectedEntry(entry)}
-                    className="w-full flex items-center gap-3"
-                    style={{
-                      background: "rgba(255,255,255,0.06)",
-                      border: "1px solid rgba(255,255,255,0.10)",
-                      borderRadius: 14,
-                      padding: "12px 14px",
-                      cursor: "pointer",
-                      textAlign: "left",
-                    }}
-                  >
-                    {/* 썸네일 */}
-                    <div style={{
-                      width: 44, height: 44, borderRadius: 8, flexShrink: 0,
-                      overflow: "hidden",
-                      background: "rgba(255,255,255,0.08)",
-                      border: "1px solid rgba(255,255,255,0.10)",
-                    }}>
-                      {entry.photos?.[0] && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={entry.photos[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                {selectedEntries.map((entry) => {
+                  const isSwiped = swipedEntryId === entry.id;
+                  return (
+                    <div
+                      key={entry.id}
+                      style={{ position: "relative", borderRadius: 14, overflow: "hidden" }}
+                    >
+                      {/* 삭제 버튼 — 스와이프 시에만 렌더 */}
+                      {isSwiped && (
+                        <button
+                          onClick={() => { setSwipedEntryId(null); setDeleteTarget(entry); }}
+                          style={{
+                            position: "absolute", right: 0, top: 0, bottom: 0, width: 80,
+                            background: "rgba(220,60,60,0.90)",
+                            border: "none", cursor: "pointer",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            fontSize: 13, color: "#fff", fontWeight: 600,
+                            borderRadius: "0 14px 14px 0",
+                          }}
+                        >
+                          삭제
+                        </button>
                       )}
-                    </div>
 
-                    {/* 곡명 + 아티스트 */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold" style={{ fontSize: 14, color: "#fff", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {entry.song}
-                      </p>
-                      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.40)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {entry.artist}
-                      </p>
-                    </div>
-
-                    {/* 시간 + 삭제 */}
-                    <div className="flex flex-col items-end gap-2" style={{ flexShrink: 0 }}>
-                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
-                        {formatTime(entry.created_at)}
-                      </span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(entry); }}
+                      {/* 메인 카드 */}
+                      <div
+                        className="flex items-center gap-3"
                         style={{
-                          background: "none", border: "none", cursor: "pointer",
-                          fontSize: 14, color: "rgba(255,255,255,0.30)",
-                          padding: "2px 4px", lineHeight: 1,
+                          background: "rgba(255,255,255,0.06)",
+                          border: "1px solid rgba(255,255,255,0.10)",
+                          borderRadius: 14,
+                          padding: "12px 14px",
+                          transform: isSwiped ? "translateX(-80px)" : "translateX(0)",
+                          transition: "transform 0.2s ease",
+                          cursor: "pointer",
+                          position: "relative",
+                          zIndex: 1,
+                          userSelect: "none",
+                          WebkitUserSelect: "none",
                         }}
-                        onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,100,100,0.7)")}
-                        onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.30)")}
+                        onTouchStart={handleSwipeStart}
+                        onTouchEnd={(e) => handleSwipeEnd(e, entry.id)}
+                        onClick={() => { if (!isSwiped) setSelectedEntry(entry); else setSwipedEntryId(null); }}
                       >
-                        🗑️
-                      </button>
+                        {/* 썸네일 */}
+                        <div style={{
+                          width: 44, height: 44, borderRadius: 8, flexShrink: 0,
+                          overflow: "hidden",
+                          background: "rgba(255,255,255,0.08)",
+                          border: "1px solid rgba(255,255,255,0.10)",
+                        }}>
+                          {entry.photos?.[0] && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={entry.photos[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          )}
+                        </div>
+
+                        {/* 캐릭터 타입 + 곡명 + 아티스트 */}
+                        <div className="flex-1 min-w-0" style={{ textAlign: "left" }}>
+                          {entry.vibe_type && (
+                            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.50)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {entry.vibe_type}
+                            </p>
+                          )}
+                          <p className="font-semibold" style={{ fontSize: 14, color: "#fff", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {entry.song}
+                          </p>
+                          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.40)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {entry.artist}
+                          </p>
+                        </div>
+
+                        {/* 시간 + 재생 */}
+                        <div className="flex flex-col items-end gap-2" style={{ flexShrink: 0 }}>
+                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
+                            {formatTime(entry.created_at)}
+                          </span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleListenClick(entry); }}
+                            style={{
+                              background: "none", border: "none", cursor: "pointer",
+                              fontSize: 13, color: "rgba(255,255,255,0.40)",
+                              padding: "2px 4px", lineHeight: 1,
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.color = "#fff")}
+                            onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.40)")}
+                          >
+                            ▶
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </button>
-                ))}
+                  );
+                })}
               </div>
             )}
           </>
@@ -440,18 +492,18 @@ export default function JournalPage() {
       )}
 
       {/* 듣기 바텀시트 */}
-      {showListenSheet && selectedEntry && (() => {
+      {showListenSheet && listeningEntry && (() => {
         const platforms = [
           {
             name: "YouTube Music에서 듣기",
-            url: musicLinks?.youtubeUrl ?? musicLinks?.youtubeFallback ?? `https://music.youtube.com/search?q=${encodeURIComponent(`${selectedEntry.song} ${selectedEntry.artist}`)}`,
+            url: musicLinks?.youtubeUrl ?? musicLinks?.youtubeFallback ?? `https://music.youtube.com/search?q=${encodeURIComponent(`${listeningEntry.song} ${listeningEntry.artist}`)}`,
             isDirect: !!musicLinks?.youtubeUrl,
             iconBg: "#FF0000",
             icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><polygon points="9,6 20,12 9,18" /></svg>,
           },
           {
             name: "Spotify에서 듣기",
-            url: musicLinks?.spotifyUrl ?? musicLinks?.spotifyFallback ?? `https://open.spotify.com/search/${encodeURIComponent(`${selectedEntry.song} ${selectedEntry.artist}`)}`,
+            url: musicLinks?.spotifyUrl ?? musicLinks?.spotifyFallback ?? `https://open.spotify.com/search/${encodeURIComponent(`${listeningEntry.song} ${listeningEntry.artist}`)}`,
             isDirect: !!musicLinks?.spotifyUrl,
             iconBg: "#1DB954",
             icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424a.622.622 0 01-.857.207c-2.348-1.435-5.304-1.76-8.785-.964a.623.623 0 01-.277-1.215c3.809-.87 7.077-.496 9.713 1.115a.623.623 0 01.206.857zm1.223-2.722a.78.78 0 01-1.072.257c-2.687-1.652-6.786-2.131-9.965-1.166a.78.78 0 01-.973-.519.781.781 0 01.519-.973c3.632-1.102 8.147-.568 11.234 1.329a.78.78 0 01.257 1.072zm.105-2.835C14.692 8.95 9.375 8.775 6.297 9.71a.937.937 0 11-.543-1.794c3.532-1.072 9.404-.865 13.115 1.338a.937.937 0 01-.955 1.613z"/></svg>,
@@ -474,7 +526,7 @@ export default function JournalPage() {
             }}>
               <div style={{ width: 36, height: 4, background: "rgba(255,255,255,0.25)", borderRadius: 2, margin: "0 auto 20px" }} />
 
-              <p className="font-medium text-center" style={{ fontSize: 16, color: "#fff", marginBottom: 10 }}>어디서 들을까?</p>
+              <p className="font-medium text-center" style={{ fontSize: 16, color: "#fff", marginBottom: 10 }}>어디서 들을까요?</p>
 
               <div className="flex justify-center mb-5">
                 <span style={{
@@ -483,7 +535,7 @@ export default function JournalPage() {
                   color: "#C4687A", fontSize: 12,
                   padding: "4px 14px", borderRadius: 20,
                 }}>
-                  {selectedEntry.song}{selectedEntry.artist ? ` — ${selectedEntry.artist}` : ""}
+                  {listeningEntry.song}{listeningEntry.artist ? ` — ${listeningEntry.artist}` : ""}
                 </span>
               </div>
 

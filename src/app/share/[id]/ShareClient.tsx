@@ -2,9 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-import { pixelLead } from "@/lib/fpixel";
 import { isAnalyticsEnabled } from "@/lib/analytics";
+import { pixelLead } from "@/lib/fpixel";
 
 interface ShareEntry {
   id: string;
@@ -57,21 +56,16 @@ export default function ShareClient({ id }: { id: string }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // entries 데이터 로드
+  // entries 데이터 로드 — supabaseAdmin 경유 서버 API 사용 (RLS 우회)
   useEffect(() => {
     if (!id) return;
-    supabase
-      .from("entries")
-      .select("*")
-      .eq("id", id)
-      .single()
-      .then(({ data, error }) => {
-        if (error || !data) {
-          setNotFound(true);
-        } else {
-          setEntry(data as ShareEntry);
-        }
-      });
+    fetch(`/api/entries/${id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data) setNotFound(true);
+        else setEntry(data as ShareEntry);
+      })
+      .catch(() => setNotFound(true));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 

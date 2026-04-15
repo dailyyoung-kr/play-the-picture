@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseWithDeviceId } from "@/lib/supabase";
 import { Archive, Music } from "lucide-react";
 import { getDeviceId } from "@/lib/device";
 import { trackEvent } from "@/lib/gtag";
@@ -117,7 +117,7 @@ export default function ResultPage() {
     const prefsRaw = localStorage.getItem("ptp_prefs");
     const prefs: { genre?: string; mood?: string } = prefsRaw ? JSON.parse(prefsRaw) : {};
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseWithDeviceId()
       .from("entries")
       .insert({
         date: today,
