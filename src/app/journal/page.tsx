@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { getSupabaseWithDeviceId, Entry } from "@/lib/supabase";
 import { Archive, Music } from "lucide-react";
 import { getDeviceId } from "@/lib/device";
+import { calcBgGradient } from "@/lib/vibeBackground";
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const WEEK_DAYS = ["월", "화", "수", "목", "금", "토", "일"];
@@ -565,7 +566,7 @@ export default function JournalPage() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ margin: "40px 16px 40px", background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)", borderRadius: 20, padding: "20px 16px", border: "1px solid rgba(255,255,255,0.1)" }}
+            style={{ margin: "40px 16px 40px", background: calcBgGradient(selectedEntry.vibe_spectrum), borderRadius: 20, padding: "20px 16px", border: "1px solid rgba(255,255,255,0.1)" }}
           >
             <div className="flex justify-between items-center mb-4">
               <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>

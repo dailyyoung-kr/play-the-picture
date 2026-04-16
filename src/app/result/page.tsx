@@ -8,6 +8,7 @@ import { getDeviceId } from "@/lib/device";
 import { trackEvent } from "@/lib/gtag";
 import { pixelViewContent, pixelLead } from "@/lib/fpixel";
 import { isAnalyticsEnabled } from "@/lib/analytics";
+import { calcBackground, calcBgGradient } from "@/lib/vibeBackground";
 
 interface AnalysisResult {
   song: string; // "곡명 - 아티스트명" 형식
@@ -24,7 +25,6 @@ interface AnalysisResult {
   emotion_comment?: string;
   vibe_type?: string;
   vibe_description?: string;
-  background?: { from: string; to: string };
   spotifyTrackId?: string | null;
   albumArt?: string | null;
   isGenreDiscovery?: boolean;
@@ -220,8 +220,7 @@ export default function ResultPage() {
     setSaving(true);
     try {
       const html2canvas = (await import("html2canvas")).default;
-      const bgFrom = result?.background?.from ?? "#0d1a10";
-      const bgTo = result?.background?.to ?? "#1a1408";
+      const { from: bgFrom, to: bgTo } = calcBackground(result?.vibeSpectrum);
       const canvas = await html2canvas(cardRef.current, {
         backgroundColor: "#0d1218",
         useCORS: true,
@@ -322,9 +321,7 @@ export default function ResultPage() {
     );
   }
 
-  const bgGradient = result.background
-    ? `linear-gradient(158deg, ${result.background.from} 0%, ${result.background.to} 100%)`
-    : "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)";
+  const bgGradient = calcBgGradient(result.vibeSpectrum);
 
   return (
     <div style={{ position: "relative", minHeight: "100vh", overflow: "hidden" }}>
@@ -439,7 +436,7 @@ export default function ResultPage() {
               }}>
                 <p style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", marginBottom: 5 }}>오늘의 당신은</p>
                 <p className="font-medium" style={{ fontSize: 16, color: "#fff", marginBottom: 5, lineHeight: 1.35 }}>
-                  {result.vibeType ?? result.vibe_type ?? result.hiddenEmotion ?? result.hidden_emotion}
+                  {result.vibeType ?? result.vibe_type}
                 </p>
                 {(result.vibeDescription ?? result.vibe_description) && (
                   <p style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>

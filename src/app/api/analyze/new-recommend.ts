@@ -62,6 +62,8 @@ function limitPerArtist(arr: SongRow[], maxPerArtist: number): SongRow[] {
   });
 }
 
+const SYSTEM_PROMPT = `너는 '플더픽'이라는 사진 기반 음악 추천 서비스의 AI야. 유저가 올린 사진의 분위기를 읽고, 후보곡 중 가장 어울리는 1곡을 골라. 톤은 친구가 "이 노래 들어봐" 하면서 재밌게 추천해주는 느낌. 존댓말(~요체). JSON만 응답.`;
+
 function buildNewPrompt(
   genre: string,
   energy: number,
@@ -74,48 +76,26 @@ function buildNewPrompt(
     .map((s, i) => `${i + 1}. ${s.song} - ${s.artist}`)
     .join("\n");
 
-  return `아래 후보곡 중 이 사진에 가장 어울리는 1곡을 골라서 JSON으로만 응답해.
+  return `후보곡 중 사진에 가장 어울리는 1곡. JSON만.
 
-[사용자 정보]
-- 선택 장르: ${isDiscover ? "장르 발견하기 (AI가 자유롭게 선택)" : genre}
-- 원하는 분위기: ${energyLabel} (1=잔잔함 ~ 5=파워풀 중 ${energy})
+장르: ${isDiscover ? "AI 자유 선택" : genre}
+분위기: ${energyLabel} (${energy}/5)
 
 [후보곡]
 ${songList}
 
-[사진 분석]
-사진의 색감, 장소, 피사체, 분위기, 감정을 분석해서 가장 어울리는 곡을 선택해.
+여러 장이면 하나의 하루로 읽을 것.
 
-[응답 JSON - 다른 텍스트 없이 JSON만]
+금지: '딱 맞아 떨어지다', '그냥 A가 아니라 B', '그 자체로', 의문형 연속, 자음 단독, 태그 띄어쓰기
+
 {
-  "selectedIndex": 후보곡 번호 (1부터 시작하는 숫자),
-  "reason": "3문장. 첫 문장은 사진의 구체적인 요소(장소, 사물, 색감 등)를 콕 집어서 관찰한 것처럼 묘사. 두 번째 문장은 그 요소와 추천곡의 구체적인 특성(멜로디, 리듬, 분위기)을 연결해서 '왜 이 곡인지' 설명. 세 번째 문장은 위트있고 재치있는 한마디로 마무리. 매번 다른 형식으로 (예시 — 공감: "이런 날 이 노래 안 들으면 그건 좀 손해예요" / 과장: "이 조합이면 오늘 하루 OST 확정이에요" / 반전: "근데 사실 이 노래가 먼저 이 장소를 찾아온 건지도 몰라요" / 확신: "이건 우연이 아니라 취향이에요"). 사물 의인화('~도 사실 이 노래를 알고 있었다' 류) 사용 금지. '~아닐까요?', '~것 같지 않나요?' 의문형 반복 금지. 전체적으로 감성적이기보다 친구가 '이 노래 들어봐' 하면서 재밌게 추천해주는 톤. 존댓말(~요체)",
-  "tags": [
-    "장르/서브장르 (2~5자, 구체적으로. 좋은 예: 드림팝, 시티팝, 네오소울 / 나쁜 예: 팝, 음악, # 없이)",
-    "무드/감정 (2~5자, 구체적으로. 좋은 예: 나른한, 몽글몽글, 설레는 / 나쁜 예: 좋은, 감성, # 없이)",
-    "상황/시간대 (2~5자, 구체적으로. 좋은 예: 한강산책, 새벽드라이브, 비오는날 / 나쁜 예: 외출, 일상, # 없이)"
-  ],
-  "vibeSpectrum": {
-    "energy": 0~100,
-    "warmth": 0~100,
-    "social": 0~100,
-    "special": 0~100
-  },
-  "vibeType": "이모지 + 한글 6자 이내. 사진 소재를 반영한 오늘의 캐릭터. 같은 단어 반복 금지. 다양한 형식으로 (예: ☕ 카페 탐험가 / 🌧️ 감성 충전러 / 🌸 봄 산책 마스터 / 🎧 골목 DJ / 🌅 노을 전문 감상가 / 🍜 야식 헌터). 특정 단어(수집가, 탐험가 등)가 반복되지 않도록 매번 다른 어미 사용",
-  "vibeDescription": "오늘 상황 요약 25자 이내. 공감 가고 위트있는 한 줄. 'ㅋ'이나 자음 단독 사용 금지. (예: 오늘 하루 봄에 잠식당함 / 벚꽃은 핑계고 사실 설레는 중 / 바다가 부른 건지 내가 간 건지)",
-  "hiddenEmotion": "숨은 감정 한 줄 (이모지 포함)",
-  "emotionComment": "vibeSpectrum 중 가장 극단적인 축을 20자 이내로 가볍게 한마디. 'ㅋ'이나 자음 금지. 존댓말(~요체). (예: 오늘 따뜻함 수치 거의 만땅이에요 / 혼자만의 시간 제대로네요 / 에너지 오늘 완전 풀충전이에요)",
-  "background": {
-    "from": "hex (밝기 10~15% 이하 어두운 톤, 곡 분위기 반영)",
-    "to": "hex (밝기 10~15% 이하 어두운 톤, 곡 분위기 반영)"
-  }${isDiscover ? `,\n  "discoveredGenre": "AI가 선택한 장르명 한국어로 (예: 시티팝, 드림팝)"` : ""}
-}
-
-배경색 참고:
-- 감성적 → #0d1a10 ~ #1a0d18
-- 설레는 → #0d1218 ~ #1a1408
-- 위로 → #1a0d0d ~ #0d0d1a
-- 신나는 → #1a1208 ~ #081a12`;
+  "selectedIndex": 번호,
+  "reason": "3문장: ①사진 요소 묘사 ②곡 특성과 연결 ③위트 마무리. 존댓말",
+  "tags": ["장르2~5자", "무드2~5자", "상황2~5자"],
+  "vibeSpectrum": {"energy":0~100,"warmth":0~100,"social":0~100,"special":0~100},
+  "vibeType": "이모지+6자이내 캐릭터. 매번 다른 어미",
+  "vibeDescription": "25자이내 위트한줄"${isDiscover ? ',\n  "discoveredGenre": "장르명 한국어"' : ""}
+}`;
 }
 
 export async function newRecommend(
@@ -251,7 +231,8 @@ export async function newRecommend(
   const client = new Anthropic({ apiKey });
   const response = await client.messages.create({
     model,
-    max_tokens: 800,
+    max_tokens: 700,
+    system: SYSTEM_PROMPT,
     messages: [{
       role: "user",
       content: [
@@ -303,9 +284,6 @@ export async function newRecommend(
     vibeSpectrum: result.vibeSpectrum,
     vibeType: result.vibeType,
     vibeDescription: result.vibeDescription,
-    hiddenEmotion: result.hiddenEmotion,
-    emotionComment: result.emotionComment,
-    background: result.background,
     isGenreDiscovery: isDiscover,
     ...(isDiscover && result.discoveredGenre ? { discoveredGenre: result.discoveredGenre } : {}),
   });
