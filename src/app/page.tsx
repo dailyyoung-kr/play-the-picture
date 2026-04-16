@@ -98,11 +98,12 @@ export default function UploadPage() {
     >
       {/* 숨겨진 파일 입력 */}
       <input
+        id="photo-input"
         ref={fileInputRef}
         type="file"
         accept="image/*"
         multiple
-        style={{ display: "none" }}
+        style={{ position: "absolute", width: 1, height: 1, opacity: 0, overflow: "hidden", pointerEvents: "none" }}
         onChange={handleFileSelect}
       />
 
@@ -201,8 +202,8 @@ export default function UploadPage() {
 
           {/* + 슬롯 (5장 미만일 때만) */}
           {photos.length < maxPhotos && (
-            <button
-              onClick={() => fileInputRef.current?.click()}
+            <label
+              htmlFor="photo-input"
               style={{
                 width: 100, height: 124, borderRadius: 10, flexShrink: 0,
                 border: "1px solid rgba(255,255,255,0.15)",
@@ -213,7 +214,7 @@ export default function UploadPage() {
               }}
             >
               +
-            </button>
+            </label>
           )}
         </div>
           {/* 오른쪽 페이드 그라데이션 — 3장 이상일 때만 */}
@@ -236,22 +237,23 @@ export default function UploadPage() {
         </p>
 
         {/* 사진 추가 버튼 */}
-        <button
+        <label
+          htmlFor={photos.length >= maxPhotos ? undefined : "photo-input"}
           className="w-full mb-2"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={photos.length >= maxPhotos}
           style={{
+            display: "block",
             background: "transparent",
             border: "1px solid rgba(255,255,255,0.25)",
             borderRadius: 24,
             padding: "10px 0",
             color: photos.length >= maxPhotos ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.65)",
             fontSize: 14,
+            textAlign: "center",
             cursor: photos.length >= maxPhotos ? "default" : "pointer",
           }}
         >
           사진 추가하기
-        </button>
+        </label>
 
         {/* 다음 버튼 */}
         <button
