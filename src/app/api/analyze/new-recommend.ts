@@ -153,12 +153,26 @@ export async function newRecommend(
   const isDiscover = genre === "discover";
   console.log(`[new] genre 변환: "${rawGenre}" → "${genre}"`);
 
+  const perfStart = Date.now();
+  const perf = (label: string, since: number) =>
+    console.log(`[PERF] ${label}: ${Date.now() - since}ms`);
+
+  const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+    "claude-sonnet-4-6": { input: 3, output: 15 },
+    "claude-opus-4-6":   { input: 5, output: 25 },
+  };
+
+  console.log(`[PERF] 분석 시작 — 사진 ${photos.length}장`);
+
   // ── STEP 1: Supabase에서 후보곡 필터링 ──
 
   const energyMin = Math.max(1, energy - 1);
   const energyMax = Math.min(5, energy + 1);
 
   let candidates: SongRow[] = [];
+
+  console.log("[PERF] 후보곡 필터링 시작");
+  const t1 = Date.now();
 
   if (isDiscover) {
     // discover: energy ±1 범위로 바로 조회
@@ -198,6 +212,8 @@ export async function newRecommend(
     }
   }
 
+  perf("후보곡 필터링 완료", t1);
+
   if (candidates.length === 0) {
     return NextResponse.json({ error: "해당 조건의 곡이 없어요. 다른 장르나 분위기를 선택해주세요." }, { status: 404 });
   }
@@ -228,9 +244,13 @@ export async function newRecommend(
     },
   }));
 
+  const model = process.env.CLAUDE_MODEL ?? "claude-sonnet-4-6";
+  console.log(`[PERF] Claude API 호출 시작 — 사진 ${photos.length}장, 모델: ${model}`);
+  const t2 = Date.now();
+
   const client = new Anthropic({ apiKey });
   const response = await client.messages.create({
-    model: "claude-sonnet-4-6",
+    model,
     max_tokens: 800,
     messages: [{
       role: "user",
@@ -240,6 +260,12 @@ export async function newRecommend(
       ],
     }],
   });
+
+  perf("Claude API 호출 완료", t2);
+  const { input_tokens, output_tokens } = response.usage;
+  const pricing = MODEL_PRICING[model] ?? MODEL_PRICING["claude-sonnet-4-6"];
+  const cost = ((input_tokens * pricing.input + output_tokens * pricing.output) / 1_000_000).toFixed(4);
+  console.log(`[PERF] 토큰 사용량 — input: ${input_tokens}, output: ${output_tokens} (비용: $${cost})`);
 
   const text = response.content[0].type === "text" ? response.content[0].text : "";
   const cleaned = text.replace(/```json\n?|\n?```/g, "").trim();
@@ -254,6 +280,9 @@ export async function newRecommend(
 
   // ── STEP 3: 결과 조합 ──
 
+  console.log("[PERF] 결과 조합 시작");
+  const t3 = Date.now();
+
   const selectedIndex = (result.selectedIndex as number) ?? 1;
   const selectedSong = finalCandidates[selectedIndex - 1] ?? finalCandidates[0];
 
@@ -262,6 +291,8 @@ export async function newRecommend(
   }
 
   console.log(`[new] 선택된 곡: ${selectedSong.song} - ${selectedSong.artist} | index=${selectedIndex}`);
+  perf("결과 조합 완료", t3);
+  console.log(`[PERF] 전체 소요: ${Date.now() - perfStart}ms (사진 ${photos.length}장)`);
 
   return NextResponse.json({
     song: `${selectedSong.song} - ${selectedSong.artist}`,
