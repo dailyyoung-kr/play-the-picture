@@ -61,10 +61,12 @@ export default function JournalPage() {
     youtubeFallback: string;
   } | null>(null);
   const [loadingLinks, setLoadingLinks] = useState(false);
-  const [swipedEntryId, setSwipedEntryId] = useState<string | null>(null);
+  const [longPressEntryId, setLongPressEntryId] = useState<string | null>(null);
+  const [carouselIndices, setCarouselIndices] = useState<Record<string, number>>({});
   const [calendarView, setCalendarView] = useState<"week" | "month">("week");
   const [weekStartDate, setWeekStartDate] = useState(() => getMondayOf(new Date()));
-  const touchStartX = useRef(0);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const carouselRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const calendarTouchStartX = useRef(0);
 
   const showToast = (msg: string) => {
@@ -84,14 +86,19 @@ export default function JournalPage() {
       .finally(() => setLoadingLinks(false));
   };
 
-  const handleSwipeStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
+  const handleLongPressStart = (entryId: string) => {
+    longPressTimer.current = setTimeout(() => setLongPressEntryId(entryId), 600);
   };
 
-  const handleSwipeEnd = (e: React.TouchEvent, entryId: string) => {
-    const diff = touchStartX.current - e.changedTouches[0].clientX;
-    if (diff > 60) setSwipedEntryId(entryId);
-    else if (diff < -20) setSwipedEntryId(null);
+  const handleLongPressEnd = () => {
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+  };
+
+  const handleCarouselScroll = (entryId: string) => {
+    const el = carouselRefs.current[entryId];
+    if (!el) return;
+    const index = Math.round(el.scrollLeft / el.offsetWidth);
+    setCarouselIndices(prev => ({ ...prev, [entryId]: index }));
   };
 
   const prevWeek = () => setWeekStartDate(prev => { const d = new Date(prev); d.setDate(d.getDate() - 7); return d; });
@@ -401,84 +408,139 @@ export default function JournalPage() {
               </p>
             )}
             {selectedEntries.length > 0 && (
-              <div className="flex flex-col gap-2">
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: selectedEntries.length === 1 ? "1fr" : "1fr 1fr",
+                gap: 12,
+              }}>
                 {selectedEntries.map((entry) => {
-                  const isSwiped = swipedEntryId === entry.id;
+                  const isLongPressed = longPressEntryId === entry.id;
+                  const isGrid = selectedEntries.length > 1;
+                  const photos = entry.photos ?? [];
+                  const hasCarousel = photos.length >= 2;
+                  const currentIdx = carouselIndices[entry.id] ?? 0;
                   return (
                     <div
                       key={entry.id}
-                      style={{ position: "relative", borderRadius: 14, overflow: "hidden" }}
+                      style={{
+                        background: "rgba(255,255,255,0.06)",
+                        border: "1px solid rgba(255,255,255,0.10)",
+                        borderRadius: 14,
+                        overflow: "hidden",
+                        userSelect: "none",
+                        WebkitUserSelect: "none",
+                        position: "relative",
+                      }}
+                      onTouchStart={() => handleLongPressStart(entry.id)}
+                      onTouchEnd={handleLongPressEnd}
+                      onTouchMove={handleLongPressEnd}
                     >
-                      {/* 삭제 버튼 — 스와이프 시에만 렌더 */}
-                      {isSwiped && (
-                        <button
-                          onClick={() => { setSwipedEntryId(null); setDeleteTarget(entry); }}
-                          style={{
-                            position: "absolute", right: 0, top: 0, bottom: 0, width: 80,
-                            background: "rgba(220,60,60,0.90)",
-                            border: "none", cursor: "pointer",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            fontSize: 13, color: "#fff", fontWeight: 600,
-                            borderRadius: "0 14px 14px 0",
-                          }}
-                        >
-                          삭제
-                        </button>
-                      )}
-
-                      {/* 메인 카드 */}
+                      {/* 사진 영역 — 캐러셀 or 단일 */}
                       <div
-                        className="flex items-center gap-3"
-                        style={{
-                          background: "rgba(255,255,255,0.06)",
-                          border: "1px solid rgba(255,255,255,0.10)",
-                          borderRadius: 14,
-                          padding: "12px 14px",
-                          transform: isSwiped ? "translateX(-80px)" : "translateX(0)",
-                          transition: "transform 0.2s ease",
-                          cursor: "pointer",
-                          position: "relative",
-                          zIndex: 1,
-                          userSelect: "none",
-                          WebkitUserSelect: "none",
-                        }}
-                        onTouchStart={handleSwipeStart}
-                        onTouchEnd={(e) => handleSwipeEnd(e, entry.id)}
-                        onClick={() => { if (!isSwiped) setSelectedEntry(entry); else setSwipedEntryId(null); }}
+                        style={{ position: "relative" }}
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        {/* 썸네일 */}
-                        <div style={{
-                          width: 44, height: 44, borderRadius: 8, flexShrink: 0,
-                          overflow: "hidden",
-                          background: "rgba(255,255,255,0.08)",
-                          border: "1px solid rgba(255,255,255,0.10)",
-                        }}>
-                          {entry.photos?.[0] && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={entry.photos[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                          )}
-                        </div>
+                        {hasCarousel ? (
+                          /* ── 캐러셀 ── */
+                          <div
+                            ref={(el) => { carouselRefs.current[entry.id] = el; }}
+                            onScroll={() => handleCarouselScroll(entry.id)}
+                            className="no-scrollbar"
+                            style={{
+                              display: "flex",
+                              overflowX: "auto",
+                              scrollSnapType: "x mandatory",
+                              scrollBehavior: "smooth",
+                              WebkitOverflowScrolling: "touch",
+                            } as React.CSSProperties}
+                          >
+                            {photos.map((src, i) => (
+                              <div
+                                key={i}
+                                style={{
+                                  width: "100%",
+                                  flexShrink: 0,
+                                  scrollSnapAlign: "start",
+                                  aspectRatio: "1/1",
+                                  overflow: "hidden",
+                                  background: "rgba(255,255,255,0.05)",
+                                }}
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={src}
+                                  alt=""
+                                  loading="lazy"
+                                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          /* ── 단일 사진 ── */
+                          <div style={{ aspectRatio: "1/1", overflow: "hidden", background: "rgba(255,255,255,0.05)" }}>
+                            {photos[0] ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={photos[0]} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                            ) : (
+                              <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <span style={{ fontSize: 28, opacity: 0.25 }}>♪</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
 
-                        {/* 캐릭터 타입 + 곡명 + 아티스트 */}
-                        <div className="flex-1 min-w-0" style={{ textAlign: "left" }}>
-                          {entry.vibe_type && (
-                            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.50)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {entry.vibe_type}
-                            </p>
-                          )}
-                          <p className="font-semibold" style={{ fontSize: 14, color: "#fff", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {entry.song}
-                          </p>
-                          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.40)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {entry.artist}
-                          </p>
-                        </div>
+                        {/* 캐러셀 인디케이터 */}
+                        {hasCarousel && (
+                          <div style={{
+                            position: "absolute", top: 8, right: 8,
+                            background: "rgba(0,0,0,0.45)",
+                            borderRadius: 10, padding: "2px 7px",
+                            fontSize: 10, color: "#fff", fontWeight: 500,
+                            pointerEvents: "none",
+                          }}>
+                            {currentIdx + 1}/{photos.length}
+                          </div>
+                        )}
 
-                        {/* 시간 + 재생 */}
-                        <div className="flex flex-col items-end gap-2" style={{ flexShrink: 0 }}>
-                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
+                        {/* 롱프레스 삭제 오버레이 */}
+                        {isLongPressed && (
+                          <div
+                            style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center" }}
+                            onClick={(e) => { e.stopPropagation(); setLongPressEntryId(null); setDeleteTarget(entry); }}
+                          >
+                            <div style={{ background: "rgba(220,60,60,0.9)", borderRadius: 20, padding: "8px 20px", fontSize: 13, color: "#fff", fontWeight: 600 }}>
+                              삭제
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 정보 영역 — 탭 시 상세 모달 */}
+                      <div
+                        style={{ padding: isGrid ? 10 : 14, cursor: "pointer" }}
+                        onClick={() => { if (isLongPressed) { setLongPressEntryId(null); return; } setSelectedEntry(entry); }}
+                      >
+                        {/* 캐릭터 + 시간 */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+                          <span style={{ fontSize: isGrid ? 10 : 12, color: "rgba(255,255,255,0.45)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, marginRight: 4 }}>
+                            {entry.vibe_type ?? ""}
+                          </span>
+                          <span style={{ fontSize: 10, color: "rgba(255,255,255,0.30)", flexShrink: 0 }}>
                             {formatTime(entry.created_at)}
                           </span>
+                        </div>
+
+                        {/* 곡명 + 재생 버튼 */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 4 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontWeight: 700, fontSize: isGrid ? 13 : 16, color: "#fff", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {entry.song}
+                            </p>
+                            <p style={{ fontSize: isGrid ? 11 : 13, color: "rgba(255,255,255,0.55)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {entry.artist}
+                            </p>
+                          </div>
                           <button
                             onClick={(e) => { e.stopPropagation(); handleListenClick(entry); }}
                             style={{
