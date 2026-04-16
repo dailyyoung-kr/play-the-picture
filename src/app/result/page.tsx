@@ -275,7 +275,20 @@ export default function ResultPage() {
   };
 
   const handleListenClick = () => {
-    trackEvent("listen_click", { song: result?.song });
+    if (isAnalyticsEnabled()) {
+      trackEvent("listen_click", { song: result?.song });
+      fetch("/api/log-listen", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-device-id": getDeviceId(),
+        },
+        body: JSON.stringify({
+          entry_id: savedEntryId ?? null,
+          song: result?.song ?? null,
+        }),
+      }).catch(() => {});
+    }
     setShowListenSheet(true);
     // spotifyTrackId가 이미 있으면 music-search 호출 불필요
     if (!musicLinks && result && !result.spotifyTrackId) {

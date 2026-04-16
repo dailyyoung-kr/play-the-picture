@@ -194,6 +194,7 @@ export default function AdminPage() {
   const [analyzeLogs, setAnalyzeLogs] = useState<AnalyzeLog[]>([]);
   const [entries, setEntries] = useState<EntryRow[]>([]);
   const [shareLogs, setShareLogs] = useState<LogRow[]>([]);
+  const [listenLogs, setListenLogs] = useState<LogRow[]>([]);
   const [shareViews, setShareViews] = useState<LogRow[]>([]);
   const [tryClicks, setTryClicks] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -224,12 +225,13 @@ export default function AdminPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [photoRes, prefRes, analyzeRes, entriesRes, shareRes, logRowsRes] = await Promise.all([
+    const [photoRes, prefRes, analyzeRes, entriesRes, shareRes, listenRes, logRowsRes] = await Promise.all([
       supabase.from("photo_upload_logs").select("id, created_at").order("created_at", { ascending: false }),
       supabase.from("preference_logs").select("id, created_at, genre, energy").order("created_at", { ascending: false }),
       supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, song, artist").order("created_at", { ascending: false }),
       supabase.from("entries").select("id, date, song, artist, genre, mood").order("id", { ascending: false }),
       supabase.from("share_logs").select("id, created_at").order("created_at", { ascending: false }),
+      supabase.from("listen_logs").select("id, created_at").order("created_at", { ascending: false }),
       // share_views / try_click — RLS 우회 위해 supabaseAdmin 경유 서버 API 사용
       fetch("/api/admin/log-rows").then(r => r.json()) as Promise<{ shareViews: LogRow[]; tryClicks: LogRow[] }>,
     ]);
@@ -241,6 +243,7 @@ export default function AdminPage() {
     else setEntries(entriesRes.data ?? []);
     if (!shareRes.error) setShareLogs(shareRes.data ?? []);
     else console.error("[admin] share_logs SELECT 실패:", shareRes.error.message);
+    if (!listenRes.error) setListenLogs(listenRes.data ?? []);
     setShareViews(logRowsRes.shareViews ?? []);
     setTryClicks(logRowsRes.tryClicks ?? []);
 
@@ -383,6 +386,7 @@ export default function AdminPage() {
   const filteredAnalyze = analyzeLogs.filter(l => filterTs(l.created_at));
   const filteredEntries = tab === "today" ? entries.filter(e => e.date === today) : entries;
   const filteredShares = shareLogs.filter(l => filterTs(l.created_at));
+  const filteredListens = listenLogs.filter(l => filterTs(l.created_at));
   const filteredViews = shareViews.filter(l => filterTs(l.created_at));
   const filteredTry = tryClicks.filter(l => filterTs(l.created_at));
 
@@ -393,6 +397,7 @@ export default function AdminPage() {
   const successCount = filteredAnalyze.filter(l => l.status === "success").length;
   const failCount = filteredAnalyze.filter(l => l.status === "fail").length;
   const saveCount = filteredEntries.length;
+  const listenCount = filteredListens.length;
   const shareCount = filteredShares.length;
   const viewCount = filteredViews.length;
   const tryCount = filteredTry.length;
@@ -481,7 +486,8 @@ export default function AdminPage() {
         <FunnelStep icon="📷" label="사진 업로드" count={photoCount} conv={pct(prefCount, photoCount)} />
         <FunnelStep icon="🎵" label="장르·에너지 선택" count={prefCount} conv={pct(analyzeStartCount, prefCount)} />
         <FunnelStep icon="✦" label="분석 시작" count={analyzeStartCount} conv={pct(successCount, analyzeStartCount)} />
-        <FunnelStep icon="✓" label="분석 성공" count={successCount} conv={pct(saveCount, successCount)} />
+        <FunnelStep icon="✓" label="분석 성공" count={successCount} conv={pct(listenCount, successCount)} />
+        <FunnelStep icon="▶" label="듣기 클릭" count={listenCount} conv={pct(saveCount, listenCount)} />
         <FunnelStep icon="💾" label="결과 저장" count={saveCount} conv={pct(shareCount, saveCount)} />
         <FunnelStep icon="↑" label="공유하기" count={shareCount} conv={pct(viewCount, shareCount)} />
         <FunnelStep icon="👁" label="공유 페이지 조회" count={viewCount} conv={pct(tryCount, viewCount)} />
