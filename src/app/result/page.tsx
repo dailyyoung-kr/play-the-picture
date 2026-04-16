@@ -53,7 +53,8 @@ export default function ResultPage() {
   const [feedbackGiven, setFeedbackGiven] = useState<"like" | "dislike" | null>(null);
   const [sharing, setSharing] = useState(false);
   const [savedEntryId, setSavedEntryId] = useState<string | null>(null);
-  const [toast, setToast] = useState("");
+  const [toast, setToast] = useState<React.ReactNode>("");
+  const [toastOnClick, setToastOnClick] = useState<(() => void) | null>(null);
   const [showListenSheet, setShowListenSheet] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [musicLinks, setMusicLinks] = useState<{
@@ -66,9 +67,10 @@ export default function ResultPage() {
   const [modalIndex, setModalIndex] = useState<number | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  const showToast = (msg: string) => {
+  const showToast = (msg: React.ReactNode, onClick?: () => void) => {
     setToast(msg);
-    setTimeout(() => setToast(""), 3000);
+    setToastOnClick(() => onClick ?? null);
+    setTimeout(() => { setToast(""); setToastOnClick(null); }, 3000);
   };
 
   const sendFeedback = async (trackId: string, action: "like" | "unlike" | "skip" | "unskip") => {
@@ -149,7 +151,10 @@ export default function ResultPage() {
     setSaving(true);
     try {
       await saveEntry();
-      showToast("오늘의 기록이 아카이브에 저장됐어요 ✦");
+      showToast(
+        <span>✦ 오늘의 기록이 저장됐어요 · <span style={{ color: "#C4687A" }}>모아보기 →</span></span>,
+        () => router.push("/journal")
+      );
     } catch (e) {
       console.error("저장 오류:", e);
       showToast("저장에 실패했어요. 다시 시도해주세요.");
@@ -537,41 +542,24 @@ export default function ResultPage() {
 
       <div className="px-5 pb-2">
 
-        {/* Primary: 친구에게 공유하기 */}
+        {/* Primary: 지금 바로 듣기 */}
         <button
           className="w-full font-medium"
-          onClick={handleShare}
-          disabled={sharing}
+          onClick={handleListenClick}
           style={{
-            background: sharing ? "rgba(196,104,122,0.5)" : "#C4687A",
+            background: "#C4687A",
             border: "none",
             borderRadius: 24, padding: 14,
-            color: sharing ? "rgba(255,255,255,0.5)" : "#fff",
-            fontSize: 14, cursor: sharing ? "default" : "pointer",
+            color: "#fff",
+            fontSize: 14, cursor: "pointer",
+            marginBottom: 8,
           }}
         >
-          {sharing ? "공유 중..." : "친구에게 공유하기"}
+          ▶ 지금 바로 듣기
         </button>
-        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", textAlign: "center", marginTop: 6, marginBottom: 10 }}>
-          공유 시 사진이 함께 전달돼요
-        </p>
 
-        {/* Secondary: 듣기 + 저장 나란히 */}
+        {/* Secondary: 저장 + 공유 나란히 */}
         <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-          <button
-            className="font-medium"
-            onClick={handleListenClick}
-            style={{
-              flex: 1,
-              background: "rgba(255,255,255,0.08)",
-              border: "1px solid rgba(255,255,255,0.2)",
-              borderRadius: 24, padding: 13,
-              color: "#fff",
-              fontSize: 13, cursor: "pointer",
-            }}
-          >
-            ▶ 지금 바로 듣기
-          </button>
           <button
             onClick={handleSaveToSupabase}
             disabled={saving}
@@ -584,7 +572,22 @@ export default function ResultPage() {
               fontSize: 13, cursor: saving ? "default" : "pointer",
             }}
           >
-            {saving ? "저장 중..." : "아카이브에 저장하기"}
+            {saving ? "저장 중..." : "아카이브에 저장"}
+          </button>
+          <button
+            className="font-medium"
+            onClick={handleShare}
+            disabled={sharing}
+            style={{
+              flex: 1,
+              background: "rgba(255,255,255,0.08)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              borderRadius: 24, padding: 13,
+              color: sharing ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.85)",
+              fontSize: 13, cursor: sharing ? "default" : "pointer",
+            }}
+          >
+            {sharing ? "공유 중..." : "친구에게 공유"}
           </button>
         </div>
 
@@ -839,20 +842,24 @@ export default function ResultPage() {
 
       {/* 토스트 메시지 */}
       {toast && (
-        <div style={{
-          position: "fixed",
-          bottom: 100,
-          left: "50%",
-          transform: "translateX(-50%)",
-          background: "rgba(30,30,30,0.95)",
-          border: "1px solid rgba(255,255,255,0.15)",
-          color: "#fff",
-          fontSize: 13,
-          padding: "10px 20px",
-          borderRadius: 24,
-          zIndex: 100,
-          whiteSpace: "nowrap",
-        }}>
+        <div
+          onClick={toastOnClick ?? undefined}
+          style={{
+            position: "fixed",
+            bottom: 100,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "rgba(30,30,30,0.95)",
+            border: "1px solid rgba(255,255,255,0.15)",
+            color: "#fff",
+            fontSize: 13,
+            padding: "10px 20px",
+            borderRadius: 24,
+            zIndex: 100,
+            whiteSpace: "nowrap",
+            cursor: toastOnClick ? "pointer" : "default",
+          }}
+        >
           {toast}
         </div>
       )}

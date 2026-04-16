@@ -395,11 +395,12 @@ export default function JournalPage() {
               )}
             </div>
 
-            {selectedEntries.length === 0 ? (
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.28)", textAlign: "center", marginTop: 24 }}>
+            {selectedEntries.length === 0 && (
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.28)", textAlign: "center", marginTop: 24, marginBottom: 8 }}>
                 이 날의 기록이 없어요
               </p>
-            ) : (
+            )}
+            {selectedEntries.length > 0 && (
               <div className="flex flex-col gap-2">
                 {selectedEntries.map((entry) => {
                   const isSwiped = swipedEntryId === entry.id;
@@ -496,6 +497,25 @@ export default function JournalPage() {
                 })}
               </div>
             )}
+
+            {/* CTA: 노래 추천받기 */}
+            <button
+              onClick={() => router.push("/")}
+              style={{
+                width: "100%",
+                marginTop: 10,
+                background: "rgba(255,255,255,0.03)",
+                border: "1px dashed rgba(255,255,255,0.15)",
+                borderRadius: 14,
+                padding: 16,
+                textAlign: "center",
+                cursor: "pointer",
+                color: "rgba(255,255,255,0.4)",
+                fontSize: 14,
+              }}
+            >
+              오늘의 다른 순간도 담아보기 →
+            </button>
           </>
         )}
       </div>
