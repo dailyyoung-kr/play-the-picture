@@ -104,12 +104,12 @@ function useCountdown(targetMs: number | null): string {
 }
 
 function ConvCard({
-  label, value, sub, accent = "#C4687A",
+  label, value, sub, accent = "#C4687A", tooltip,
 }: {
-  label: string; value: string; sub?: string; accent?: string;
+  label: string; value: string; sub?: string; accent?: string; tooltip?: string;
 }) {
   return (
-    <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px 18px" }}>
+    <div title={tooltip} style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px 18px", cursor: tooltip ? "help" : undefined }}>
       <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", display: "block", marginBottom: 6 }}>{label}</span>
       <span style={{ fontSize: 28, fontWeight: 700, color: accent, lineHeight: 1.1, display: "block" }}>{value}</span>
       {sub && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.32)", marginTop: 4, display: "block" }}>{sub}</span>}
@@ -498,6 +498,7 @@ export default function AdminPage() {
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>CONVERSION</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
         <ConvCard label="분석 성공률" value={pct(successCount, analyzeStartCount)} sub={`${successCount} / ${analyzeStartCount}`} accent="#6be0a0" />
+        <ConvCard label="듣기 클릭률" value={pct(listenCount, successCount)} sub={`${listenCount} / ${successCount}`} accent={listenCount === 0 ? "#f07070" : "#a0d4f0"} tooltip="AI 추천 만족도 지표" />
         <ConvCard label="저장 전환율" value={pct(saveCount, successCount)} sub={`${saveCount} / ${successCount}`} accent="#a0d4f0" />
         <ConvCard label="공유율" value={pct(shareCount, successCount)} sub={`${shareCount} / ${successCount}건`} accent="#C4687A" />
         <ConvCard label="유입 전환율" value={pct(tryCount, viewCount)} sub={`${tryCount} / ${viewCount}`} accent="#f0d080" />
