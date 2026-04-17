@@ -30,14 +30,6 @@ export default function ShareClient({ id }: { id: string }) {
 
   const [entry, setEntry] = useState<ShareEntry | null>(null);
   const [notFound, setNotFound] = useState(false);
-  const [showListenSheet, setShowListenSheet] = useState(false);
-  const [musicLinks, setMusicLinks] = useState<{
-    spotifyUrl: string | null;
-    youtubeUrl: string | null;
-    spotifyFallback: string;
-    youtubeFallback: string;
-  } | null>(null);
-  const [loadingLinks, setLoadingLinks] = useState(false);
   const [modalIndex, setModalIndex] = useState<number | null>(null);
   const viewLogged = useRef(false);
 
@@ -80,27 +72,6 @@ export default function ShareClient({ id }: { id: string }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [entry]);
-
-  const fetchMusicLinks = async (song: string, artist: string) => {
-    setLoadingLinks(true);
-    try {
-      const params = new URLSearchParams({ song, artist });
-      const res = await fetch(`/api/music-search?${params}`);
-      const data = await res.json();
-      setMusicLinks(data);
-    } catch {
-      setMusicLinks(null);
-    } finally {
-      setLoadingLinks(false);
-    }
-  };
-
-  const handleListenClick = () => {
-    setShowListenSheet(true);
-    if (!musicLinks && entry) {
-      fetchMusicLinks(entry.song, entry.artist);
-    }
-  };
 
   const handleTryClick = () => {
     pixelLead({ source: "share_page" });
@@ -156,33 +127,6 @@ export default function ShareClient({ id }: { id: string }) {
   const modalPhotos = entry.photos.filter(s => typeof s === "string" && s.startsWith("data:"));
   const showAlbumArtFallback = modalPhotos.length === 0 && !!entry.album_art;
   const showPhotoSection = modalPhotos.length > 0 || showAlbumArtFallback;
-  const songForShare = entry.song;
-  const artistForShare = entry.artist;
-
-  const platforms = [
-    {
-      name: "YouTube Music에서 듣기",
-      url: musicLinks?.youtubeUrl ?? musicLinks?.youtubeFallback ?? `https://music.youtube.com/search?q=${encodeURIComponent(`${songForShare} ${artistForShare}`)}`,
-      isDirect: !!musicLinks?.youtubeUrl,
-      iconBg: "#FF0000",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-          <polygon points="9,6 20,12 9,18" />
-        </svg>
-      ),
-    },
-    {
-      name: "Spotify에서 듣기",
-      url: musicLinks?.spotifyUrl ?? musicLinks?.spotifyFallback ?? `https://open.spotify.com/search/${encodeURIComponent(`${songForShare} ${artistForShare}`)}`,
-      isDirect: !!musicLinks?.spotifyUrl,
-      iconBg: "#1DB954",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-          <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424a.622.622 0 01-.857.207c-2.348-1.435-5.304-1.76-8.785-.964a.623.623 0 01-.277-1.215c3.809-.87 7.077-.496 9.713 1.115a.623.623 0 01.206.857zm1.223-2.722a.78.78 0 01-1.072.257c-2.687-1.652-6.786-2.131-9.965-1.166a.78.78 0 01-.973-.519.781.781 0 01.519-.973c3.632-1.102 8.147-.568 11.234 1.329a.78.78 0 01.257 1.072zm.105-2.835C14.692 8.95 9.375 8.775 6.297 9.71a.937.937 0 11-.543-1.794c3.532-1.072 9.404-.865 13.115 1.338a.937.937 0 01-.955 1.613z"/>
-        </svg>
-      ),
-    },
-  ];
 
   return (
     <div style={{ position: "relative", minHeight: "100vh", overflow: "hidden" }}>
@@ -210,7 +154,7 @@ export default function ShareClient({ id }: { id: string }) {
 
         <div className="flex-1 flex flex-col px-5 overflow-y-auto">
           <p className="text-center mb-3" style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: "0.08em" }}>
-            친구의 오늘
+            플더픽의 추천곡
           </p>
 
           {showPhotoSection && (() => {
@@ -267,7 +211,8 @@ export default function ShareClient({ id }: { id: string }) {
             </div>
           </div>
 
-          {entry.vibe_spectrum && (
+          {/* TEMP: 4축 제거 테스트 - 2026-04-17, 원복: 주석 해제 */}
+          {/*entry.vibe_spectrum && (
             <div className="mb-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "10px 14px" }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px" }}>
                 {VIBE_SPECTRUM_AXES.map(({ key, left, right }) => {
@@ -295,74 +240,18 @@ export default function ShareClient({ id }: { id: string }) {
                 })}
               </div>
             </div>
-          )}
+          )*/}
 
           <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "14px 16px", marginTop: 12, marginBottom: 20 }}>
             <p className="font-medium mb-2" style={{ fontSize: 10, color: "#f0d080", letterSpacing: "0.05em" }}>플더픽이 추천한 이유</p>
             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.8 }}>{entry.reason}</p>
           </div>
 
-          <button className="w-full font-medium mb-2" onClick={handleTryClick}
+          <button className="w-full font-medium mb-8" onClick={handleTryClick}
             style={{ background: "#C4687A", border: "none", borderRadius: 24, padding: 14, color: "#fff", fontSize: 14, cursor: "pointer" }}>
-            나도 해보기 ✦
-          </button>
-          <button className="w-full font-medium mb-8" onClick={handleListenClick}
-            style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 24, padding: 13, color: "rgba(255,255,255,0.75)", fontSize: 13, cursor: "pointer" }}>
-            ▶  지금 바로 듣기
+            나도 해보기
           </button>
         </div>
-
-        {showListenSheet && (
-          <>
-            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 60 }} onClick={() => setShowListenSheet(false)} />
-            <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "rgba(13,18,24,0.98)", borderRadius: "20px 20px 0 0", padding: "12px 20px 40px", zIndex: 61, border: "1px solid rgba(255,255,255,0.08)" }}>
-              <div style={{ width: 36, height: 4, background: "rgba(255,255,255,0.25)", borderRadius: 2, margin: "0 auto 20px" }} />
-              <p className="font-medium text-center" style={{ fontSize: 16, color: "#fff", marginBottom: 10 }}>어디서 들을까?</p>
-              <div className="flex justify-center mb-5">
-                <span style={{ background: "rgba(196,104,122,0.18)", border: "1px solid rgba(196,104,122,0.4)", color: "#C4687A", fontSize: 12, padding: "4px 14px", borderRadius: 20 }}>
-                  {songForShare}{artistForShare ? ` — ${artistForShare}` : ""}
-                </span>
-              </div>
-              {loadingLinks && <div style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 12, marginBottom: 12 }}>🎵 링크 찾는 중...</div>}
-              <div className="flex flex-col" style={{ gap: 8, marginBottom: 12 }}>
-                {platforms.map((p) => (
-                  <a key={p.name} href={p.url} target="_blank" rel="noopener noreferrer"
-                    style={{ display: "flex", alignItems: "center", gap: 14, height: 60, background: "rgba(255,255,255,0.06)", borderRadius: 12, padding: "0 16px", textDecoration: "none", opacity: loadingLinks ? 0.5 : 1 }}>
-                    <div style={{ width: 40, height: 40, borderRadius: "50%", background: p.iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      {p.icon}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <span style={{ fontSize: 14, color: "#fff", display: "block" }}>{p.name}</span>
-                      {!loadingLinks && <span style={{ fontSize: 10, color: p.isDirect ? "rgba(100,200,100,0.7)" : "rgba(255,255,255,0.3)" }}>{p.isDirect ? "▶ 바로 재생" : "검색 화면으로 이동"}</span>}
-                    </div>
-                    <span style={{ fontSize: 18, color: "rgba(255,255,255,0.35)" }}>›</span>
-                  </a>
-                ))}
-              </div>
-              <div style={{
-                display: "flex", alignItems: "center", gap: 8,
-                background: "rgba(255,255,255,0.05)",
-                borderRadius: 10, padding: "10px 14px", marginBottom: 14,
-              }}>
-                <span style={{ fontSize: 16, flexShrink: 0 }}>🎵</span>
-                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.6, margin: 0 }}>
-                  앱이 설치·로그인되어 있으면<br />추천 곡이 바로 재생돼요
-                </p>
-              </div>
-              <button onClick={() => setShowListenSheet(false)}
-                style={{
-                  width: "100%", cursor: "pointer",
-                  background: "rgba(255,255,255,0.07)",
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  borderRadius: 24, padding: "12px 0",
-                  fontSize: 14, color: "rgba(255,255,255,0.55)",
-                  textAlign: "center",
-                }}>
-                나중에 듣기
-              </button>
-            </div>
-          </>
-        )}
       </div>
 
       {/* 사진 확대 모달 */}
