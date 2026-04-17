@@ -187,7 +187,8 @@ export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [pw, setPw] = useState("");
   const [toast, setToast] = useState("");
-  const [tab, setTab] = useState<"today" | "all">("today");
+  const [tab, setTab] = useState<"today" | "yesterday" | "all" | "custom">("today");
+  const [customDate, setCustomDate] = useState<string>("");
 
   const [photoLogs, setPhotoLogs] = useState<PhotoLog[]>([]);
   const [prefLogs, setPrefLogs] = useState<PrefLog[]>([]);
@@ -379,12 +380,19 @@ export default function AdminPage() {
 
   // ── 데이터 필터링 ──
   const today = getTodayKST();
-  const filterTs = (ts: string) => tab === "today" ? timestampToKSTDate(ts) === today : true;
+  const yesterday = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" })
+      .format(d).replace(/\.\s*/g, "-").replace(/-$/, "").trim();
+  })();
+  const activeDate = tab === "today" ? today : tab === "yesterday" ? yesterday : tab === "custom" ? customDate : null;
+  const filterTs = (ts: string) => activeDate ? timestampToKSTDate(ts) === activeDate : true;
 
   const filteredPhotos = photoLogs.filter(l => filterTs(l.created_at));
   const filteredPrefs = prefLogs.filter(l => filterTs(l.created_at));
   const filteredAnalyze = analyzeLogs.filter(l => filterTs(l.created_at));
-  const filteredEntries = tab === "today" ? entries.filter(e => e.date === today) : entries;
+  const filteredEntries = activeDate ? entries.filter(e => e.date === activeDate) : entries;
   const filteredShares = shareLogs.filter(l => filterTs(l.created_at));
   const filteredListens = listenLogs.filter(l => filterTs(l.created_at));
   const filteredViews = shareViews.filter(l => filterTs(l.created_at));
@@ -455,28 +463,69 @@ export default function AdminPage() {
         </button>
       </div>
 
-      {/* TODAY / 전체 탭 */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 22 }}>
-        {(["today", "all"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            style={{
-              padding: "7px 18px",
-              borderRadius: 20,
-              border: tab === t ? "none" : "1px solid rgba(255,255,255,0.15)",
-              background: tab === t ? "#C4687A" : "transparent",
-              color: tab === t ? "#fff" : "rgba(255,255,255,0.5)",
-              fontSize: 13,
-              fontWeight: tab === t ? 600 : 400,
-              cursor: "pointer",
-            }}
-          >
-            {t === "today" ? "오늘" : "전체"}
-          </button>
-        ))}
+      {/* 날짜 필터 탭 */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 22, flexWrap: "wrap", alignItems: "center" }}>
+        {(["today", "yesterday", "all", "custom"] as const).map((t) => {
+          const isActive = tab === t;
+          const label = t === "today" ? "오늘" : t === "yesterday" ? "어제" : t === "all" ? "전체" : "날짜 선택";
+          if (t === "custom") {
+            return (
+              <label
+                key={t}
+                style={{
+                  padding: "7px 14px",
+                  borderRadius: 20,
+                  border: isActive ? "none" : "1px solid rgba(255,255,255,0.15)",
+                  background: isActive ? "#C4687A" : "transparent",
+                  color: isActive ? "#fff" : "rgba(255,255,255,0.5)",
+                  fontSize: 13,
+                  fontWeight: isActive ? 600 : 400,
+                  cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 4,
+                }}
+              >
+                {label}
+                <input
+                  type="date"
+                  value={customDate}
+                  onChange={(e) => { setCustomDate(e.target.value); setTab("custom"); }}
+                  onClick={() => setTab("custom")}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: isActive ? "#fff" : "rgba(255,255,255,0.5)",
+                    fontSize: 12,
+                    cursor: "pointer",
+                    outline: "none",
+                    width: customDate ? "auto" : 0,
+                    overflow: "hidden",
+                    padding: 0,
+                  }}
+                />
+              </label>
+            );
+          }
+          return (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              style={{
+                padding: "7px 18px",
+                borderRadius: 20,
+                border: isActive ? "none" : "1px solid rgba(255,255,255,0.15)",
+                background: isActive ? "#C4687A" : "transparent",
+                color: isActive ? "#fff" : "rgba(255,255,255,0.5)",
+                fontSize: 13,
+                fontWeight: isActive ? 600 : 400,
+                cursor: "pointer",
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
         <span style={{ alignSelf: "center", fontSize: 11, color: "rgba(255,255,255,0.25)", marginLeft: 4 }}>
-          {tab === "today" ? today : "누적"}
+          {tab === "today" ? today : tab === "yesterday" ? yesterday : tab === "custom" && customDate ? customDate : "누적"}
         </span>
       </div>
 
