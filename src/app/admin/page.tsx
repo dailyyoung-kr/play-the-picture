@@ -464,16 +464,17 @@ export default function AdminPage() {
       </div>
 
       {/* 날짜 필터 탭 */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 22, flexWrap: "wrap", alignItems: "center" }}>
-        {(["today", "yesterday", "all", "custom"] as const).map((t) => {
-          const isActive = tab === t;
-          const label = t === "today" ? "오늘" : t === "yesterday" ? "어제" : t === "all" ? "전체" : "날짜 선택";
-          if (t === "custom") {
+      <div style={{ marginBottom: 22 }}>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          {(["today", "yesterday", "all", "custom"] as const).map((t) => {
+            const isActive = tab === t;
+            const label = t === "today" ? "오늘" : t === "yesterday" ? "어제" : t === "all" ? "전체" : "날짜 선택";
             return (
-              <label
+              <button
                 key={t}
+                onClick={() => setTab(t)}
                 style={{
-                  padding: "7px 14px",
+                  padding: "7px 18px",
                   borderRadius: 20,
                   border: isActive ? "none" : "1px solid rgba(255,255,255,0.15)",
                   background: isActive ? "#C4687A" : "transparent",
@@ -481,52 +482,44 @@ export default function AdminPage() {
                   fontSize: 13,
                   fontWeight: isActive ? 600 : 400,
                   cursor: "pointer",
-                  display: "flex", alignItems: "center", gap: 4,
                 }}
               >
                 {label}
-                <input
-                  type="date"
-                  value={customDate}
-                  onChange={(e) => { setCustomDate(e.target.value); setTab("custom"); }}
-                  onClick={() => setTab("custom")}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    color: isActive ? "#fff" : "rgba(255,255,255,0.5)",
-                    fontSize: 12,
-                    cursor: "pointer",
-                    outline: "none",
-                    width: customDate ? "auto" : 0,
-                    overflow: "hidden",
-                    padding: 0,
-                  }}
-                />
-              </label>
+              </button>
             );
-          }
-          return (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
+          })}
+          <span style={{ alignSelf: "center", fontSize: 11, color: "rgba(255,255,255,0.25)", marginLeft: 4 }}>
+            {tab === "today" ? today : tab === "yesterday" ? yesterday : tab === "custom" && customDate ? customDate : "누적"}
+          </span>
+        </div>
+
+        {/* 날짜 선택 탭 활성 시 date input 노출 */}
+        {tab === "custom" && (
+          <div style={{ marginTop: 10 }}>
+            <input
+              type="date"
+              value={customDate}
+              max={today}
+              onChange={(e) => setCustomDate(e.target.value)}
               style={{
-                padding: "7px 18px",
-                borderRadius: 20,
-                border: isActive ? "none" : "1px solid rgba(255,255,255,0.15)",
-                background: isActive ? "#C4687A" : "transparent",
-                color: isActive ? "#fff" : "rgba(255,255,255,0.5)",
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                borderRadius: 10,
+                padding: "8px 14px",
+                color: "#fff",
                 fontSize: 13,
-                fontWeight: isActive ? 600 : 400,
                 cursor: "pointer",
+                outline: "none",
+                colorScheme: "dark",
               }}
-            >
-              {label}
-            </button>
-          );
-        })}
-        <span style={{ alignSelf: "center", fontSize: 11, color: "rgba(255,255,255,0.25)", marginLeft: 4 }}>
-          {tab === "today" ? today : tab === "yesterday" ? yesterday : tab === "custom" && customDate ? customDate : "누적"}
-        </span>
+            />
+            {!customDate && (
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginLeft: 10 }}>
+                날짜를 선택하세요
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── 섹션: 퍼널 흐름 ── */}
