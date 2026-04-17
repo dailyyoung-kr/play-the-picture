@@ -195,6 +195,7 @@ export default function AdminPage() {
   const [toast, setToast] = useState("");
   const [tab, setTab] = useState<"today" | "yesterday" | "all" | "custom">("today");
   const [customDate, setCustomDate] = useState<string>("");
+  const [adminOpen, setAdminOpen] = useState(false);
 
   const [photoLogs, setPhotoLogs] = useState<PhotoLog[]>([]);
   const [prefLogs, setPrefLogs] = useState<PrefLog[]>([]);
@@ -573,6 +574,42 @@ export default function AdminPage() {
         )}
       </div>
 
+      {/* ── 섹션: 유저 ── */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>USERS</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+        {activeDate ? (
+          <>
+            <ConvCard
+              label={tab === "today" ? "오늘 DAU" : tab === "yesterday" ? "어제 DAU" : `DAU (${activeDate})`}
+              value={dau.toLocaleString()}
+              sub="분석 기준 활성 유저"
+              accent="#a0d4f0"
+            />
+            <ConvCard
+              label="신규 유저"
+              value={newUsers.toLocaleString()}
+              sub={`전체 대비 ${pct(newUsers, dau)}`}
+              accent="#6be0a0"
+              tooltip="해당 날짜에 처음 분석한 device_id"
+            />
+            <ConvCard
+              label="재방문 유저"
+              value={returnUsers.toLocaleString()}
+              sub={`전체 대비 ${pct(returnUsers, dau)}`}
+              accent="#C4687A"
+              tooltip="이전에도 분석한 적 있는 device_id"
+            />
+          </>
+        ) : (
+          <ConvCard
+            label="누적 총 유저 수"
+            value={totalUniqueUsers.toLocaleString()}
+            sub="전체 기간 중 분석한 고유 device_id"
+            accent="#a0d4f0"
+          />
+        )}
+      </div>
+
       {/* ── 섹션: 퍼널 흐름 ── */}
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>FUNNEL</p>
       <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 16, padding: "16px 14px", marginBottom: 20 }}>
@@ -614,42 +651,6 @@ export default function AdminPage() {
           accent="#f0d080"
           tooltip="분석 성공 횟수 ÷ 분석한 유저 수"
         />
-      </div>
-
-      {/* ── 섹션: 유저 ── */}
-      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>USERS</p>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
-        {activeDate ? (
-          <>
-            <ConvCard
-              label={tab === "today" ? "오늘 DAU" : tab === "yesterday" ? "어제 DAU" : `DAU (${activeDate})`}
-              value={dau.toLocaleString()}
-              sub="분석 기준 활성 유저"
-              accent="#a0d4f0"
-            />
-            <ConvCard
-              label="신규 유저"
-              value={newUsers.toLocaleString()}
-              sub={`전체 대비 ${pct(newUsers, dau)}`}
-              accent="#6be0a0"
-              tooltip="해당 날짜에 처음 분석한 device_id"
-            />
-            <ConvCard
-              label="재방문 유저"
-              value={returnUsers.toLocaleString()}
-              sub={`전체 대비 ${pct(returnUsers, dau)}`}
-              accent="#C4687A"
-              tooltip="이전에도 분석한 적 있는 device_id"
-            />
-          </>
-        ) : (
-          <ConvCard
-            label="누적 총 유저 수"
-            value={totalUniqueUsers.toLocaleString()}
-            sub="전체 기간 중 분석한 고유 device_id"
-            accent="#a0d4f0"
-          />
-        )}
       </div>
 
       {/* ── 섹션: 콘텐츠 인사이트 ── */}
@@ -704,8 +705,22 @@ export default function AdminPage() {
         )}
       </div>
 
-      {/* ── 섹션: 텍스트로 곡 추가 ── */}
-      <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14, padding: "18px 20px", marginBottom: 20 }}>
+      {/* ── 섹션: 관리 도구 (접힘) ── */}
+      <div style={{ marginBottom: 20 }}>
+        <button
+          onClick={() => setAdminOpen(o => !o)}
+          style={{
+            width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
+            background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)",
+            borderRadius: adminOpen ? "14px 14px 0 0" : 14,
+            padding: "14px 18px", cursor: "pointer", color: "#fff",
+          }}
+        >
+          <span style={{ fontSize: 13, fontWeight: 600 }}>🛠 관리 도구</span>
+          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", transition: "transform 0.2s", display: "inline-block", transform: adminOpen ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+        </button>
+        {adminOpen && (
+        <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", borderTop: "none", borderRadius: "0 0 14px 14px", padding: "18px 20px" }}>
         <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", margin: "0 0 16px" }}>✏️ 텍스트로 곡 추가</p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
@@ -787,6 +802,8 @@ export default function AdminPage() {
               </div>
             )}
           </div>
+        )}
+        </div>
         )}
       </div>
 
