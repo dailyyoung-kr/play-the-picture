@@ -231,6 +231,7 @@ export default function AdminPage() {
   const [customDate, setCustomDate] = useState<string>("");
   const [adminOpen, setAdminOpen] = useState(false);
   const [spotifyOpen, setSpotifyOpen] = useState(false);
+  const [retentionOpen, setRetentionOpen] = useState(false);
 
   const [photoLogs, setPhotoLogs] = useState<PhotoLog[]>([]);
   const [prefLogs, setPrefLogs] = useState<PrefLog[]>([]);
@@ -432,6 +433,15 @@ export default function AdminPage() {
     return new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" })
       .format(d).replace(/\.\s*/g, "-").replace(/-$/, "").trim();
   })();
+
+  // KST 날짜 + N일 오프셋 (코호트 계산용)
+  const kstOffset = (kstDate: string, n: number): string => {
+    const [y, m, d] = kstDate.split("-").map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d + n));
+    return new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" })
+      .format(dt).replace(/\.\s*/g, "-").replace(/-$/, "").trim();
+  };
+  const sevenDaysAgo = kstOffset(today, -7);
   const activeDate = tab === "today" ? today : tab === "yesterday" ? yesterday : tab === "custom" ? customDate : null;
   const filterTs = (ts: string) => activeDate ? timestampToKSTDate(ts) === activeDate : true;
 
@@ -501,6 +511,68 @@ export default function AdminPage() {
   const totalUniqueUsers = new Set(
     analyzeLogs.map(l => l.device_id).filter((d): d is string => !!d)
   ).size;
+
+  // ── 리텐션 계산 (analyze_logs 전체 기준, 항상 today 기준) ──
+  // 날짜별 방문 device_id 집합
+  const visitsByDate: Record<string, Set<string>> = {};
+  for (const log of analyzeLogs) {
+    if (!log.device_id) continue;
+    const d = timestampToKSTDate(log.created_at);
+    if (!visitsByDate[d]) visitsByDate[d] = new Set();
+    visitsByDate[d].add(log.device_id);
+  }
+  const todayVisitors   = visitsByDate[today]      ?? new Set<string>();
+
+  // D1 리텐션: 어제 신규 → 오늘 재방문
+  const d1BaseDevices  = Object.entries(firstSeenMap).filter(([, fd]) => fd === yesterday).map(([id]) => id);
+  const d1Returned     = d1BaseDevices.filter(id => todayVisitors.has(id)).length;
+  const d1BaseCount    = d1BaseDevices.length;
+  const d1Rate         = d1BaseCount >= 5 ? pct(d1Returned, d1BaseCount) : "—";
+  const d1Accent       = d1BaseCount < 5  ? C.gray : accentByRate(d1Rate, 20, 10);
+
+  // D7 리텐션: 7일 전 신규 → 오늘 재방문
+  const d7BaseDevices  = Object.entries(firstSeenMap).filter(([, fd]) => fd === sevenDaysAgo).map(([id]) => id);
+  const d7Returned     = d7BaseDevices.filter(id => todayVisitors.has(id)).length;
+  const d7BaseCount    = d7BaseDevices.length;
+  const d7Rate         = d7BaseCount >= 5 ? pct(d7Returned, d7BaseCount) : "—";
+  const d7Accent       = d7BaseCount < 5  ? C.gray : accentByRate(d7Rate, 10, 5);
+
+  // 평균 재방문 간격: 재방문한 유저 기준 (first vs latest)
+  const multiVisitGaps: number[] = [];
+  for (const [did, firstDate] of Object.entries(firstSeenMap)) {
+    const dates = [...(visitsByDate[firstDate] ?? new Set())].length > 0
+      ? Object.entries(visitsByDate)
+          .filter(([, set]) => set.has(did))
+          .map(([d]) => d)
+          .sort()
+      : [];
+    if (dates.length >= 2) {
+      const [fy, fm, fd2] = dates[0].split("-").map(Number);
+      const [ly, lm, ld]  = dates[dates.length - 1].split("-").map(Number);
+      const firstMs = Date.UTC(fy, fm - 1, fd2);
+      const lastMs  = Date.UTC(ly, lm - 1, ld);
+      multiVisitGaps.push((lastMs - firstMs) / 86400000);
+    }
+  }
+  const avgRevisitDays = multiVisitGaps.length > 0
+    ? (multiVisitGaps.reduce((s, v) => s + v, 0) / multiVisitGaps.length).toFixed(1)
+    : null;
+
+  // 코호트 테이블: 최근 7일 × D1/D3/D7
+  const COHORT_DAYS = 7;
+  const cohortDns   = [1, 3, 7] as const;
+  const cohortRows  = Array.from({ length: COHORT_DAYS }, (_, i) => {
+    const cohortDate = kstOffset(today, -(COHORT_DAYS - 1 - i)); // 오래된 날부터 → 최신 역순으로 나중에 reverse
+    const newOnDate  = Object.entries(firstSeenMap).filter(([, fd]) => fd === cohortDate).map(([id]) => id);
+    const newCount   = newOnDate.length;
+    const dn = cohortDns.map(n => {
+      const targetDate = kstOffset(cohortDate, n);
+      if (targetDate > today) return null; // 아직 안 온 미래
+      const returned = newOnDate.filter(id => (visitsByDate[targetDate] ?? new Set()).has(id)).length;
+      return { returned, rate: newCount > 0 ? ((returned / newCount) * 100).toFixed(0) + "%" : "—" };
+    });
+    return { date: cohortDate, newCount, dn };
+  }).reverse(); // 최신 날짜가 위
 
   // ── 퍼포먼스 ──
   const completedLogs = filteredAnalyze.filter(l => (l.status === "success" || l.status === "fail") && l.response_time_ms != null);
@@ -686,6 +758,78 @@ export default function AdminPage() {
             accent="#a0d4f0"
           />
         )}
+      </div>
+
+      {/* ── 섹션: 리텐션 ── */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>RETENTION</p>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+          <ConvCard
+            label="D1 리텐션"
+            value={d1Rate}
+            sub={`${d1Returned}명 / 어제 신규 ${d1BaseCount}명`}
+            accent={d1Accent}
+            tooltip={d1BaseCount < 5 ? "표본 5명 미만 — 판단 보류" : "어제 처음 방문 유저 중 오늘도 방문한 비율"}
+          />
+          <ConvCard
+            label="D7 리텐션"
+            value={d7Rate}
+            sub={`${d7Returned}명 / 7일 전 신규 ${d7BaseCount}명`}
+            accent={d7Accent}
+            tooltip={d7BaseCount < 5 ? "표본 5명 미만 — 판단 보류" : "7일 전 처음 방문 유저 중 오늘도 방문한 비율"}
+          />
+          <ConvCard
+            label="평균 재방문 간격"
+            value={avgRevisitDays != null ? `${avgRevisitDays}일` : "—"}
+            sub={`재방문 유저 ${multiVisitGaps.length}명 기준`}
+            accent={C.white}
+            tooltip="첫 방문 ~ 가장 최근 방문 사이 평균 일수"
+          />
+        </div>
+
+        {/* 코호트 상세 (접힘) */}
+        <button
+          onClick={() => setRetentionOpen(o => !o)}
+          style={{
+            width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
+            background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: retentionOpen ? "10px 10px 0 0" : 10,
+            padding: "10px 14px", cursor: "pointer",
+          }}
+        >
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>코호트 상세 (최근 7일)</span>
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", display: "inline-block", transform: retentionOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▾</span>
+        </button>
+        {retentionOpen && (
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderTop: "none", borderRadius: "0 0 10px 10px", padding: "12px 14px", overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead>
+                <tr>
+                  {["날짜", "신규", "D1", "D3", "D7"].map(h => (
+                    <th key={h} style={{ textAlign: h === "날짜" ? "left" : "right", padding: "4px 8px", color: "rgba(255,255,255,0.4)", fontWeight: 500, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {cohortRows.map(row => (
+                  <tr key={row.date}>
+                    <td style={{ padding: "5px 8px", color: row.date === today ? "#C4687A" : "rgba(255,255,255,0.7)" }}>{row.date.slice(5)}</td>
+                    <td style={{ padding: "5px 8px", textAlign: "right", color: "rgba(255,255,255,0.7)" }}>{row.newCount}명</td>
+                    {row.dn.map((cell, i) => (
+                      <td key={i} style={{ padding: "5px 8px", textAlign: "right", color: cell == null ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.6)" }}>
+                        {cell == null ? "-" : `${cell.returned} (${cell.rate})`}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginTop: 8 }}>
+          ※ 리텐션은 표본이 작아 변동이 큽니다. 2~3주 추세를 함께 보세요.
+        </p>
       </div>
 
       {/* ── 섹션: 퍼널 흐름 ── */}
