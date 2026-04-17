@@ -85,6 +85,24 @@ function pct(a: number, b: number): string {
   return ((a / b) * 100).toFixed(1) + "%";
 }
 
+const C = {
+  green:  "#6be0a0",
+  yellow: "#f0d080",
+  red:    "#f07070",
+  gray:   "rgba(255,255,255,0.38)",
+  white:  "rgba(255,255,255,0.75)",
+};
+
+// pctStr이 "—"이면 gray, 아니면 임계값 기반으로 green/yellow/red 반환
+function accentByRate(pctStr: string, greenMin: number, yellowMin: number): string {
+  if (pctStr === "—") return C.gray;
+  const v = parseFloat(pctStr);
+  if (isNaN(v)) return C.gray;
+  if (v >= greenMin) return C.green;
+  if (v >= yellowMin) return C.yellow;
+  return C.red;
+}
+
 function useCountdown(targetMs: number | null): string {
   const [remaining, setRemaining] = useState("");
   useEffect(() => {
@@ -484,7 +502,24 @@ export default function AdminPage() {
     ? Math.round(completedLogs.reduce((sum, l) => sum + (l.response_time_ms ?? 0), 0) / completedLogs.length)
     : null;
   const completedTotal = successCount + failCount;
-  const failRateStr = completedTotal > 0 ? ((failCount / completedTotal) * 100).toFixed(1) + "%" : "—";
+  const failRatePct = completedTotal > 0 ? (failCount / completedTotal) * 100 : null;
+  const failRateStr = failRatePct != null ? failRatePct.toFixed(1) + "%" : "—";
+
+  // ── 색상 계산 ──
+  // CONVERSION
+  const convSuccessAccent = accentByRate(userSuccessRate, 95, 80);
+  const convListenAccent  = accentByRate(userListenRate,  30, 15);
+  const convSaveAccent    = successUsers >= 10 ? accentByRate(userSaveRate,  15,  5) : C.gray;
+  const convShareAccent   = successUsers >= 10 ? accentByRate(userShareRate, 10,  3) : C.gray;
+  // PERFORMANCE
+  const perfResponseAccent = avgResponseMs == null ? C.gray
+    : avgResponseMs <= 8000  ? C.green
+    : avgResponseMs <= 10000 ? C.yellow
+    : C.red;
+  const perfFailAccent = failRatePct == null ? C.gray
+    : failRatePct <= 5  ? C.green
+    : failRatePct <= 15 ? C.yellow
+    : C.red;
 
   // ── 콘텐츠 인사이트 ──
   const topGenres: [string, number][] = GENRE_KEYS.map((key): [string, number] => [
@@ -599,20 +634,20 @@ export default function AdminPage() {
               label={tab === "today" ? "오늘 DAU" : tab === "yesterday" ? "어제 DAU" : `DAU (${activeDate})`}
               value={dau.toLocaleString()}
               sub="분석 기준 활성 유저"
-              accent="#a0d4f0"
+              accent={C.white}
             />
             <ConvCard
               label="신규 유저"
               value={newUsers.toLocaleString()}
               sub={`전체 대비 ${pct(newUsers, dau)}`}
-              accent="#6be0a0"
+              accent={C.white}
               tooltip="해당 날짜에 처음 분석한 device_id"
             />
             <ConvCard
               label="재방문 유저"
               value={returnUsers.toLocaleString()}
               sub={`전체 대비 ${pct(returnUsers, dau)}`}
-              accent="#C4687A"
+              accent={C.gray}
               tooltip="이전에도 분석한 적 있는 device_id"
             />
           </>
@@ -660,11 +695,11 @@ export default function AdminPage() {
       {/* ── 섹션: 전환율 (유저 기준) ── */}
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>CONVERSION</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
-        <ConvCard label="분석 성공률" value={userSuccessRate} sub={`${successUsers}명 / ${analyzeUsers}명`} accent="#6be0a0" tooltip="분석 시작 유저 중 성공한 유저 비율" />
-        <ConvCard label="듣기 클릭률" value={userListenRate} sub={`${listenUsers}명 / ${successUsers}명`} accent={listenUsers === 0 ? "#f07070" : "#a0d4f0"} tooltip="AI 추천 만족도 지표 (유저 기준)" />
-        <ConvCard label="저장률" value={userSaveRate} sub={`${saveUsers}명 / ${successUsers}명`} accent="#a0d4f0" tooltip="성공 유저 중 저장한 유저 비율" />
-        <ConvCard label="공유율" value={userShareRate} sub={`${filteredShares.length}건 / ${successUsers}명`} accent="#C4687A" tooltip="성공 유저 대비 공유 건수" />
-        <ConvCard label="유입 전환율" value={pct(tryCount, viewCount)} sub={`${tryCount} / ${viewCount}`} accent="#f0d080" tooltip="공유 페이지 조회 → 나도 해보기 클릭" />
+        <ConvCard label="분석 성공률" value={userSuccessRate} sub={`${successUsers}명 / ${analyzeUsers}명`} accent={convSuccessAccent} tooltip="분석 시작 유저 중 성공한 유저 비율" />
+        <ConvCard label="듣기 클릭률" value={userListenRate} sub={`${listenUsers}명 / ${successUsers}명`} accent={convListenAccent} tooltip="AI 추천 만족도 지표 (유저 기준)" />
+        <ConvCard label="저장률" value={userSaveRate} sub={`${saveUsers}명 / ${successUsers}명`} accent={convSaveAccent} tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 중 저장한 유저 비율"} />
+        <ConvCard label="공유율" value={userShareRate} sub={`${filteredShares.length}건 / ${successUsers}명`} accent={convShareAccent} tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 대비 공유 건수"} />
+        <ConvCard label="유입 전환율" value={pct(tryCount, viewCount)} sub={`${tryCount} / ${viewCount}`} accent={C.gray} tooltip="공유 페이지 조회 → 나도 해보기 클릭" />
       </div>
 
       {/* ── 섹션: 퍼포먼스 ── */}
@@ -674,14 +709,14 @@ export default function AdminPage() {
           label="평균 응답 시간"
           value={avgResponseMs != null ? (avgResponseMs >= 1000 ? `${(avgResponseMs / 1000).toFixed(1)}s` : `${avgResponseMs}ms`) : "—"}
           sub={`${completedLogs.length}건 기준`}
-          accent="#fff"
+          accent={perfResponseAccent}
         />
-        <ConvCard label="분석 실패율" value={failRateStr} sub={`실패 ${failCount}건`} accent={failCount > 0 ? "#f07070" : "#6be0a0"} />
+        <ConvCard label="분석 실패율" value={failRateStr} sub={`실패 ${failCount}건`} accent={perfFailAccent} />
         <ConvCard
           label="유저당 평균 분석 횟수"
           value={avgAnalysesPerUser === "—" ? "—" : `${avgAnalysesPerUser}회`}
           sub={`${successCount}회 / ${analyzeUsers}명`}
-          accent="#f0d080"
+          accent={C.white}
           tooltip="분석 성공 횟수 ÷ 분석한 유저 수"
         />
       </div>
