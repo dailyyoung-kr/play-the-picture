@@ -108,8 +108,8 @@ export async function GET(req: NextRequest) {
                 width: "100%",
                 height: "100%",
                 objectFit: "cover",
-                filter: "blur(72px)",
-                transform: "scale(1.3)",
+                filter: "blur(50px)",
+                transform: "scale(1.05)",
               }}
             />
           )}
@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
             style={{
               position: "absolute",
               inset: "0",
-              background: "rgba(0,0,0,0.75)",
+              background: "rgba(0,0,0,0.72)",
               display: "flex",
             }}
           />
