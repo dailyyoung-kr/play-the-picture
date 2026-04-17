@@ -576,32 +576,25 @@ export default function AdminPage() {
       {/* ── 섹션: 퍼널 흐름 ── */}
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>FUNNEL</p>
       <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 16, padding: "16px 14px", marginBottom: 20 }}>
-        <FunnelStep icon="📷" label="사진 업로드" count={photoCount} conv={pct(prefCount, photoCount)} userCount={photoUsers} />
-        <FunnelStep icon="🎵" label="장르·에너지 선택" count={prefCount} conv={pct(analyzeStartCount, prefCount)} />
-        <FunnelStep icon="✦" label="분석 시작" count={analyzeStartCount} conv={pct(successCount, analyzeStartCount)} userCount={analyzeUsers} />
-        <FunnelStep icon="✓" label="분석 성공" count={successCount} conv={pct(listenCount, successCount)} userCount={successUsers} />
-        <FunnelStep icon="▶" label="듣기 클릭" count={listenCount} conv={pct(saveCount, listenCount)} userCount={listenUsers} />
-        <FunnelStep icon="💾" label="결과 저장" count={saveCount} conv={pct(shareCount, saveCount)} userCount={saveUsers} />
+        <FunnelStep icon="📷" label="사진 업로드" count={photoCount} conv={pct(analyzeUsers, photoUsers)} userCount={photoUsers} />
+        <FunnelStep icon="🎵" label="장르·에너지 선택" count={prefCount} conv={pct(analyzeUsers, analyzeUsers)} userCount={analyzeUsers} />
+        <FunnelStep icon="✦" label="분석 시작" count={analyzeStartCount} conv={pct(successUsers, analyzeUsers)} userCount={analyzeUsers} />
+        <FunnelStep icon="✓" label="분석 성공" count={successCount} conv={pct(listenUsers, successUsers)} userCount={successUsers} />
+        <FunnelStep icon="▶" label="듣기 클릭" count={listenCount} conv={pct(saveUsers, listenUsers)} userCount={listenUsers} />
+        <FunnelStep icon="💾" label="결과 저장" count={saveCount} conv={pct(shareCount, saveUsers)} userCount={saveUsers} />
         <FunnelStep icon="↑" label="공유하기" count={shareCount} conv={pct(viewCount, shareCount)} />
         <FunnelStep icon="👁" label="공유 페이지 조회" count={viewCount} conv={pct(tryCount, viewCount)} />
         <FunnelStep icon="→" label="나도 해보기 클릭" count={tryCount} isLast />
       </div>
 
-      {/* ── 섹션: 핵심 전환율 ── */}
+      {/* ── 섹션: 전환율 (유저 기준) ── */}
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>CONVERSION</p>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-        <ConvCard label="분석 성공률" value={pct(successCount, analyzeStartCount)} sub={`${successCount} / ${analyzeStartCount}`} accent="#6be0a0" />
-        <ConvCard label="듣기 클릭률" value={pct(listenCount, successCount)} sub={`${listenCount} / ${successCount}`} accent={listenCount === 0 ? "#f07070" : "#a0d4f0"} tooltip="AI 추천 만족도 지표" />
-        <ConvCard label="저장 전환율" value={pct(saveCount, successCount)} sub={`${saveCount} / ${successCount}`} accent="#a0d4f0" />
-        <ConvCard label="공유율" value={pct(shareCount, successCount)} sub={`${shareCount} / ${successCount}건`} accent="#C4687A" />
-        <ConvCard label="유입 전환율" value={pct(tryCount, viewCount)} sub={`${tryCount} / ${viewCount}`} accent="#f0d080" />
-      </div>
-      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", marginBottom: 8, marginTop: 4 }}>유저 기준 전환율</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
-        <ConvCard label="분석 성공률 (유저)" value={userSuccessRate} sub={`${successUsers}명 / ${analyzeUsers}명`} accent="#6be0a0" tooltip="분석 시작 유저 중 성공한 유저 비율" />
-        <ConvCard label="듣기 클릭률 (유저)" value={userListenRate} sub={`${listenUsers}명 / ${successUsers}명`} accent={listenUsers === 0 ? "#f07070" : "#a0d4f0"} tooltip="성공 유저 중 듣기 클릭한 유저 비율" />
-        <ConvCard label="저장률 (유저)" value={userSaveRate} sub={`${saveUsers}명 / ${successUsers}명`} accent="#a0d4f0" tooltip="성공 유저 중 저장한 유저 비율" />
-        <ConvCard label="공유율 (유저)" value={userShareRate} sub={`${filteredShares.length}건 / ${successUsers}명`} accent="#C4687A" tooltip="성공 유저 대비 공유 건수 (share_logs는 device_id 미저장)" />
+        <ConvCard label="분석 성공률" value={userSuccessRate} sub={`${successUsers}명 / ${analyzeUsers}명`} accent="#6be0a0" tooltip="분석 시작 유저 중 성공한 유저 비율" />
+        <ConvCard label="듣기 클릭률" value={userListenRate} sub={`${listenUsers}명 / ${successUsers}명`} accent={listenUsers === 0 ? "#f07070" : "#a0d4f0"} tooltip="AI 추천 만족도 지표 (유저 기준)" />
+        <ConvCard label="저장률" value={userSaveRate} sub={`${saveUsers}명 / ${successUsers}명`} accent="#a0d4f0" tooltip="성공 유저 중 저장한 유저 비율" />
+        <ConvCard label="공유율" value={userShareRate} sub={`${filteredShares.length}건 / ${successUsers}명`} accent="#C4687A" tooltip="성공 유저 대비 공유 건수" />
+        <ConvCard label="유입 전환율" value={pct(tryCount, viewCount)} sub={`${tryCount} / ${viewCount}`} accent="#f0d080" tooltip="공유 페이지 조회 → 나도 해보기 클릭" />
       </div>
 
       {/* ── 섹션: 퍼포먼스 ── */}
