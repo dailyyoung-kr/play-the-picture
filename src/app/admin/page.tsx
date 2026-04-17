@@ -821,78 +821,6 @@ export default function AdminPage() {
         )}
       </div>
 
-      {/* ── 섹션: 리텐션 ── */}
-      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>RETENTION</p>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-          <ConvCard
-            label="D1 리텐션"
-            value={d1Rate}
-            sub={`${d1Returned}명 / 어제 신규 ${d1BaseCount}명`}
-            accent={d1Accent}
-            tooltip={d1BaseCount < 5 ? "표본 5명 미만 — 판단 보류" : "어제 처음 방문 유저 중 오늘도 방문한 비율"}
-          />
-          <ConvCard
-            label="D7 리텐션"
-            value={d7Rate}
-            sub={`${d7Returned}명 / 7일 전 신규 ${d7BaseCount}명`}
-            accent={d7Accent}
-            tooltip={d7BaseCount < 5 ? "표본 5명 미만 — 판단 보류" : "7일 전 처음 방문 유저 중 오늘도 방문한 비율"}
-          />
-          <ConvCard
-            label="평균 재방문 간격"
-            value={avgRevisitDays != null ? `${avgRevisitDays}일` : "—"}
-            sub={`재방문 유저 ${multiVisitGaps.length}명 기준`}
-            accent={C.white}
-            tooltip="첫 방문 ~ 가장 최근 방문 사이 평균 일수"
-          />
-        </div>
-
-        {/* 코호트 상세 (접힘) */}
-        <button
-          onClick={() => setRetentionOpen(o => !o)}
-          style={{
-            width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
-            background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: retentionOpen ? "10px 10px 0 0" : 10,
-            padding: "10px 14px", cursor: "pointer",
-          }}
-        >
-          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>코호트 상세 (최근 7일)</span>
-          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", display: "inline-block", transform: retentionOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▾</span>
-        </button>
-        {retentionOpen && (
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderTop: "none", borderRadius: "0 0 10px 10px", padding: "12px 14px", overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-              <thead>
-                <tr>
-                  {["날짜", "신규", "D1", "D3", "D7"].map(h => (
-                    <th key={h} style={{ textAlign: h === "날짜" ? "left" : "right", padding: "4px 8px", color: "rgba(255,255,255,0.4)", fontWeight: 500, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {cohortRows.map(row => (
-                  <tr key={row.date}>
-                    <td style={{ padding: "5px 8px", color: row.date === today ? "#C4687A" : "rgba(255,255,255,0.7)" }}>{row.date.slice(5)}</td>
-                    <td style={{ padding: "5px 8px", textAlign: "right", color: "rgba(255,255,255,0.7)" }}>{row.newCount}명</td>
-                    {row.dn.map((cell, i) => (
-                      <td key={i} style={{ padding: "5px 8px", textAlign: "right", color: cell == null ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.6)" }}>
-                        {cell == null ? "-" : `${cell.returned} (${cell.rate})`}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginTop: 8 }}>
-          ※ 리텐션은 표본이 작아 변동이 큽니다. 2~3주 추세를 함께 보세요.
-        </p>
-      </div>
-
       {/* ── 섹션: 퍼널 흐름 ── */}
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>FUNNEL</p>
       <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 16, padding: "16px 14px", marginBottom: 20 }}>
@@ -972,6 +900,78 @@ export default function AdminPage() {
           accent={perfUnder10Accent}
           tooltip={rvGray ? "표본 10건 미만 — 판단 보류" : "결과 화면 10초 미만 이탈 비율"}
         />
+      </div>
+
+      {/* ── 섹션: 리텐션 ── */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>RETENTION</p>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+          <ConvCard
+            label="D1 리텐션"
+            value={d1Rate}
+            sub={`${d1Returned}명 / 어제 신규 ${d1BaseCount}명`}
+            accent={d1Accent}
+            tooltip={d1BaseCount < 5 ? "표본 5명 미만 — 판단 보류" : "어제 처음 방문 유저 중 오늘도 방문한 비율"}
+          />
+          <ConvCard
+            label="D7 리텐션"
+            value={d7Rate}
+            sub={`${d7Returned}명 / 7일 전 신규 ${d7BaseCount}명`}
+            accent={d7Accent}
+            tooltip={d7BaseCount < 5 ? "표본 5명 미만 — 판단 보류" : "7일 전 처음 방문 유저 중 오늘도 방문한 비율"}
+          />
+          <ConvCard
+            label="평균 재방문 간격"
+            value={avgRevisitDays != null ? `${avgRevisitDays}일` : "—"}
+            sub={`재방문 유저 ${multiVisitGaps.length}명 기준`}
+            accent={C.white}
+            tooltip="첫 방문 ~ 가장 최근 방문 사이 평균 일수"
+          />
+        </div>
+
+        {/* 코호트 상세 (접힘) */}
+        <button
+          onClick={() => setRetentionOpen(o => !o)}
+          style={{
+            width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
+            background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: retentionOpen ? "10px 10px 0 0" : 10,
+            padding: "10px 14px", cursor: "pointer",
+          }}
+        >
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>코호트 상세 (최근 7일)</span>
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", display: "inline-block", transform: retentionOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▾</span>
+        </button>
+        {retentionOpen && (
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderTop: "none", borderRadius: "0 0 10px 10px", padding: "12px 14px", overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead>
+                <tr>
+                  {["날짜", "신규", "D1", "D3", "D7"].map(h => (
+                    <th key={h} style={{ textAlign: h === "날짜" ? "left" : "right", padding: "4px 8px", color: "rgba(255,255,255,0.4)", fontWeight: 500, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {cohortRows.map(row => (
+                  <tr key={row.date}>
+                    <td style={{ padding: "5px 8px", color: row.date === today ? "#C4687A" : "rgba(255,255,255,0.7)" }}>{row.date.slice(5)}</td>
+                    <td style={{ padding: "5px 8px", textAlign: "right", color: "rgba(255,255,255,0.7)" }}>{row.newCount}명</td>
+                    {row.dn.map((cell, i) => (
+                      <td key={i} style={{ padding: "5px 8px", textAlign: "right", color: cell == null ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.6)" }}>
+                        {cell == null ? "-" : `${cell.returned} (${cell.rate})`}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginTop: 8 }}>
+          ※ 리텐션은 표본이 작아 변동이 큽니다. 2~3주 추세를 함께 보세요.
+        </p>
       </div>
 
       {/* ── 섹션: 콘텐츠 인사이트 ── */}
