@@ -5,10 +5,11 @@ import { supabase } from "@/lib/supabase";
 
 const ADMIN_PW = process.env.NEXT_PUBLIC_ADMIN_PASSWORD ?? "coldboardp1!";
 
-type PhotoLog = { id: string; created_at: string };
+type PhotoLog = { id: string; created_at: string; device_id?: string | null };
 type PrefLog = { id: string; created_at: string; genre: string | null; energy: number | null };
-type AnalyzeLog = { id: string; created_at: string; status: string; response_time_ms: number | null; song: string | null; artist: string | null };
-type EntryRow = { id: string; date: string; song: string; artist: string; genre: string | null; mood: string | null };
+type AnalyzeLog = { id: string; created_at: string; status: string; response_time_ms: number | null; song: string | null; artist: string | null; device_id?: string | null };
+type EntryRow = { id: string; date: string; song: string; artist: string; genre: string | null; mood: string | null; device_id?: string | null };
+type ListenLog = { id: string; created_at: string; device_id?: string | null };
 type LogRow = { id: string; created_at: string };
 type SpotifyStatus = {
   status: "ok" | "rate_limited" | "token_failed";
@@ -152,9 +153,9 @@ function RankList({
 }
 
 function FunnelStep({
-  icon, label, count, conv, isLast,
+  icon, label, count, conv, isLast, userCount,
 }: {
-  icon: string; label: string; count: number; conv?: string; isLast?: boolean;
+  icon: string; label: string; count: number; conv?: string; isLast?: boolean; userCount?: number;
 }) {
   return (
     <div>
@@ -166,7 +167,12 @@ function FunnelStep({
       }}>
         <span style={{ fontSize: 15, width: 22, textAlign: "center", flexShrink: 0 }}>{icon}</span>
         <span style={{ flex: 1, fontSize: 13, color: "rgba(255,255,255,0.85)" }}>{label}</span>
-        <span style={{ fontSize: 22, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{count.toLocaleString()}</span>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0 }}>
+          <span style={{ fontSize: 22, fontWeight: 700, color: "#fff", lineHeight: 1.1 }}>{count.toLocaleString()}회</span>
+          {userCount != null && (
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", marginTop: 1 }}>유저 {userCount.toLocaleString()}명</span>
+          )}
+        </div>
       </div>
       {!isLast && (
         <div style={{ display: "flex", alignItems: "center", padding: "2px 0 2px 26px", gap: 8 }}>
@@ -195,7 +201,7 @@ export default function AdminPage() {
   const [analyzeLogs, setAnalyzeLogs] = useState<AnalyzeLog[]>([]);
   const [entries, setEntries] = useState<EntryRow[]>([]);
   const [shareLogs, setShareLogs] = useState<LogRow[]>([]);
-  const [listenLogs, setListenLogs] = useState<LogRow[]>([]);
+  const [listenLogs, setListenLogs] = useState<ListenLog[]>([]);
   const [shareViews, setShareViews] = useState<LogRow[]>([]);
   const [tryClicks, setTryClicks] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -227,12 +233,12 @@ export default function AdminPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     const [photoRes, prefRes, analyzeRes, entriesRes, shareRes, listenRes, logRowsRes] = await Promise.all([
-      supabase.from("photo_upload_logs").select("id, created_at").order("created_at", { ascending: false }),
+      supabase.from("photo_upload_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("preference_logs").select("id, created_at, genre, energy").order("created_at", { ascending: false }),
-      supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, song, artist").order("created_at", { ascending: false }),
-      supabase.from("entries").select("id, date, song, artist, genre, mood").order("id", { ascending: false }),
+      supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, song, artist, device_id").order("created_at", { ascending: false }),
+      supabase.from("entries").select("id, date, song, artist, genre, mood, device_id").order("id", { ascending: false }),
       supabase.from("share_logs").select("id, created_at").order("created_at", { ascending: false }),
-      supabase.from("listen_logs").select("id, created_at").order("created_at", { ascending: false }),
+      supabase.from("listen_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       // share_views / try_click — RLS 우회 위해 supabaseAdmin 경유 서버 API 사용
       fetch("/api/admin/log-rows").then(r => r.json()) as Promise<{ shareViews: LogRow[]; tryClicks: LogRow[] }>,
     ]);
@@ -410,6 +416,51 @@ export default function AdminPage() {
   const viewCount = filteredViews.length;
   const tryCount = filteredTry.length;
 
+  // ── 유저 수 (distinct device_id) ──
+  const distinctSet = (arr: Array<{ device_id?: string | null }>) =>
+    new Set(arr.map(x => x.device_id).filter((d): d is string => !!d));
+
+  const photoUsers    = distinctSet(filteredPhotos).size;
+  const analyzeUsers  = distinctSet(filteredAnalyze).size;
+  const successUsers  = distinctSet(filteredAnalyze.filter(l => l.status === "success")).size;
+  const saveUsers     = distinctSet(filteredEntries).size;
+  const listenUsers   = distinctSet(filteredListens).size;
+
+  // 유저 기준 전환율
+  const userSuccessRate  = pct(successUsers, analyzeUsers);
+  const userSaveRate     = pct(saveUsers, successUsers);
+  const userShareRate    = pct(filteredShares.length, successUsers); // share_logs는 device_id 없음 → 건수 기준
+  const userListenRate   = pct(listenUsers, successUsers);
+
+  // 유저당 평균 분석 횟수
+  const avgAnalysesPerUser = analyzeUsers > 0 ? (successCount / analyzeUsers).toFixed(1) : "—";
+
+  // ── USERS 섹션 ──
+  // DAU: 기준일에 device_id가 있는 analyze_logs
+  const dau = analyzeUsers;
+
+  // 신규 / 재방문 (전체 데이터에서 첫 방문일 기준)
+  const firstSeenMap: Record<string, string> = {};
+  for (const log of analyzeLogs) {
+    if (!log.device_id) continue;
+    const d = timestampToKSTDate(log.created_at);
+    if (!firstSeenMap[log.device_id] || d < firstSeenMap[log.device_id]) {
+      firstSeenMap[log.device_id] = d;
+    }
+  }
+  let newUsers = 0;
+  let returnUsers = 0;
+  if (activeDate) {
+    for (const did of distinctSet(filteredAnalyze)) {
+      if (firstSeenMap[did] === activeDate) newUsers++;
+      else returnUsers++;
+    }
+  }
+  // "전체" 탭일 때는 누적 유저 수만 표시
+  const totalUniqueUsers = new Set(
+    analyzeLogs.map(l => l.device_id).filter((d): d is string => !!d)
+  ).size;
+
   // ── 퍼포먼스 ──
   const completedLogs = filteredAnalyze.filter(l => (l.status === "success" || l.status === "fail") && l.response_time_ms != null);
   const avgResponseMs = completedLogs.length > 0
@@ -525,12 +576,12 @@ export default function AdminPage() {
       {/* ── 섹션: 퍼널 흐름 ── */}
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>FUNNEL</p>
       <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 16, padding: "16px 14px", marginBottom: 20 }}>
-        <FunnelStep icon="📷" label="사진 업로드" count={photoCount} conv={pct(prefCount, photoCount)} />
+        <FunnelStep icon="📷" label="사진 업로드" count={photoCount} conv={pct(prefCount, photoCount)} userCount={photoUsers} />
         <FunnelStep icon="🎵" label="장르·에너지 선택" count={prefCount} conv={pct(analyzeStartCount, prefCount)} />
-        <FunnelStep icon="✦" label="분석 시작" count={analyzeStartCount} conv={pct(successCount, analyzeStartCount)} />
-        <FunnelStep icon="✓" label="분석 성공" count={successCount} conv={pct(listenCount, successCount)} />
-        <FunnelStep icon="▶" label="듣기 클릭" count={listenCount} conv={pct(saveCount, listenCount)} />
-        <FunnelStep icon="💾" label="결과 저장" count={saveCount} conv={pct(shareCount, saveCount)} />
+        <FunnelStep icon="✦" label="분석 시작" count={analyzeStartCount} conv={pct(successCount, analyzeStartCount)} userCount={analyzeUsers} />
+        <FunnelStep icon="✓" label="분석 성공" count={successCount} conv={pct(listenCount, successCount)} userCount={successUsers} />
+        <FunnelStep icon="▶" label="듣기 클릭" count={listenCount} conv={pct(saveCount, listenCount)} userCount={listenUsers} />
+        <FunnelStep icon="💾" label="결과 저장" count={saveCount} conv={pct(shareCount, saveCount)} userCount={saveUsers} />
         <FunnelStep icon="↑" label="공유하기" count={shareCount} conv={pct(viewCount, shareCount)} />
         <FunnelStep icon="👁" label="공유 페이지 조회" count={viewCount} conv={pct(tryCount, viewCount)} />
         <FunnelStep icon="→" label="나도 해보기 클릭" count={tryCount} isLast />
@@ -538,12 +589,19 @@ export default function AdminPage() {
 
       {/* ── 섹션: 핵심 전환율 ── */}
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>CONVERSION</p>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
         <ConvCard label="분석 성공률" value={pct(successCount, analyzeStartCount)} sub={`${successCount} / ${analyzeStartCount}`} accent="#6be0a0" />
         <ConvCard label="듣기 클릭률" value={pct(listenCount, successCount)} sub={`${listenCount} / ${successCount}`} accent={listenCount === 0 ? "#f07070" : "#a0d4f0"} tooltip="AI 추천 만족도 지표" />
         <ConvCard label="저장 전환율" value={pct(saveCount, successCount)} sub={`${saveCount} / ${successCount}`} accent="#a0d4f0" />
         <ConvCard label="공유율" value={pct(shareCount, successCount)} sub={`${shareCount} / ${successCount}건`} accent="#C4687A" />
         <ConvCard label="유입 전환율" value={pct(tryCount, viewCount)} sub={`${tryCount} / ${viewCount}`} accent="#f0d080" />
+      </div>
+      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", marginBottom: 8, marginTop: 4 }}>유저 기준 전환율</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+        <ConvCard label="분석 성공률 (유저)" value={userSuccessRate} sub={`${successUsers}명 / ${analyzeUsers}명`} accent="#6be0a0" tooltip="분석 시작 유저 중 성공한 유저 비율" />
+        <ConvCard label="듣기 클릭률 (유저)" value={userListenRate} sub={`${listenUsers}명 / ${successUsers}명`} accent={listenUsers === 0 ? "#f07070" : "#a0d4f0"} tooltip="성공 유저 중 듣기 클릭한 유저 비율" />
+        <ConvCard label="저장률 (유저)" value={userSaveRate} sub={`${saveUsers}명 / ${successUsers}명`} accent="#a0d4f0" tooltip="성공 유저 중 저장한 유저 비율" />
+        <ConvCard label="공유율 (유저)" value={userShareRate} sub={`${filteredShares.length}건 / ${successUsers}명`} accent="#C4687A" tooltip="성공 유저 대비 공유 건수 (share_logs는 device_id 미저장)" />
       </div>
 
       {/* ── 섹션: 퍼포먼스 ── */}
@@ -556,6 +614,49 @@ export default function AdminPage() {
           accent="#fff"
         />
         <ConvCard label="분석 실패율" value={failRateStr} sub={`실패 ${failCount}건`} accent={failCount > 0 ? "#f07070" : "#6be0a0"} />
+        <ConvCard
+          label="유저당 평균 분석 횟수"
+          value={avgAnalysesPerUser === "—" ? "—" : `${avgAnalysesPerUser}회`}
+          sub={`${successCount}회 / ${analyzeUsers}명`}
+          accent="#f0d080"
+          tooltip="분석 성공 횟수 ÷ 분석한 유저 수"
+        />
+      </div>
+
+      {/* ── 섹션: 유저 ── */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>USERS</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+        {activeDate ? (
+          <>
+            <ConvCard
+              label={tab === "today" ? "오늘 DAU" : tab === "yesterday" ? "어제 DAU" : `DAU (${activeDate})`}
+              value={dau.toLocaleString()}
+              sub="분석 기준 활성 유저"
+              accent="#a0d4f0"
+            />
+            <ConvCard
+              label="신규 유저"
+              value={newUsers.toLocaleString()}
+              sub={`전체 대비 ${pct(newUsers, dau)}`}
+              accent="#6be0a0"
+              tooltip="해당 날짜에 처음 분석한 device_id"
+            />
+            <ConvCard
+              label="재방문 유저"
+              value={returnUsers.toLocaleString()}
+              sub={`전체 대비 ${pct(returnUsers, dau)}`}
+              accent="#C4687A"
+              tooltip="이전에도 분석한 적 있는 device_id"
+            />
+          </>
+        ) : (
+          <ConvCard
+            label="누적 총 유저 수"
+            value={totalUniqueUsers.toLocaleString()}
+            sub="전체 기간 중 분석한 고유 device_id"
+            accent="#a0d4f0"
+          />
+        )}
       </div>
 
       {/* ── 섹션: 콘텐츠 인사이트 ── */}
