@@ -228,7 +228,8 @@ export default function AdminPage() {
   const [pw, setPw] = useState("");
   const [toast, setToast] = useState("");
   const [tab, setTab] = useState<"today" | "yesterday" | "all" | "custom">("today");
-  const [customDate, setCustomDate] = useState<string>("");
+  const [customStart, setCustomStart] = useState<string>("");
+  const [customEnd,   setCustomEnd]   = useState<string>("");
   const [adminOpen, setAdminOpen] = useState(false);
   const [spotifyOpen, setSpotifyOpen] = useState(false);
   const [retentionOpen, setRetentionOpen] = useState(false);
@@ -442,17 +443,41 @@ export default function AdminPage() {
       .format(dt).replace(/\.\s*/g, "-").replace(/-$/, "").trim();
   };
   const sevenDaysAgo = kstOffset(today, -7);
-  const activeDate = tab === "today" ? today : tab === "yesterday" ? yesterday : tab === "custom" ? customDate : null;
-  const filterTs = (ts: string) => activeDate ? timestampToKSTDate(ts) === activeDate : true;
+  // 기간 유효성 (custom 탭)
+  const rangeValid      = tab === "custom" && !!customStart && !!customEnd && customStart <= customEnd;
+  const rangeStartDate  = rangeValid ? customStart : "";
+  const rangeEndDate    = rangeValid ? customEnd   : "";
+  const rangeDayCount   = rangeValid
+    ? Math.round((new Date(rangeEndDate).getTime() - new Date(rangeStartDate).getTime()) / 86400000) + 1
+    : 0;
 
-  const filteredPhotos = photoLogs.filter(l => filterTs(l.created_at));
-  const filteredPrefs = prefLogs.filter(l => filterTs(l.created_at));
+  // 단일 날짜 모드 (today / yesterday)
+  const activeDate = tab === "today" ? today : tab === "yesterday" ? yesterday : null;
+
+  // 범용 타임스탬프 필터
+  const filterTs = (ts: string): boolean => {
+    const d = timestampToKSTDate(ts);
+    if (tab === "today")     return d === today;
+    if (tab === "yesterday") return d === yesterday;
+    if (tab === "custom")    return rangeValid ? (d >= rangeStartDate && d <= rangeEndDate) : false;
+    return true; // "all"
+  };
+  // entries는 date 컬럼 사용
+  const filterDate = (d: string): boolean => {
+    if (tab === "today")     return d === today;
+    if (tab === "yesterday") return d === yesterday;
+    if (tab === "custom")    return rangeValid ? (d >= rangeStartDate && d <= rangeEndDate) : false;
+    return true;
+  };
+
+  const filteredPhotos  = photoLogs.filter(l => filterTs(l.created_at));
+  const filteredPrefs   = prefLogs.filter(l => filterTs(l.created_at));
   const filteredAnalyze = analyzeLogs.filter(l => filterTs(l.created_at));
-  const filteredEntries = activeDate ? entries.filter(e => e.date === activeDate) : entries;
-  const filteredShares = shareLogs.filter(l => filterTs(l.created_at));
+  const filteredEntries = entries.filter(e => filterDate(e.date));
+  const filteredShares  = shareLogs.filter(l => filterTs(l.created_at));
   const filteredListens = listenLogs.filter(l => filterTs(l.created_at));
-  const filteredViews = shareViews.filter(l => filterTs(l.created_at));
-  const filteredTry = tryClicks.filter(l => filterTs(l.created_at));
+  const filteredViews   = shareViews.filter(l => filterTs(l.created_at));
+  const filteredTry     = tryClicks.filter(l => filterTs(l.created_at));
   const filteredResultViews = viewLogs.filter(l => filterTs(l.created_at));
 
   // ── 퍼널 수치 ──
@@ -670,11 +695,18 @@ export default function AdminPage() {
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
           {(["today", "yesterday", "all", "custom"] as const).map((t) => {
             const isActive = tab === t;
-            const label = t === "today" ? "오늘" : t === "yesterday" ? "어제" : t === "all" ? "전체" : "날짜 선택";
+            const label = t === "today" ? "오늘" : t === "yesterday" ? "어제" : t === "all" ? "전체" : "기간 선택";
             return (
               <button
                 key={t}
-                onClick={() => setTab(t)}
+                onClick={() => {
+                  setTab(t);
+                  // 기간 선택 탭 첫 진입 시 기본값 7일
+                  if (t === "custom" && !customStart && !customEnd) {
+                    setCustomStart(kstOffset(today, -6));
+                    setCustomEnd(today);
+                  }
+                }}
                 style={{
                   padding: "7px 18px",
                   borderRadius: 20,
@@ -691,35 +723,55 @@ export default function AdminPage() {
             );
           })}
           <span style={{ alignSelf: "center", fontSize: 11, color: "rgba(255,255,255,0.25)", marginLeft: 4 }}>
-            {tab === "today" ? today : tab === "yesterday" ? yesterday : tab === "custom" && customDate ? customDate : "누적"}
+            {tab === "today"     ? today :
+             tab === "yesterday" ? yesterday :
+             tab === "custom" && rangeValid
+               ? `${rangeStartDate} ~ ${rangeEndDate} (${rangeDayCount}일간)`
+               : "누적"}
           </span>
         </div>
 
-        {/* 날짜 선택 탭 활성 시 date input 노출 */}
+        {/* 기간 선택 탭 활성 시 range input 노출 */}
         {tab === "custom" && (
-          <div style={{ marginTop: 10 }}>
-            <input
-              type="date"
-              value={customDate}
-              max={today}
-              onChange={(e) => setCustomDate(e.target.value)}
-              style={{
-                background: "rgba(255,255,255,0.08)",
-                border: "1px solid rgba(255,255,255,0.2)",
-                borderRadius: 10,
-                padding: "8px 14px",
-                color: "#fff",
-                fontSize: 13,
-                cursor: "pointer",
-                outline: "none",
-                colorScheme: "dark",
-              }}
-            />
-            {!customDate && (
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginLeft: 10 }}>
-                날짜를 선택하세요
-              </span>
-            )}
+          <div style={{ marginTop: 12 }}>
+            {/* 날짜 입력 행 */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <input
+                type="date"
+                value={customStart}
+                max={today}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setCustomStart(v);
+                  if (customEnd && v > customEnd) setCustomEnd(v);
+                }}
+                style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, padding: "8px 14px", color: "#fff", fontSize: 13, cursor: "pointer", outline: "none", colorScheme: "dark" }}
+              />
+              <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>~</span>
+              <input
+                type="date"
+                value={customEnd}
+                min={customStart || undefined}
+                max={today}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, padding: "8px 14px", color: "#fff", fontSize: 13, cursor: "pointer", outline: "none", colorScheme: "dark" }}
+              />
+              {rangeDayCount > 90 && (
+                <span style={{ fontSize: 11, color: "#f0c060" }}>⚠ 90일 초과 — 쿼리 속도가 느려질 수 있어요</span>
+              )}
+            </div>
+            {/* 프리셋 버튼 */}
+            <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+              {([3, 7, 14] as const).map(n => (
+                <button
+                  key={n}
+                  onClick={() => { setCustomStart(kstOffset(today, -(n - 1))); setCustomEnd(today); }}
+                  style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: "5px 12px", color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer" }}
+                >
+                  최근 {n}일
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -727,12 +779,21 @@ export default function AdminPage() {
       {/* ── 섹션: 유저 ── */}
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>USERS</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
-        {activeDate ? (
+        {(activeDate || (tab === "custom" && rangeValid)) ? (
           <>
             <ConvCard
-              label={tab === "today" ? "오늘 DAU" : tab === "yesterday" ? "어제 DAU" : `DAU (${activeDate})`}
+              label={
+                tab === "today"     ? "오늘 DAU" :
+                tab === "yesterday" ? "어제 DAU" :
+                rangeDayCount === 1 ? `DAU (${rangeStartDate})` :
+                "기간 내 활동 유저"
+              }
               value={dau.toLocaleString()}
-              sub="분석 기준 활성 유저"
+              sub={
+                tab === "custom" && rangeDayCount > 1
+                  ? `일평균 ${(dau / rangeDayCount).toFixed(1)}명`
+                  : "분석 기준 활성 유저"
+              }
               accent={C.white}
             />
             <ConvCard
