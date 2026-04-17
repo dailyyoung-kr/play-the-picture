@@ -67,6 +67,31 @@ export default function ResultPage() {
   const [modalIndex, setModalIndex] = useState<number | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
+  // ── 체류 시간 트래킹 ──
+  const enterTimeRef   = useRef<number>(Date.now());
+  const hasLoggedRef   = useRef<boolean>(false);
+  const savedEntryIdRef = useRef<string | null>(null); // savedEntryId의 최신값을 ref로 미러링
+
+  // logViewDuration을 ref로 저장해서 handleListenClick에서도 접근 가능하게
+  const logViewDurationRef = useRef<(exitType: string) => void>(() => {});
+  logViewDurationRef.current = (exitType: string) => {
+    if (!isAnalyticsEnabled()) return;
+    if (hasLoggedRef.current) return;
+    hasLoggedRef.current = true;
+    const duration = Math.floor((Date.now() - enterTimeRef.current) / 1000);
+    const deviceId = getDeviceId();
+    const data = JSON.stringify({
+      entry_id: savedEntryIdRef.current ?? null,
+      duration_seconds: duration,
+      exit_type: exitType,
+    });
+    const blob = new Blob([data], { type: "application/json" });
+    navigator.sendBeacon(
+      `/api/log-result-view?device_id=${encodeURIComponent(deviceId)}`,
+      blob
+    );
+  };
+
   const showToast = (msg: React.ReactNode, onClick?: () => void) => {
     setToast(msg);
     setToastOnClick(() => onClick ?? null);
@@ -293,6 +318,8 @@ export default function ResultPage() {
           song: result?.song ?? null,
         }),
       }).catch(() => {});
+      // 듣기 클릭 시 체류 시간 기록 (exit_type: listen_click)
+      logViewDurationRef.current("listen_click");
     }
     setShowListenSheet(true);
     // spotifyTrackId가 이미 있으면 music-search 호출 불필요
@@ -302,6 +329,23 @@ export default function ResultPage() {
       fetchMusicLinks(songName, artistName);
     }
   };
+
+  // savedEntryId가 바뀔 때마다 ref 동기화
+  useEffect(() => { savedEntryIdRef.current = savedEntryId; }, [savedEntryId]);
+
+  // 체류 시간 트래킹: 마운트 시 시작, 언마운트/언로드 시 전송
+  useEffect(() => {
+    if (!isAnalyticsEnabled()) return;
+    enterTimeRef.current = Date.now();
+    hasLoggedRef.current = false;
+    const handleBeforeUnload = () => logViewDurationRef.current("unload");
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      logViewDurationRef.current("navigate");
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

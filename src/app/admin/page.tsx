@@ -10,6 +10,7 @@ type PrefLog = { id: string; created_at: string; genre: string | null; energy: n
 type AnalyzeLog = { id: string; created_at: string; status: string; response_time_ms: number | null; song: string | null; artist: string | null; device_id?: string | null };
 type EntryRow = { id: string; date: string; song: string; artist: string; genre: string | null; mood: string | null; device_id?: string | null };
 type ListenLog = { id: string; created_at: string; device_id?: string | null };
+type ViewLog  = { id: string; created_at: string; duration_seconds: number | null; exit_type: string | null };
 type LogRow = { id: string; created_at: string };
 type SpotifyStatus = {
   status: "ok" | "rate_limited" | "token_failed";
@@ -237,6 +238,7 @@ export default function AdminPage() {
   const [entries, setEntries] = useState<EntryRow[]>([]);
   const [shareLogs, setShareLogs] = useState<LogRow[]>([]);
   const [listenLogs, setListenLogs] = useState<ListenLog[]>([]);
+  const [viewLogs, setViewLogs] = useState<ViewLog[]>([]);
   const [shareViews, setShareViews] = useState<LogRow[]>([]);
   const [tryClicks, setTryClicks] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -267,13 +269,14 @@ export default function AdminPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [photoRes, prefRes, analyzeRes, entriesRes, shareRes, listenRes, logRowsRes] = await Promise.all([
+    const [photoRes, prefRes, analyzeRes, entriesRes, shareRes, listenRes, viewRes, logRowsRes] = await Promise.all([
       supabase.from("photo_upload_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("preference_logs").select("id, created_at, genre, energy").order("created_at", { ascending: false }),
       supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, song, artist, device_id").order("created_at", { ascending: false }),
       supabase.from("entries").select("id, date, song, artist, genre, mood, device_id").order("id", { ascending: false }),
       supabase.from("share_logs").select("id, created_at").order("created_at", { ascending: false }),
       supabase.from("listen_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
+      supabase.from("result_view_logs").select("id, created_at, duration_seconds, exit_type").order("created_at", { ascending: false }),
       // share_views / try_click — RLS 우회 위해 supabaseAdmin 경유 서버 API 사용
       fetch("/api/admin/log-rows").then(r => r.json()) as Promise<{ shareViews: LogRow[]; tryClicks: LogRow[] }>,
     ]);
@@ -286,6 +289,8 @@ export default function AdminPage() {
     if (!shareRes.error) setShareLogs(shareRes.data ?? []);
     else console.error("[admin] share_logs SELECT 실패:", shareRes.error.message);
     if (!listenRes.error) setListenLogs(listenRes.data ?? []);
+    if (!viewRes.error) setViewLogs(viewRes.data ?? []);
+    else console.error("[admin] result_view_logs 로드 실패:", viewRes.error.message);
     setShareViews(logRowsRes.shareViews ?? []);
     setTryClicks(logRowsRes.tryClicks ?? []);
 
@@ -438,6 +443,7 @@ export default function AdminPage() {
   const filteredListens = listenLogs.filter(l => filterTs(l.created_at));
   const filteredViews = shareViews.filter(l => filterTs(l.created_at));
   const filteredTry = tryClicks.filter(l => filterTs(l.created_at));
+  const filteredResultViews = viewLogs.filter(l => filterTs(l.created_at));
 
   // ── 퍼널 수치 ──
   const photoCount = filteredPhotos.length;
@@ -520,6 +526,27 @@ export default function AdminPage() {
     : failRatePct <= 5  ? C.green
     : failRatePct <= 15 ? C.yellow
     : C.red;
+
+  // ── 체류 시간 계산 ──
+  const rvTotal = filteredResultViews.length;
+  const rvDurations = filteredResultViews
+    .map(l => l.duration_seconds)
+    .filter((d): d is number => d != null && d >= 0);
+  const avgDuration = rvDurations.length > 0
+    ? Math.round(rvDurations.reduce((s, d) => s + d, 0) / rvDurations.length)
+    : null;
+  const over30Pct  = rvTotal > 0 ? (filteredResultViews.filter(l => (l.duration_seconds ?? 0) >= 30).length / rvTotal * 100).toFixed(1) + "%" : "—";
+  const under10Pct = rvTotal > 0 ? (filteredResultViews.filter(l => (l.duration_seconds ?? 0) < 10).length  / rvTotal * 100).toFixed(1) + "%" : "—";
+  const avgDurationStr = avgDuration != null ? `${avgDuration}초` : "—";
+  // 색상 (10건 미만이면 회색)
+  const rvGray = rvTotal < 10;
+  const perfAvgDurAccent  = rvGray ? C.gray : avgDuration == null ? C.gray : avgDuration >= 30 ? C.green : avgDuration >= 15 ? C.yellow : C.red;
+  const perfOver30Accent  = rvGray ? C.gray : accentByRate(over30Pct,  40, 20);
+  const perfUnder10Accent = rvGray ? C.gray : (() => {
+    if (under10Pct === "—") return C.gray;
+    const v = parseFloat(under10Pct);
+    return v <= 20 ? C.green : v <= 40 ? C.yellow : C.red;
+  })();
 
   // ── 콘텐츠 인사이트 ──
   const topGenres: [string, number][] = GENRE_KEYS.map((key): [string, number] => [
@@ -718,6 +745,27 @@ export default function AdminPage() {
           sub={`${successCount}회 / ${analyzeUsers}명`}
           accent={C.white}
           tooltip="분석 성공 횟수 ÷ 분석한 유저 수"
+        />
+        <ConvCard
+          label="평균 체류 시간"
+          value={avgDurationStr}
+          sub={rvGray ? `${rvTotal}건 (표본 부족)` : `${rvTotal}건 기준`}
+          accent={perfAvgDurAccent}
+          tooltip="결과 화면 입장 후 이탈까지 시간"
+        />
+        <ConvCard
+          label="30초 이상 체류"
+          value={over30Pct}
+          sub="진지하게 본 유저"
+          accent={perfOver30Accent}
+          tooltip={rvGray ? "표본 10건 미만 — 판단 보류" : "결과 화면 30초 이상 체류 비율"}
+        />
+        <ConvCard
+          label="10초 미만 이탈"
+          value={under10Pct}
+          sub="빠른 이탈"
+          accent={perfUnder10Accent}
+          tooltip={rvGray ? "표본 10건 미만 — 판단 보류" : "결과 화면 10초 미만 이탈 비율"}
         />
       </div>
 
