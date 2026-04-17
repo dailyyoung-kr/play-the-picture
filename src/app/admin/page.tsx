@@ -123,30 +123,45 @@ function RankList({
 }: {
   title: string; items: [string, number][]; accent?: string;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const visible = items.filter(([, c]) => c > 0);
+  const hidden  = items.filter(([, c]) => c === 0);
+  const shown   = expanded ? items : visible;
+
   return (
     <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14, padding: "18px 20px" }}>
       <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 14 }}>{title}</p>
       {items.length === 0 ? (
         <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>데이터 없음</p>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {items.map(([name, count], i) => (
-            <div key={name} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: i === 0 ? accent : "rgba(255,255,255,0.3)", width: 18, flexShrink: 0, textAlign: "right" }}>
-                {i + 1}
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {name}
+        <>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {shown.map(([name, count], i) => (
+              <div key={name} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: i === 0 && count > 0 ? accent : "rgba(255,255,255,0.3)", width: 18, flexShrink: 0, textAlign: "right" }}>
+                  {i + 1}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: count === 0 ? "rgba(255,255,255,0.35)" : "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {name}
+                  </div>
+                  <div style={{ marginTop: 4, height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${Math.min(100, (count / (items[0][1] || 1)) * 100)}%`, background: i === 0 && count > 0 ? accent : "rgba(255,255,255,0.25)", borderRadius: 2 }} />
+                  </div>
                 </div>
-                <div style={{ marginTop: 4, height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${Math.min(100, (count / (items[0][1] || 1)) * 100)}%`, background: i === 0 ? accent : "rgba(255,255,255,0.25)", borderRadius: 2 }} />
-                </div>
+                <span style={{ fontSize: 12, color: count === 0 ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.5)", flexShrink: 0 }}>{count}회</span>
               </div>
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", flexShrink: 0 }}>{count}회</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+          {hidden.length > 0 && (
+            <button
+              onClick={() => setExpanded(e => !e)}
+              style={{ marginTop: 10, background: "none", border: "none", padding: 0, fontSize: 12, color: "rgba(255,255,255,0.35)", cursor: "pointer" }}
+            >
+              {expanded ? "▲ 접기" : `+${hidden.length}개 더보기 ▼`}
+            </button>
+          )}
+        </>
       )}
     </div>
   );
@@ -196,6 +211,7 @@ export default function AdminPage() {
   const [tab, setTab] = useState<"today" | "yesterday" | "all" | "custom">("today");
   const [customDate, setCustomDate] = useState<string>("");
   const [adminOpen, setAdminOpen] = useState(false);
+  const [spotifyOpen, setSpotifyOpen] = useState(false);
 
   const [photoLogs, setPhotoLogs] = useState<PhotoLog[]>([]);
   const [prefLogs, setPrefLogs] = useState<PrefLog[]>([]);
@@ -619,9 +635,26 @@ export default function AdminPage() {
         <FunnelStep icon="✓" label="분석 성공" count={successCount} conv={pct(listenUsers, successUsers)} userCount={successUsers} />
         <FunnelStep icon="▶" label="듣기 클릭" count={listenCount} conv={pct(saveUsers, listenUsers)} userCount={listenUsers} />
         <FunnelStep icon="💾" label="결과 저장" count={saveCount} conv={pct(shareCount, saveUsers)} userCount={saveUsers} />
-        <FunnelStep icon="↑" label="공유하기" count={shareCount} conv={pct(viewCount, shareCount)} />
-        <FunnelStep icon="👁" label="공유 페이지 조회" count={viewCount} conv={pct(tryCount, viewCount)} />
-        <FunnelStep icon="→" label="나도 해보기 클릭" count={tryCount} isLast />
+        {shareCount > 0 ? (
+          <>
+            <FunnelStep icon="↑" label="공유하기" count={shareCount} conv={pct(viewCount, shareCount)} />
+            <FunnelStep icon="👁" label="공유 페이지 조회" count={viewCount} conv={pct(tryCount, viewCount)} />
+            <FunnelStep icon="→" label="나도 해보기 클릭" count={tryCount} isLast />
+          </>
+        ) : (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 12,
+            padding: "11px 16px",
+            background: "rgba(255,255,255,0.03)",
+            borderRadius: 12,
+          }}>
+            <span style={{ fontSize: 15, width: 22, textAlign: "center", flexShrink: 0 }}>↑</span>
+            <span style={{ flex: 1, fontSize: 13, color: "rgba(255,255,255,0.4)" }}>공유 지표</span>
+            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.25)" }}>
+              공유 0 · 조회 0 · 나도해보기 0
+            </span>
+          </div>
+        )}
       </div>
 
       {/* ── 섹션: 전환율 (유저 기준) ── */}
@@ -666,40 +699,55 @@ export default function AdminPage() {
         <RankList title="💾 가장 많이 저장된 곡 Top 5" items={topSavedSongs} accent="#7ec8e3" />
       </div>
 
-      {/* ── 섹션: Spotify API 상태 ── */}
+      {/* ── 섹션: Spotify API 상태 (접힘) ── */}
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>SPOTIFY</p>
-      <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14, padding: "18px 20px", marginBottom: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <p style={{ color: "#fff", fontSize: 13, fontWeight: 600, margin: 0 }}>🎵 Spotify API 상태</p>
-          <button
-            onClick={checkSpotify}
-            disabled={spotifyChecking}
-            style={{ background: spotifyChecking ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 16, padding: "5px 12px", color: spotifyChecking ? "rgba(255,255,255,0.3)" : "#fff", fontSize: 11, cursor: spotifyChecking ? "default" : "pointer" }}
-          >
-            {spotifyChecking ? "확인 중..." : "지금 확인"}
-          </button>
-        </div>
-        {!spotifyStatus && !spotifyChecking && (
-          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", margin: 0 }}>조회하지 않음</p>
-        )}
-        {spotifyChecking && (
-          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", margin: 0 }}>확인 중...</p>
-        )}
-        {spotifyStatus && !spotifyChecking && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <span style={{
-              display: "inline-block", padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, width: "fit-content",
-              background: spotifyStatus.status === "ok" ? "rgba(80,200,120,0.18)" : spotifyStatus.status === "rate_limited" ? "rgba(220,60,60,0.18)" : "rgba(220,180,60,0.18)",
-              color: spotifyStatus.status === "ok" ? "#6be0a0" : spotifyStatus.status === "rate_limited" ? "#f07070" : "#f0d060",
-              border: `1px solid ${spotifyStatus.status === "ok" ? "rgba(80,200,120,0.3)" : spotifyStatus.status === "rate_limited" ? "rgba(220,60,60,0.3)" : "rgba(220,180,60,0.3)"}`,
-            }}>
-              {spotifyStatus.status === "ok" ? "● 정상" : spotifyStatus.status === "rate_limited" ? "● 429 제한 중" : "● 토큰 오류"}
-            </span>
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", margin: 0 }}>
-              확인 시각: {new Date(spotifyStatus.checkedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-            </p>
-            {spotifyStatus.status === "rate_limited" && countdown && (
-              <p style={{ fontSize: 12, color: "#f07070", margin: 0 }}>초기화까지 {countdown}</p>
+      <div style={{ marginBottom: 20 }}>
+        <button
+          onClick={() => setSpotifyOpen(o => !o)}
+          style={{
+            width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
+            background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)",
+            borderRadius: spotifyOpen ? "14px 14px 0 0" : 14,
+            padding: "13px 18px", cursor: "pointer", color: "#fff",
+          }}
+        >
+          <span style={{ fontSize: 13, fontWeight: 600 }}>🎵 Spotify API 상태</span>
+          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", display: "inline-block", transform: spotifyOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>▾</span>
+        </button>
+        {spotifyOpen && (
+          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.10)", borderTop: "none", borderRadius: "0 0 14px 14px", padding: "16px 18px" }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+              <button
+                onClick={checkSpotify}
+                disabled={spotifyChecking}
+                style={{ background: spotifyChecking ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 16, padding: "5px 12px", color: spotifyChecking ? "rgba(255,255,255,0.3)" : "#fff", fontSize: 11, cursor: spotifyChecking ? "default" : "pointer" }}
+              >
+                {spotifyChecking ? "확인 중..." : "지금 확인"}
+              </button>
+            </div>
+            {!spotifyStatus && !spotifyChecking && (
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", margin: 0 }}>조회하지 않음</p>
+            )}
+            {spotifyChecking && (
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", margin: 0 }}>확인 중...</p>
+            )}
+            {spotifyStatus && !spotifyChecking && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <span style={{
+                  display: "inline-block", padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, width: "fit-content",
+                  background: spotifyStatus.status === "ok" ? "rgba(80,200,120,0.18)" : spotifyStatus.status === "rate_limited" ? "rgba(220,60,60,0.18)" : "rgba(220,180,60,0.18)",
+                  color: spotifyStatus.status === "ok" ? "#6be0a0" : spotifyStatus.status === "rate_limited" ? "#f07070" : "#f0d060",
+                  border: `1px solid ${spotifyStatus.status === "ok" ? "rgba(80,200,120,0.3)" : spotifyStatus.status === "rate_limited" ? "rgba(220,60,60,0.3)" : "rgba(220,180,60,0.3)"}`,
+                }}>
+                  {spotifyStatus.status === "ok" ? "● 정상" : spotifyStatus.status === "rate_limited" ? "● 429 제한 중" : "● 토큰 오류"}
+                </span>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", margin: 0 }}>
+                  확인 시각: {new Date(spotifyStatus.checkedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                </p>
+                {spotifyStatus.status === "rate_limited" && countdown && (
+                  <p style={{ fontSize: 12, color: "#f07070", margin: 0 }}>초기화까지 {countdown}</p>
+                )}
+              </div>
             )}
           </div>
         )}
