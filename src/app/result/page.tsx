@@ -402,20 +402,17 @@ export default function ResultPage() {
       {/* 캡처 영역 시작 */}
       <div ref={cardRef} id="result-card">
 
-      {/* 상단 앱 이름 */}
-      <div
-        className="text-center pt-12 pb-3"
-        style={{ fontSize: 15, letterSpacing: "0.2em", color: "#C4687A", fontFamily: "var(--font-dm-sans)", fontWeight: 300 }}
-      >
-        Play the Picture
-      </div>
-
-      <div className="flex-1 flex flex-col px-5 overflow-y-auto">
-
-        {/* 오늘의 기록 */}
-        <p className="text-center mb-3" style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: "0.08em" }}>
+      {/* 상단 앱 이름 + 서브 문구 */}
+      <div className="text-center" style={{ paddingTop: 20, paddingBottom: 6 }}>
+        <div style={{ fontSize: 11, letterSpacing: "0.2em", color: "#C4687A", fontFamily: "var(--font-dm-sans)", fontWeight: 300, marginBottom: 4 }}>
+          Play the Picture
+        </div>
+        <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: "0.08em", margin: 0 }}>
           플더픽의 추천곡
         </p>
+      </div>
+
+      <div className="flex-1 flex flex-col px-5 overflow-y-auto" style={{ paddingTop: 16 }}>
 
         {/* ── 섹션 1: 사진 + 오늘의 당신은 (세로 배치 통일) ── */}
         {(() => {
@@ -476,8 +473,9 @@ export default function ResultPage() {
           );
         })()}
 
+        {/* TEMP: 4축 제거 테스트 - 2026-04-17, 원복 방법: 이 주석 블록 해제 */}
         {/* ── 섹션 2: 바이브 스펙트럼 (2x2 그리드) ── */}
-        {result.vibeSpectrum && (
+        {/*result.vibeSpectrum && (
           <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "10px 14px", marginBottom: 10 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px" }}>
               {VIBE_SPECTRUM_AXES.map(({ key, left, right }) => {
@@ -505,7 +503,7 @@ export default function ResultPage() {
               })}
             </div>
           </div>
-        )}
+        )*/}
 
         {/* ── 섹션 3: 곡 정보 ── */}
         <div style={{ position: "relative", zIndex: 2, marginBottom: 10 }}>
@@ -582,7 +580,7 @@ export default function ResultPage() {
               fontSize: 13, cursor: saving ? "default" : "pointer",
             }}
           >
-            {saving ? "저장 중..." : "아카이브에 저장"}
+            {saving ? "저장 중..." : "💾 보관하기"}
           </button>
           <button
             className="font-medium"
@@ -597,7 +595,7 @@ export default function ResultPage() {
               fontSize: 13, cursor: sharing ? "default" : "pointer",
             }}
           >
-            {sharing ? "공유 중..." : "친구에게 공유"}
+            {sharing ? "공유 중..." : "📷 결과 공유하기"}
           </button>
         </div>
 
@@ -612,14 +610,14 @@ export default function ResultPage() {
           style={{
             background: "none",
             border: "none",
-            color: "rgba(255,255,255,0.4)",
+            color: "#ffffff",
             fontSize: 13,
             cursor: "pointer",
             padding: "6px 0",
             textAlign: "center",
           }}
         >
-          다른 사진으로 다시 해보기
+          한 번 더 해보기
         </button>
 
       </div>

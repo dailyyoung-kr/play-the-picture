@@ -40,15 +40,13 @@ const VIBE_AXES = [
 ];
 const WAVE_DELAYS = [0, 0.18, 0.36, 0.18, 0];
 const PHASE3_TEXTS = [
-  "딱 맞는 한 곡을 찾고 있어요",
-  "취향을 분석하고 있어요",
-  "오늘의 분위기와 어울리는 곡을 고르고 있어요",
-  "거의 다 됐어요",
-  "더 잘 어울리는 곡이 있을 것 같네요",
-  "당신이 좋아할만한 곡을 찾아볼게요",
-  "조금만 더 기다려주세요, 거의 다 됐어요",
+  "딱 맞는 한 곡을 고르고 있어요 🎵",
+  "당신이 좋아할만한 곡을 찾고 있어요",
   "딱 한 곡이라 신중하게 고르고 있어요",
+  "조금만 더 기다려주세요",
+  "더 잘 어울리는 곡이 있는지 보고 있어요",
   "플더픽이 최선을 다하고 있어요 🎵",
+  "거의 다 됐어요",
 ];
 
 export default function PreferencePage() {
@@ -131,7 +129,7 @@ export default function PreferencePage() {
       }, base));
     }
 
-    const LOOP = [4, 5, 6, 7, 8];
+    const LOOP = [4, 5, 6];
     let step = 0;
     timers.push(setTimeout(() => {
       loopInterval = setInterval(() => {
