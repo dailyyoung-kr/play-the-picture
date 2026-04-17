@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
             background: "#0d1218",
           }}
         >
-          {/* 배경: 앨범아트 강한 블러 */}
+          {/* 배경: 앨범아트 블러 — 우측 680px 영역에만 (정사각형 비율 유지) */}
           {albumArt && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -104,22 +104,26 @@ export async function GET(req: NextRequest) {
               alt=""
               style={{
                 position: "absolute",
-                inset: "0",
-                width: "100%",
-                height: "100%",
+                left: PHOTO_W,
+                top: 0,
+                width: 1200 - PHOTO_W,
+                height: PHOTO_H,
                 objectFit: "cover",
-                filter: "blur(50px)",
+                filter: "blur(40px)",
                 transform: "scale(1.05)",
               }}
             />
           )}
 
-          {/* 어두운 오버레이 */}
+          {/* 어두운 오버레이 — 우측 영역에만 */}
           <div
             style={{
               position: "absolute",
-              inset: "0",
-              background: "rgba(0,0,0,0.72)",
+              left: PHOTO_W,
+              top: 0,
+              width: 1200 - PHOTO_W,
+              height: PHOTO_H,
+              background: "rgba(0,0,0,0.55)",
               display: "flex",
             }}
           />
