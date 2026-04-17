@@ -1,6 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 type SongRow = {
   id: string;
@@ -134,6 +139,7 @@ export async function newRecommend(
   const genre = genreMap[rawGenre] ?? rawGenre;
   const energy = Number(body.energy) || 3;
   const isDiscover = genre === "discover";
+  const deviceId = (body.deviceId as string) ?? null;
   console.log(`[new] genre 변환: "${rawGenre}" → "${genre}"`);
 
   const perfStart = Date.now();
@@ -148,10 +154,26 @@ export async function newRecommend(
 
   console.log(`[PERF] 분석 시작 — 사진 ${photos.length}장`);
 
+  // ── STEP 0: 최근 7일 추천 이력 조회 (반복 방지) ──
+
+  let excludedIds: string[] = [];
+  if (deviceId) {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: recData } = await supabase
+      .from("recommendation_logs")
+      .select("song_id")
+      .eq("device_id", deviceId)
+      .gte("created_at", sevenDaysAgo);
+    excludedIds = (recData ?? []).map((r: { song_id: string }) => r.song_id).filter(Boolean);
+    console.log(`[new] 최근 7일 추천 제외: ${excludedIds.length}곡`);
+  }
+
   // ── STEP 1: Supabase에서 후보곡 필터링 ──
 
   const energyMin = Math.max(1, energy - 1);
   const energyMax = Math.min(5, energy + 1);
+
+  const excludedSet = new Set(excludedIds);
 
   let candidates: SongRow[] = [];
 
@@ -202,15 +224,26 @@ export async function newRecommend(
     return NextResponse.json({ error: "해당 조건의 곡이 없어요. 다른 장르나 분위기를 선택해주세요." }, { status: 404 });
   }
 
+  // 반복 추천 방지: 최근 7일 이력 제외 (메모리 필터)
+  let filteredCandidates = excludedSet.size > 0
+    ? candidates.filter(s => !excludedSet.has(s.id))
+    : candidates;
+
+  // 4차 폴백: 제외 후 10곡 미만이면 전체 후보 복원
+  if (filteredCandidates.length < 10 && excludedSet.size > 0) {
+    console.log(`[new] 4차 폴백: 제외 후 ${filteredCandidates.length}곡 → 반복 제외 해제`);
+    filteredCandidates = candidates;
+  }
+
   // 샘플링 (상한 30곡)
   let finalCandidates: SongRow[];
   if (isDiscover) {
     // discover: 장르별 최대 5곡씩 균등 샘플링, 30곡 상한
-    finalCandidates = balancedSample(candidates, 5).slice(0, 30);
-  } else if (candidates.length > 30) {
-    finalCandidates = shuffleAndSlice(candidates, 30);
+    finalCandidates = balancedSample(filteredCandidates, 5).slice(0, 30);
+  } else if (filteredCandidates.length > 30) {
+    finalCandidates = shuffleAndSlice(filteredCandidates, 30);
   } else {
-    finalCandidates = shuffleAndSlice(candidates, candidates.length);
+    finalCandidates = shuffleAndSlice(filteredCandidates, filteredCandidates.length);
   }
 
   // 아티스트 다양성: 같은 아티스트 최대 2곡
@@ -278,6 +311,18 @@ export async function newRecommend(
   console.log(`[new] 선택된 곡: ${selectedSong.song} - ${selectedSong.artist} | index=${selectedIndex}`);
   perf("결과 조합 완료", t3);
   console.log(`[PERF] 전체 소요: ${Date.now() - perfStart}ms (사진 ${photos.length}장)`);
+
+  // ── STEP 4: 추천 이력 비동기 기록 (응답 대기 시간에 영향 없음) ──
+  if (deviceId && selectedSong?.id) {
+    after(async () => {
+      const { error: logErr } = await supabaseAdmin.from("recommendation_logs").insert({
+        device_id: deviceId,
+        song_id: selectedSong.id,
+      });
+      if (logErr) console.error("[new] recommendation_logs insert 실패:", logErr.message);
+      else console.log(`[new] 추천 이력 기록: device=${deviceId}, song=${selectedSong.id}`);
+    });
+  }
 
   return NextResponse.json({
     song: `${selectedSong.song} - ${selectedSong.artist}`,

@@ -199,6 +199,7 @@ export default function PreferencePage() {
           photos,
           genre: genreOption.apiGenre,
           energy: selectedEnergy,
+          deviceId,
         }),
       });
 

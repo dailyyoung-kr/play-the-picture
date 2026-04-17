@@ -49,8 +49,6 @@ export default function ResultPage() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [photos, setPhotos] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-  // 좋아요/싫어요 피드백
-  const [feedbackGiven, setFeedbackGiven] = useState<"like" | "dislike" | null>(null);
   const [sharing, setSharing] = useState(false);
   const [savedEntryId, setSavedEntryId] = useState<string | null>(null);
   const [toast, setToast] = useState<React.ReactNode>("");
@@ -96,38 +94,6 @@ export default function ResultPage() {
     setToast(msg);
     setToastOnClick(() => onClick ?? null);
     setTimeout(() => { setToast(""); setToastOnClick(null); }, 3000);
-  };
-
-  const sendFeedback = async (trackId: string, action: "like" | "unlike" | "skip" | "unskip") => {
-    try {
-      await fetch("/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ spotifyTrackId: trackId, action }),
-      });
-    } catch {
-      // 피드백 실패는 조용히 무시
-    }
-  };
-
-  const handleFeedback = (type: "like" | "dislike") => {
-    if (!result) return;
-    const trackId = result.spotifyTrackId;
-    if (!trackId) return;
-
-    if (feedbackGiven === type) {
-      // 같은 버튼 재클릭 → 해제
-      sendFeedback(trackId, type === "like" ? "unlike" : "unskip");
-      setFeedbackGiven(null);
-    } else {
-      // 다른 버튼 클릭 또는 처음 클릭
-      if (feedbackGiven !== null) {
-        // 기존 선택 취소
-        sendFeedback(trackId, feedbackGiven === "like" ? "unlike" : "unskip");
-      }
-      sendFeedback(trackId, type === "like" ? "like" : "skip");
-      setFeedbackGiven(type);
-    }
   };
 
   // 저장 후 id 반환 (이미 저장돼 있으면 캐시된 id 반환)
@@ -656,34 +622,6 @@ export default function ResultPage() {
           다른 사진으로 다시 해보기
         </button>
 
-        {/* 좋아요/싫어요 */}
-        {result.spotifyTrackId && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, marginBottom: 4, paddingTop: 4 }}>
-            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", margin: 0 }}>이 곡이 마음에 드셨나요?</p>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={() => handleFeedback("like")}
-                style={{ background: "none", border: "none", padding: "4px 8px", cursor: "pointer", color: feedbackGiven === "like" ? "#fff" : "#999", opacity: feedbackGiven === "dislike" ? 0.3 : 1, transition: "color 0.18s ease, opacity 0.18s ease" }}
-              >
-                {feedbackGiven === "like" ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2 20h2a1 1 0 0 0 1-1v-7a1 1 0 0 0-1-1H2v9zm19-9h-6l1.12-5.06A1 1 0 0 0 15.15 5L9 11v9h9.31a2 2 0 0 0 1.98-1.69l1.12-6.5A2 2 0 0 0 21 11z"/></svg>
-                ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
-                )}
-              </button>
-              <button
-                onClick={() => handleFeedback("dislike")}
-                style={{ background: "none", border: "none", padding: "4px 8px", cursor: "pointer", color: feedbackGiven === "dislike" ? "#fff" : "#999", opacity: feedbackGiven === "like" ? 0.3 : 1, transition: "color 0.18s ease, opacity 0.18s ease" }}
-              >
-                {feedbackGiven === "dislike" ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M22 4h-2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h2V4zm-19 9h6l-1.12 5.06A1 1 0 0 0 8.85 19L15 13V4H5.69a2 2 0 0 0-1.98 1.69l-1.12 6.5A2 2 0 0 0 3 13z"/></svg>
-                ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* 듣기 바텀시트 */}
