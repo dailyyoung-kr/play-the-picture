@@ -12,6 +12,7 @@ type EntryRow = { id: string; date: string; song: string; artist: string; genre:
 type ListenLog = { id: string; created_at: string; device_id?: string | null };
 type ViewLog  = { id: string; created_at: string; duration_seconds: number | null; exit_type: string | null };
 type LogRow = { id: string; created_at: string };
+type SaveLog = { id: string; created_at: string; entry_id: string; device_id: string };
 type SpotifyStatus = {
   status: "ok" | "rate_limited" | "token_failed";
   checkedAt: number;
@@ -243,6 +244,7 @@ export default function AdminPage() {
   const [viewLogs, setViewLogs] = useState<ViewLog[]>([]);
   const [shareViews, setShareViews] = useState<LogRow[]>([]);
   const [tryClicks, setTryClicks] = useState<LogRow[]>([]);
+  const [saveLogs, setSaveLogs] = useState<SaveLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [spotifyStatus, setSpotifyStatus] = useState<SpotifyStatus | null>(null);
@@ -271,7 +273,7 @@ export default function AdminPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [photoRes, prefRes, analyzeRes, entriesRes, shareRes, listenRes, viewRes, logRowsRes] = await Promise.all([
+    const [photoRes, prefRes, analyzeRes, entriesRes, shareRes, listenRes, viewRes, logRowsRes, saveRes] = await Promise.all([
       supabase.from("photo_upload_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("preference_logs").select("id, created_at, genre, energy").order("created_at", { ascending: false }),
       supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, song, artist, device_id").order("created_at", { ascending: false }),
@@ -281,6 +283,7 @@ export default function AdminPage() {
       supabase.from("result_view_logs").select("id, created_at, duration_seconds, exit_type").order("created_at", { ascending: false }),
       // share_views / try_click — RLS 우회 위해 supabaseAdmin 경유 서버 API 사용
       fetch("/api/admin/log-rows").then(r => r.json()) as Promise<{ shareViews: LogRow[]; tryClicks: LogRow[] }>,
+      supabase.from("save_logs").select("id, created_at, entry_id, device_id").order("created_at", { ascending: false }),
     ]);
 
     if (!photoRes.error) setPhotoLogs(photoRes.data ?? []);
@@ -295,6 +298,8 @@ export default function AdminPage() {
     else console.error("[admin] result_view_logs 로드 실패:", viewRes.error.message);
     setShareViews(logRowsRes.shareViews ?? []);
     setTryClicks(logRowsRes.tryClicks ?? []);
+    if (!saveRes.error) setSaveLogs(saveRes.data ?? []);
+    else console.error("[admin] save_logs 로드 실패:", saveRes.error.message);
 
     setLastRefresh(new Date());
     setLoading(false);
@@ -462,18 +467,10 @@ export default function AdminPage() {
     if (tab === "custom")    return rangeValid ? (d >= rangeStartDate && d <= rangeEndDate) : false;
     return true; // "all"
   };
-  // entries는 date 컬럼 사용
-  const filterDate = (d: string): boolean => {
-    if (tab === "today")     return d === today;
-    if (tab === "yesterday") return d === yesterday;
-    if (tab === "custom")    return rangeValid ? (d >= rangeStartDate && d <= rangeEndDate) : false;
-    return true;
-  };
-
   const filteredPhotos  = photoLogs.filter(l => filterTs(l.created_at));
   const filteredPrefs   = prefLogs.filter(l => filterTs(l.created_at));
   const filteredAnalyze = analyzeLogs.filter(l => filterTs(l.created_at));
-  const filteredEntries = entries.filter(e => filterDate(e.date));
+  const filteredSaveLogs = saveLogs.filter(l => filterTs(l.created_at));
   const filteredShares  = shareLogs.filter(l => filterTs(l.created_at));
   const filteredListens = listenLogs.filter(l => filterTs(l.created_at));
   const filteredViews   = shareViews.filter(l => filterTs(l.created_at));
@@ -486,7 +483,7 @@ export default function AdminPage() {
   const analyzeStartCount = filteredAnalyze.length; // 모든 analyze_log = 분석 시작 횟수
   const successCount = filteredAnalyze.filter(l => l.status === "success").length;
   const failCount = filteredAnalyze.filter(l => l.status === "fail").length;
-  const saveCount = filteredEntries.length;
+  const saveCount = filteredSaveLogs.length;
   const listenCount = filteredListens.length;
   const shareCount = filteredShares.length;
   const viewCount = filteredViews.length;
@@ -499,7 +496,7 @@ export default function AdminPage() {
   const photoUsers    = distinctSet(filteredPhotos).size;
   const analyzeUsers  = distinctSet(filteredAnalyze).size;
   const successUsers  = distinctSet(filteredAnalyze.filter(l => l.status === "success")).size;
-  const saveUsers     = distinctSet(filteredEntries).size;
+  const saveUsers     = distinctSet(filteredSaveLogs).size;
   const listenUsers   = distinctSet(filteredListens).size;
 
   // 유저 기준 전환율
@@ -659,9 +656,12 @@ export default function AdminPage() {
       .filter(l => l.status === "success" && l.song)
       .map(l => `${l.song}${l.artist ? ` — ${l.artist}` : ""}`)
   ).slice(0, 5);
+  const entryById: Record<string, EntryRow> = {};
+  for (const e of entries) entryById[e.id] = e;
   const topSavedSongs = countBy(
-    filteredEntries
-      .filter(e => e.song)
+    filteredSaveLogs
+      .map(l => entryById[l.entry_id])
+      .filter((e): e is EntryRow => !!e && !!e.song)
       .map(e => `${e.song}${e.artist ? ` — ${e.artist}` : ""}`)
   ).slice(0, 5);
 

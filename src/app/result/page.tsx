@@ -50,6 +50,7 @@ export default function ResultPage() {
   const [photos, setPhotos] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [isSaved, setIsSaved] = useState(false); // save_logs 기록 완료 여부 (UI 잠금용)
   const [savedEntryId, setSavedEntryId] = useState<string | null>(null);
   const [toast, setToast] = useState<React.ReactNode>("");
   const [toastOnClick, setToastOnClick] = useState<(() => void) | null>(null);
@@ -137,11 +138,23 @@ export default function ResultPage() {
   };
 
   const handleSaveToSupabase = async () => {
-    if (!result) return;
+    if (!result || isSaved) return;
     trackEvent("save_click", { song: result.song });
     setSaving(true);
     try {
-      await saveEntry();
+      // 1) entries 저장 (이미 공유로 생성됐으면 재사용)
+      const entryId = await saveEntry();
+      if (!entryId) throw new Error("저장 실패");
+
+      // 2) save_logs에 기록 — 이게 "실제 저장 의도" 표시
+      const saveRes = await fetch("/api/log-save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entry_id: entryId, device_id: getDeviceId() }),
+      });
+      if (!saveRes.ok) throw new Error("save_logs 기록 실패");
+
+      setIsSaved(true);
       showToast(
         <span>✦ 오늘의 기록이 저장됐어요 · <span style={{ color: "#C4687A" }}>모아보기 →</span></span>,
         () => router.push("/journal")
@@ -570,17 +583,17 @@ export default function ResultPage() {
         <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
           <button
             onClick={handleSaveToSupabase}
-            disabled={saving}
+            disabled={saving || isSaved}
             style={{
               flex: 1,
-              background: "rgba(255,255,255,0.08)",
-              border: "1px solid rgba(255,255,255,0.2)",
+              background: isSaved ? "rgba(196,104,122,0.15)" : "rgba(255,255,255,0.08)",
+              border: `1px solid ${isSaved ? "rgba(196,104,122,0.4)" : "rgba(255,255,255,0.2)"}`,
               borderRadius: 24, padding: 13,
-              color: saving ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.85)",
-              fontSize: 13, cursor: saving ? "default" : "pointer",
+              color: isSaved ? "#C4687A" : (saving ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.85)"),
+              fontSize: 13, cursor: (saving || isSaved) ? "default" : "pointer",
             }}
           >
-            {saving ? "저장 중..." : "💾 보관하기"}
+            {isSaved ? "✓ 보관됨" : (saving ? "저장 중..." : "💾 보관하기")}
           </button>
           <button
             className="font-medium"

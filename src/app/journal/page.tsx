@@ -152,15 +152,28 @@ export default function JournalPage() {
       to = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
     }
     const deviceId = getDeviceId();
-    getSupabaseWithDeviceId()
-      .from("entries")
-      .select("*")
-      .gte("date", from)
-      .lte("date", to)
-      .not("device_id", "is", null)
-      .eq("device_id", deviceId)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => setEntries(data ?? []));
+    (async () => {
+      const supabase = getSupabaseWithDeviceId();
+      // 1) 이 기기가 save_logs에 기록한 entry_id 목록
+      const { data: savedRows } = await supabase
+        .from("save_logs")
+        .select("entry_id")
+        .eq("device_id", deviceId);
+      const savedIds = (savedRows ?? []).map((r: { entry_id: string }) => r.entry_id);
+      if (savedIds.length === 0) {
+        setEntries([]);
+        return;
+      }
+      // 2) 해당 entry들 중 날짜 범위에 걸치는 것만 로드
+      const { data } = await supabase
+        .from("entries")
+        .select("*")
+        .in("id", savedIds)
+        .gte("date", from)
+        .lte("date", to)
+        .order("created_at", { ascending: false });
+      setEntries(data ?? []);
+    })();
   }, [calendarView, weekStartDate, currentYear, currentMonth]);
 
   const todayStr = today.toISOString().slice(0, 10);
