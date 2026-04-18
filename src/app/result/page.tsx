@@ -181,7 +181,7 @@ export default function ResultPage() {
         fetch("/api/log-share", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ entry_id: entryId }),
+          body: JSON.stringify({ entry_id: entryId, device_id: getDeviceId() }),
         }).catch(() => {});
       }
 
