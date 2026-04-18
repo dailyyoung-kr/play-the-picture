@@ -205,7 +205,12 @@ export default function PreferencePage() {
       const responseTimeMs = Date.now() - startTime;
 
       if (!res.ok) {
-        if (logId) await supabase.from("analyze_logs").update({ status: "fail", response_time_ms: responseTimeMs, error_reason: data.error ?? "unknown" }).eq("id", logId);
+        if (logId) await supabase.from("analyze_logs").update({
+          status: "fail",
+          response_time_ms: responseTimeMs,
+          error_reason: data.error ?? "unknown",
+          error_code: data.error_code ?? "unknown",
+        }).eq("id", logId);
         throw new Error(data.error || "분석에 실패했어요.");
       }
 
@@ -227,7 +232,19 @@ export default function PreferencePage() {
       localStorage.setItem("ptp_prefs", JSON.stringify({ genre: selectedGenre, energy: selectedEnergy }));
       router.push("/result");
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "오류가 발생했어요. 다시 시도해주세요.");
+      const msg = e instanceof Error ? e.message : "오류가 발생했어요. 다시 시도해주세요.";
+      // fetch 자체가 throw된 네트워크 오류 케이스 — 이때는 위 !res.ok 로깅이 안 탔으므로 여기서 보정
+      if (logId && (e instanceof TypeError || /fetch|network|failed to fetch/i.test(msg))) {
+        try {
+          await supabase.from("analyze_logs").update({
+            status: "fail",
+            response_time_ms: Date.now() - startTime,
+            error_reason: msg,
+            error_code: "network_error",
+          }).eq("id", logId);
+        } catch { /* ignore */ }
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }

@@ -113,7 +113,7 @@ export async function newRecommend(
 ): Promise<ReturnType<typeof NextResponse.json>> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: "API 키가 설정되지 않았어요." }, { status: 500 });
+    return NextResponse.json({ error: "API 키가 설정되지 않았어요.", error_code: "api_key_missing" }, { status: 500 });
   }
 
   const supabase = createClient(
@@ -186,7 +186,7 @@ export async function newRecommend(
     const { data, error } = await supabase.from("songs").select("*").gte("energy", energyMin).lte("energy", energyMax);
     if (error) {
       console.error("[new] DB 조회 오류:", error.message);
-      return NextResponse.json({ error: "곡 데이터를 불러오지 못했어요." }, { status: 500 });
+      return NextResponse.json({ error: "곡 데이터를 불러오지 못했어요.", error_code: "db_error" }, { status: 500 });
     }
     candidates = (data ?? []) as SongRow[];
     if (candidates.length < 10) {
@@ -199,7 +199,7 @@ export async function newRecommend(
     const { data: exact, error } = await supabase.from("songs").select("*").eq("genre", genre).eq("energy", energy);
     if (error) {
       console.error("[new] DB 조회 오류:", error.message);
-      return NextResponse.json({ error: "곡 데이터를 불러오지 못했어요." }, { status: 500 });
+      return NextResponse.json({ error: "곡 데이터를 불러오지 못했어요.", error_code: "db_error" }, { status: 500 });
     }
     candidates = (exact ?? []) as SongRow[];
     console.log(`[new] 1차 정확매칭: ${candidates.length}곡 (genre=${genre}, energy=${energy})`);
@@ -222,7 +222,7 @@ export async function newRecommend(
   perf("후보곡 필터링 완료", t1);
 
   if (candidates.length === 0) {
-    return NextResponse.json({ error: "해당 조건의 곡이 없어요. 다른 장르나 분위기를 선택해주세요." }, { status: 404 });
+    return NextResponse.json({ error: "해당 조건의 곡이 없어요. 다른 장르나 분위기를 선택해주세요.", error_code: "no_candidates" }, { status: 404 });
   }
 
   // 반복 추천 방지: 최근 7일 이력 제외 (메모리 필터)
@@ -294,7 +294,7 @@ export async function newRecommend(
     result = JSON.parse(cleaned);
   } catch {
     console.error("[new] JSON 파싱 실패:", cleaned.slice(0, 200));
-    return NextResponse.json({ error: "분석 중 오류가 발생했어요. 다시 시도해주세요." }, { status: 500 });
+    return NextResponse.json({ error: "분석 중 오류가 발생했어요. 다시 시도해주세요.", error_code: "json_parse_error" }, { status: 500 });
   }
 
   // ── STEP 3: 결과 조합 ──
@@ -306,7 +306,7 @@ export async function newRecommend(
   const selectedSong = finalCandidates[selectedIndex - 1] ?? finalCandidates[0];
 
   if (!selectedSong) {
-    return NextResponse.json({ error: "곡 선택 중 오류가 발생했어요." }, { status: 500 });
+    return NextResponse.json({ error: "곡 선택 중 오류가 발생했어요.", error_code: "selection_error" }, { status: 500 });
   }
 
   console.log(`[new] 선택된 곡: ${selectedSong.song} - ${selectedSong.artist} | index=${selectedIndex}`);
