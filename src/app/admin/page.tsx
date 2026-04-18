@@ -496,6 +496,7 @@ export default function AdminPage() {
   const photoUsers    = distinctSet(filteredPhotos).size;
   const analyzeUsers  = distinctSet(filteredAnalyze).size;
   const successUsers  = distinctSet(filteredAnalyze.filter(l => l.status === "success")).size;
+  const failUsers     = distinctSet(filteredAnalyze.filter(l => l.status === "fail")).size;
   const saveUsers     = distinctSet(filteredSaveLogs).size;
   const listenUsers   = distinctSet(filteredListens).size;
 
@@ -505,8 +506,8 @@ export default function AdminPage() {
   const userShareRate    = pct(filteredShares.length, successUsers); // share_logs는 device_id 없음 → 건수 기준
   const userListenRate   = pct(listenUsers, successUsers);
 
-  // 유저당 평균 분석 횟수
-  const avgAnalysesPerUser = analyzeUsers > 0 ? (successCount / analyzeUsers).toFixed(1) : "—";
+  // 유저당 평균 분석 횟수 — 성공 유저 기준 (성공 건수 ÷ 성공 유저 수)
+  const avgAnalysesPerUser = successUsers > 0 ? (successCount / successUsers).toFixed(1) : "—";
 
   // ── USERS 섹션 ──
   // DAU: 기준일에 device_id가 있는 analyze_logs
@@ -871,13 +872,13 @@ export default function AdminPage() {
           sub={`${completedLogs.length}건 기준`}
           accent={perfResponseAccent}
         />
-        <ConvCard label="분석 실패율" value={failRateStr} sub={`실패 ${failCount}건`} accent={perfFailAccent} />
+        <ConvCard label="분석 실패율" value={failRateStr} sub={`${failCount}회 / ${failUsers}명`} accent={perfFailAccent} />
         <ConvCard
           label="유저당 평균 분석 횟수"
           value={avgAnalysesPerUser === "—" ? "—" : `${avgAnalysesPerUser}회`}
-          sub={`${successCount}회 / ${analyzeUsers}명`}
+          sub={`${successCount}회 / ${successUsers}명`}
           accent={C.white}
-          tooltip="분석 성공 횟수 ÷ 분석한 유저 수"
+          tooltip="분석 성공 횟수 ÷ 성공 유저 수"
         />
         <ConvCard
           label="평균 체류 시간"
