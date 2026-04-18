@@ -509,6 +509,28 @@ export default function AdminPage() {
   // 유저당 평균 분석 횟수 — 성공 유저 기준 (성공 건수 ÷ 성공 유저 수)
   const avgAnalysesPerUser = successUsers > 0 ? (successCount / successUsers).toFixed(1) : "—";
 
+  // 유저별 성공 분석 횟수 분포 — 중앙값/최대값 (극단치 감지용)
+  const perUserSuccessCounts = (() => {
+    const counts: Record<string, number> = {};
+    for (const l of filteredAnalyze) {
+      if (l.status !== "success" || !l.device_id) continue;
+      counts[l.device_id] = (counts[l.device_id] ?? 0) + 1;
+    }
+    return Object.values(counts).sort((a, b) => a - b);
+  })();
+  const medianAnalysesPerUser = perUserSuccessCounts.length > 0
+    ? (() => {
+        const n = perUserSuccessCounts.length;
+        const mid = Math.floor(n / 2);
+        return n % 2 === 0
+          ? ((perUserSuccessCounts[mid - 1] + perUserSuccessCounts[mid]) / 2).toFixed(1)
+          : perUserSuccessCounts[mid].toString();
+      })()
+    : "—";
+  const maxAnalysesPerUser = perUserSuccessCounts.length > 0
+    ? perUserSuccessCounts[perUserSuccessCounts.length - 1]
+    : 0;
+
   // ── USERS 섹션 ──
   // DAU: 기준일에 device_id가 있는 analyze_logs
   const dau = analyzeUsers;
@@ -876,9 +898,11 @@ export default function AdminPage() {
         <ConvCard
           label="유저당 평균 분석 횟수"
           value={avgAnalysesPerUser === "—" ? "—" : `${avgAnalysesPerUser}회`}
-          sub={`${successCount}회 / ${successUsers}명`}
+          sub={avgAnalysesPerUser === "—"
+            ? `${successCount}회 / ${successUsers}명`
+            : `중앙값 ${medianAnalysesPerUser}회 · 최대 ${maxAnalysesPerUser}회`}
           accent={C.white}
-          tooltip="분석 성공 횟수 ÷ 성공 유저 수"
+          tooltip={`성공 ${successCount}회 ÷ 성공 유저 ${successUsers}명. 평균과 중앙값 차이가 크면 극단치(파워유저) 존재.`}
         />
         <ConvCard
           label="평균 체류 시간"
