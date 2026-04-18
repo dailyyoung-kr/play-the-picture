@@ -8,7 +8,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-    const { entry_id } = await req.json();
+    const { entry_id, device_id } = await req.json();
 
     if (!entry_id) {
       return NextResponse.json({ error: "entry_id 필요" }, { status: 400 });
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
     const { error } = await supabaseAdmin
       .from("try_click")
-      .insert({ entry_id });
+      .insert({ entry_id, device_id: device_id ?? null });
 
     if (error) {
       console.error("[log-try-click] insert 실패:", error.code, error.message);

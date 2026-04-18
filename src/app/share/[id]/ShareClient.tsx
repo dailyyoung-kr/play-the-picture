@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { isAnalyticsEnabled } from "@/lib/analytics";
 import { pixelLead } from "@/lib/fpixel";
+import { getDeviceId } from "@/lib/supabase";
 
 interface ShareEntry {
   id: string;
@@ -40,7 +41,7 @@ export default function ShareClient({ id }: { id: string }) {
     fetch("/api/log-share-view", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ entry_id: id }),
+      body: JSON.stringify({ entry_id: id, device_id: getDeviceId() }),
     })
       .then(r => r.json())
       .then(d => console.log("[share-view]", d))
@@ -80,7 +81,7 @@ export default function ShareClient({ id }: { id: string }) {
       fetch("/api/log-try-click", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entry_id: id }),
+        body: JSON.stringify({ entry_id: id, device_id: getDeviceId() }),
       })
         .then(r => r.json())
         .then(d => console.log("[try-click]", d))
