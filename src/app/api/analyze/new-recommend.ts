@@ -205,7 +205,7 @@ export async function newRecommend(
     console.log(`[new] 1차 정확매칭: ${candidates.length}곡 (genre=${genre}, energy=${energy})`);
 
     // 2차: genre + energy ±1
-    if (candidates.length < 20) {
+    if (candidates.length < 30) {
       const { data: expanded } = await supabase.from("songs").select("*").eq("genre", genre).gte("energy", energyMin).lte("energy", energyMax);
       candidates = (expanded ?? []) as SongRow[];
       console.log(`[new] 2차 확장: ${candidates.length}곡 (energy=${energyMin}~${energyMax})`);
@@ -230,9 +230,9 @@ export async function newRecommend(
     ? candidates.filter(s => !excludedSet.has(s.id))
     : candidates;
 
-  // 4차 폴백: 제외 후 10곡 미만이면 전체 후보 복원
-  if (filteredCandidates.length < 10 && excludedSet.size > 0) {
-    console.log(`[new] 4차 폴백: 제외 후 ${filteredCandidates.length}곡 → 반복 제외 해제`);
+  // 4차 폴백: 제외 후 5곡 미만이면 전체 후보 복원
+  if (filteredCandidates.length < 5 && excludedSet.size > 0) {
+    console.log(`[FALLBACK] 이력 무시 발동: ${filteredCandidates.length}곡 가용 (genre=${genre}, energy=${energy}, excluded=${excludedSet.size})`);
     filteredCandidates = candidates;
   }
 
