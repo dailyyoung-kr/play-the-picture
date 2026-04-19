@@ -12,19 +12,11 @@ interface ShareEntry {
   artist: string;
   reason: string;
   tags: string[];
-  vibe_spectrum?: { energy: number; warmth: number; social: number; special: number } | null;
   vibe_type: string;
   vibe_description: string;
   photos: string[];
   album_art?: string | null;
 }
-
-const VIBE_SPECTRUM_AXES = [
-  { key: "energy" as const, left: "차분함", right: "에너제틱" },
-  { key: "warmth" as const, left: "쿨함",   right: "따뜻함" },
-  { key: "social" as const, left: "혼자",   right: "함께" },
-  { key: "special" as const, left: "일상적", right: "특별함" },
-];
 
 export default function ShareClient({ id }: { id: string }) {
   const router = useRouter();
@@ -211,37 +203,6 @@ export default function ShareClient({ id }: { id: string }) {
               ))}
             </div>
           </div>
-
-          {/* TEMP: 4축 제거 테스트 - 2026-04-17, 원복: 주석 해제 */}
-          {/*entry.vibe_spectrum && (
-            <div className="mb-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "10px 14px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px" }}>
-                {VIBE_SPECTRUM_AXES.map(({ key, left, right }) => {
-                  const val = entry.vibe_spectrum![key];
-                  return (
-                    <div key={key} style={{ paddingBottom: 2 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{left}</span>
-                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{right}</span>
-                      </div>
-                      <div style={{ position: "relative", height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 2 }}>
-                        <div style={{
-                          position: "absolute",
-                          left: `calc(${val}% - 5px)`,
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          width: 10, height: 10,
-                          borderRadius: "50%",
-                          background: "#C4687A",
-                          boxShadow: "0 0 4px rgba(196,104,122,0.6)",
-                        }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )*/}
 
           <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "14px 16px", marginTop: 12, marginBottom: 20 }}>
             <p className="font-medium mb-2" style={{ fontSize: 10, color: "#f0d080", letterSpacing: "0.05em" }}>플더픽이 추천한 이유</p>

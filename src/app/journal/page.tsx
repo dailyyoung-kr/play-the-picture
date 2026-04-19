@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { getSupabaseWithDeviceId, Entry } from "@/lib/supabase";
 import { Archive, Music } from "lucide-react";
 import { getDeviceId } from "@/lib/device";
-import { calcBgGradient } from "@/lib/vibeBackground";
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const WEEK_DAYS = ["월", "화", "수", "목", "금", "토", "일"];
@@ -22,14 +21,6 @@ function getMondayOf(date: Date): Date {
 function toDateStr(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
-
-const VIBE_SPECTRUM_AXES = [
-  { key: "energy" as const, left: "차분함", right: "에너제틱" },
-  { key: "warmth" as const, left: "쿨함",   right: "따뜻함" },
-  { key: "social" as const, left: "혼자",   right: "함께" },
-  { key: "special" as const, left: "일상적", right: "특별함" },
-];
-
 
 function formatTime(isoString: string) {
   const d = new Date(isoString);
@@ -661,7 +652,7 @@ export default function JournalPage() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ margin: "40px 16px 40px", background: calcBgGradient(selectedEntry.vibe_spectrum), borderRadius: 20, padding: "20px 16px", border: "1px solid rgba(255,255,255,0.1)" }}
+            style={{ margin: "40px 16px 40px", background: "linear-gradient(158deg, #0d1a10 0%, #1a0d18 100%)", borderRadius: 20, padding: "20px 16px", border: "1px solid rgba(255,255,255,0.1)" }}
           >
             <div className="flex justify-between items-center mb-4">
               <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
@@ -703,37 +694,6 @@ export default function JournalPage() {
                     {selectedEntry.vibe_description}
                   </p>
                 )}
-              </div>
-            )}
-
-            {/* 섹션 3: 바이브 스펙트럼 (2x2 그리드) */}
-            {selectedEntry.vibe_spectrum && (
-              <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "10px 14px", marginBottom: 10 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px" }}>
-                  {VIBE_SPECTRUM_AXES.map(({ key, left, right }) => {
-                    const val = selectedEntry.vibe_spectrum![key];
-                    return (
-                      <div key={key} style={{ paddingBottom: 2 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{left}</span>
-                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{right}</span>
-                        </div>
-                        <div style={{ position: "relative", height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 2 }}>
-                          <div style={{
-                            position: "absolute",
-                            left: `calc(${val}% - 5px)`,
-                            top: "50%",
-                            transform: "translateY(-50%)",
-                            width: 10, height: 10,
-                            borderRadius: "50%",
-                            background: "#C4687A",
-                            boxShadow: "0 0 4px rgba(196,104,122,0.6)",
-                          }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
               </div>
             )}
 

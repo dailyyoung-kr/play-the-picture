@@ -8,13 +8,11 @@ import { getDeviceId } from "@/lib/device";
 import { trackEvent } from "@/lib/gtag";
 import { pixelViewContent, pixelLead } from "@/lib/fpixel";
 import { isAnalyticsEnabled } from "@/lib/analytics";
-import { calcBackground, calcBgGradient } from "@/lib/vibeBackground";
 
 interface AnalysisResult {
   song: string; // "곡명 - 아티스트명" 형식
   reason: string;
   tags: string[];
-  vibeSpectrum?: { energy: number; warmth: number; social: number; special: number };
   vibeType?: string;
   vibeDescription?: string;
   hiddenEmotion?: string;
@@ -30,13 +28,6 @@ interface AnalysisResult {
   isGenreDiscovery?: boolean;
   discoveredGenre?: string | null;
 }
-
-const VIBE_SPECTRUM_AXES = [
-  { key: "energy" as const, left: "차분함", right: "에너제틱" },
-  { key: "warmth" as const, left: "쿨함",   right: "따뜻함" },
-  { key: "social" as const, left: "혼자",   right: "함께" },
-  { key: "special" as const, left: "일상적", right: "특별함" },
-];
 
 const PHOTO_COLORS = [
   "linear-gradient(160deg, #1a2a1a, #0a1a0a)",
@@ -120,7 +111,7 @@ export default function ResultPage() {
         reason: result.reason,
         tags: result.tags,
         emotions: result.emotions ?? {},
-        vibe_spectrum: result.vibeSpectrum ?? null,
+        vibe_spectrum: null,
         vibe_type: result.vibeType ?? result.vibe_type ?? "",
         vibe_description: result.vibeDescription ?? result.vibe_description ?? "",
         photos,
@@ -229,7 +220,6 @@ export default function ResultPage() {
     setSaving(true);
     try {
       const html2canvas = (await import("html2canvas")).default;
-      const { from: bgFrom, to: bgTo } = calcBackground(result?.vibeSpectrum);
       const canvas = await html2canvas(cardRef.current, {
         backgroundColor: "#0d1218",
         useCORS: true,
@@ -240,7 +230,7 @@ export default function ResultPage() {
         imageTimeout: 15000,
         onclone: (clonedDoc: Document) => {
           const el = clonedDoc.querySelector("#result-card") as HTMLElement;
-          if (el) el.style.background = `linear-gradient(158deg, ${bgFrom} 0%, ${bgTo} 100%)`;
+          if (el) el.style.background = "linear-gradient(158deg, #0d1a10 0%, #1a0d18 100%)";
         },
       });
 
@@ -362,7 +352,7 @@ export default function ResultPage() {
     );
   }
 
-  const bgGradient = calcBgGradient(result.vibeSpectrum);
+  const bgGradient = "linear-gradient(158deg, #0d1a10 0%, #1a0d18 100%)";
 
   return (
     <div style={{ position: "relative", minHeight: "100vh", overflow: "hidden" }}>
@@ -485,38 +475,6 @@ export default function ResultPage() {
             </div>
           );
         })()}
-
-        {/* TEMP: 4축 제거 테스트 - 2026-04-17, 원복 방법: 이 주석 블록 해제 */}
-        {/* ── 섹션 2: 바이브 스펙트럼 (2x2 그리드) ── */}
-        {/*result.vibeSpectrum && (
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "10px 14px", marginBottom: 10 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px" }}>
-              {VIBE_SPECTRUM_AXES.map(({ key, left, right }) => {
-                const val = result.vibeSpectrum![key];
-                return (
-                  <div key={key} style={{ paddingBottom: 2 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{left}</span>
-                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{right}</span>
-                    </div>
-                    <div style={{ position: "relative", height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 2 }}>
-                      <div style={{
-                        position: "absolute",
-                        left: `calc(${val}% - 5px)`,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        width: 10, height: 10,
-                        borderRadius: "50%",
-                        background: "#C4687A",
-                        boxShadow: "0 0 4px rgba(196,104,122,0.6)",
-                      }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )*/}
 
         {/* ── 섹션 3: 곡 정보 ── */}
         <div style={{ position: "relative", zIndex: 2, marginBottom: 10 }}>
