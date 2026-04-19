@@ -11,7 +11,7 @@ type AnalyzeLog = { id: string; created_at: string; status: string; response_tim
 type EntryRow = { id: string; date: string; song: string; artist: string; genre: string | null; mood: string | null; device_id?: string | null };
 type ListenLog = { id: string; created_at: string; device_id?: string | null };
 type ViewLog  = { id: string; created_at: string; duration_seconds: number | null; exit_type: string | null; device_id?: string | null };
-type LogRow = { id: string; created_at: string; device_id?: string | null };
+type LogRow = { id: string; created_at: string; device_id?: string | null; entry_id?: string | null };
 type SaveLog = { id: string; created_at: string; entry_id: string; device_id: string };
 
 // 내부 테스트 기기 목록 (콤마 구분). 대시보드에서 유저/테스트 데이터 구분용
@@ -296,7 +296,7 @@ export default function AdminPage() {
       supabase.from("preference_logs").select("id, created_at, genre, energy, device_id").order("created_at", { ascending: false }),
       supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, song, artist, device_id").order("created_at", { ascending: false }),
       supabase.from("entries").select("id, date, song, artist, genre, mood, device_id").order("id", { ascending: false }),
-      supabase.from("share_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
+      supabase.from("share_logs").select("id, created_at, device_id, entry_id").order("created_at", { ascending: false }),
       supabase.from("listen_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("result_view_logs").select("id, created_at, duration_seconds, exit_type, device_id").order("created_at", { ascending: false }),
       // share_views / try_click — RLS 우회 위해 supabaseAdmin 경유 서버 API 사용
@@ -494,11 +494,19 @@ export default function AdminPage() {
     if (viewMode === "user") return !did || !INTERNAL_DEVICE_IDS.has(did);
     return !!did && INTERNAL_DEVICE_IDS.has(did);
   };
+  // entry_id → device_id 복구 맵 (share_logs.device_id가 NULL인 구버전 레코드 대응)
+  const entryDeviceMap: Record<string, string | null | undefined> = {};
+  for (const e of entries) entryDeviceMap[e.id] = e.device_id;
+  const recoveredShareLogs = shareLogs.map(s => ({
+    ...s,
+    device_id: s.device_id ?? (s.entry_id ? entryDeviceMap[s.entry_id] ?? null : null),
+  }));
+
   const filteredPhotos  = photoLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
   const filteredPrefs   = prefLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
   const filteredAnalyze = analyzeLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
   const filteredSaveLogs = saveLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
-  const filteredShares  = shareLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
+  const filteredShares  = recoveredShareLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
   const filteredListens = listenLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
   const filteredViews   = shareViews.filter(l => filterTs(l.created_at) && filterDevice(l));
   const filteredTry     = tryClicks.filter(l => filterTs(l.created_at) && filterDevice(l));
@@ -557,6 +565,85 @@ export default function AdminPage() {
   const maxAnalysesPerUser = perUserSuccessCounts.length > 0
     ? perUserSuccessCounts[perUserSuccessCounts.length - 1]
     : 0;
+
+  // ── 회차별 분석 (1회차/2회차/3회차/4회+) ──
+  // 각 device의 성공 분석을 시간순으로 정렬 → attempt N의 구간 [T_N, T_{N+1})에
+  // save_log / share_log가 있는지 체크
+  type AttemptBucket = { saved: number; shared: number; attempts: number };
+  const attemptBuckets: Record<string, AttemptBucket> = {
+    "1": { saved: 0, shared: 0, attempts: 0 },
+    "2": { saved: 0, shared: 0, attempts: 0 },
+    "3": { saved: 0, shared: 0, attempts: 0 },
+    "4+": { saved: 0, shared: 0, attempts: 0 },
+  };
+  const retryGapsSec: number[] = [];
+
+  // device별 success analyze 시간 정렬
+  const successByDevice: Record<string, number[]> = {};
+  for (const l of filteredAnalyze) {
+    if (l.status !== "success" || !l.device_id) continue;
+    const t = new Date(l.created_at).getTime();
+    (successByDevice[l.device_id] ??= []).push(t);
+  }
+  for (const times of Object.values(successByDevice)) times.sort((a, b) => a - b);
+
+  // device별 save/share 시간
+  const savesByDevice: Record<string, number[]> = {};
+  for (const l of filteredSaveLogs) {
+    if (!l.device_id) continue;
+    (savesByDevice[l.device_id] ??= []).push(new Date(l.created_at).getTime());
+  }
+  const sharesByDevice: Record<string, number[]> = {};
+  for (const l of filteredShares) {
+    if (!l.device_id) continue;
+    (sharesByDevice[l.device_id] ??= []).push(new Date(l.created_at).getTime());
+  }
+
+  const bucketKey = (n: number) => n >= 4 ? "4+" : String(n);
+  for (const [did, times] of Object.entries(successByDevice)) {
+    const saves  = savesByDevice[did]  ?? [];
+    const shares = sharesByDevice[did] ?? [];
+    for (let i = 0; i < times.length; i++) {
+      const start = times[i];
+      const end   = i + 1 < times.length ? times[i + 1] : Infinity;
+      const k = bucketKey(i + 1);
+      attemptBuckets[k].attempts++;
+      if (saves.some(t => t >= start && t < end))  attemptBuckets[k].saved++;
+      if (shares.some(t => t >= start && t < end)) attemptBuckets[k].shared++;
+      // 재뽑기 텀
+      if (end !== Infinity) retryGapsSec.push((end - start) / 1000);
+    }
+  }
+
+  // 1회차 저장율/공유율 (KEY METRICS용)
+  const firstSaveRatePct = attemptBuckets["1"].attempts > 0
+    ? (attemptBuckets["1"].saved  / attemptBuckets["1"].attempts) * 100
+    : null;
+  const firstShareRatePct = attemptBuckets["1"].attempts > 0
+    ? (attemptBuckets["1"].shared / attemptBuckets["1"].attempts) * 100
+    : null;
+
+  // 재뽑기 텀 분포 버킷
+  const retryGapBuckets = [
+    { label: "27–45s",     min: 0,    max: 45 },
+    { label: "45–90s",     min: 45,   max: 90 },
+    { label: "90s–5min",   min: 90,   max: 300 },
+    { label: "5min–1h",    min: 300,  max: 3600 },
+    { label: "1h+",        min: 3600, max: Infinity },
+  ].map(b => ({
+    ...b,
+    count: retryGapsSec.filter(g => g >= b.min && g < b.max).length,
+  }));
+  const retryGapTotal = retryGapsSec.length;
+
+  // ── VIRAL LOOP ──
+  const viewPerShare = shareCount > 0 ? (viewCount / shareCount) : null;
+  const tryPerShare  = shareCount > 0 ? (tryCount  / shareCount) : null;
+  const inflowConvRate = viewCount > 0 ? (tryCount / viewCount) * 100 : null;
+
+  // K-factor (단순화): 성공 유저 1명당 만들어낸 "나도 해보기 클릭" 수
+  // = 공유율 × 공유당 유입률
+  const kFactor = successUsers > 0 ? (tryCount / successUsers) : null;
 
   // ── USERS 섹션 ──
   // DAU: 기준일에 device_id가 있는 analyze_logs
@@ -862,6 +949,39 @@ export default function AdminPage() {
         )}
       </div>
 
+      {/* ── 섹션: KEY METRICS (북극성 지표) ── */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>KEY METRICS</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+        <ConvCard
+          label="공유율"
+          value={userShareRate}
+          sub={`${shareCount}건 / ${successUsers}명`}
+          accent={successUsers >= 10 ? accentByRate(userShareRate, 10, 3) : C.gray}
+          tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 대비 공유 건수 (바이럴 핵심)"}
+        />
+        <ConvCard
+          label="1회차 저장율"
+          value={firstSaveRatePct != null ? firstSaveRatePct.toFixed(1) + "%" : "—"}
+          sub={`${attemptBuckets["1"].saved}명 / ${attemptBuckets["1"].attempts}명`}
+          accent={attemptBuckets["1"].attempts >= 10 && firstSaveRatePct != null ? accentByRate(firstSaveRatePct.toFixed(1) + "%", 15, 5) : C.gray}
+          tooltip={attemptBuckets["1"].attempts < 10 ? "표본 10명 미만 — 판단 보류" : "유저의 첫 성공 분석에서 저장까지 간 비율 (광고 ROI 직결 지표)"}
+        />
+        <ConvCard
+          label="유입 전환율"
+          value={inflowConvRate != null ? inflowConvRate.toFixed(1) + "%" : "—"}
+          sub={`${tryCount}건 / ${viewCount}건`}
+          accent={viewCount >= 10 && inflowConvRate != null ? accentByRate(inflowConvRate.toFixed(1) + "%", 20, 10) : C.gray}
+          tooltip={viewCount < 10 ? "공유 조회 10건 미만 — 판단 보류" : "공유 페이지 조회 → 나도 해보기 클릭"}
+        />
+        <ConvCard
+          label="K-factor"
+          value={kFactor != null ? kFactor.toFixed(2) : "—"}
+          sub={`${tryCount} 유입 / ${successUsers}명`}
+          accent={successUsers >= 10 && kFactor != null ? (kFactor >= 1 ? C.green : kFactor >= 0.3 ? C.yellow : C.red) : C.gray}
+          tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 1명당 데려온 나도해보기 클릭 수. 1 이상이면 자력 성장, 미만이면 광고 의존"}
+        />
+      </div>
+
       {/* ── 섹션: 유저 ── */}
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>USERS</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
@@ -946,6 +1066,93 @@ export default function AdminPage() {
         <ConvCard label="저장률" value={userSaveRate} sub={`${saveUsers}명 / ${successUsers}명`} accent={convSaveAccent} tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 중 저장한 유저 비율"} />
         <ConvCard label="공유율" value={userShareRate} sub={`${filteredShares.length}건 / ${successUsers}명`} accent={convShareAccent} tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 대비 공유 건수"} />
         <ConvCard label="유입 전환율" value={pct(tryCount, viewCount)} sub={`${tryCount} / ${viewCount}`} accent={C.gray} tooltip="공유 페이지 조회 → 나도 해보기 클릭" />
+      </div>
+
+      {/* ── 섹션: VIRAL LOOP ── */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>VIRAL LOOP</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+        <ConvCard
+          label="공유 1건당 조회"
+          value={viewPerShare != null ? viewPerShare.toFixed(1) : "—"}
+          sub={`${viewCount}조회 / ${shareCount}공유`}
+          accent={shareCount >= 5 && viewPerShare != null ? (viewPerShare >= 3 ? C.green : viewPerShare >= 1 ? C.yellow : C.red) : C.gray}
+          tooltip={shareCount < 5 ? "공유 5건 미만 — 판단 보류" : "공유 1건이 만들어낸 페이지 조회 수"}
+        />
+        <ConvCard
+          label="공유 1건당 유입"
+          value={tryPerShare != null ? tryPerShare.toFixed(2) : "—"}
+          sub={`${tryCount}유입 / ${shareCount}공유`}
+          accent={shareCount >= 5 && tryPerShare != null ? (tryPerShare >= 0.5 ? C.green : tryPerShare >= 0.2 ? C.yellow : C.red) : C.gray}
+          tooltip={shareCount < 5 ? "공유 5건 미만 — 판단 보류" : "공유 1건이 만들어낸 나도해보기 클릭 수"}
+        />
+      </div>
+
+      {/* ── 섹션: QUALITY (회차별 + 재뽑기 텀) ── */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>QUALITY</p>
+
+      {/* 회차별 저장율/공유율 */}
+      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 16, padding: "16px 18px", marginBottom: 12 }}>
+        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 12 }}>회차별 저장율 / 공유율</p>
+        {(() => {
+          // 모든 회차 × (저장/공유) 중 최대값을 기준으로 공통 스케일링
+          const globalMaxRate = Math.max(
+            1,
+            ...(["1", "2", "3", "4+"] as const).flatMap(k => {
+              const b = attemptBuckets[k];
+              if (b.attempts === 0) return [0];
+              return [(b.saved / b.attempts) * 100, (b.shared / b.attempts) * 100];
+            })
+          );
+          return (["1", "2", "3", "4+"] as const).map(k => {
+            const b = attemptBuckets[k];
+            const saveRate  = b.attempts > 0 ? (b.saved  / b.attempts) * 100 : 0;
+            const shareRate = b.attempts > 0 ? (b.shared / b.attempts) * 100 : 0;
+            return (
+              <div key={k} style={{ marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>
+                  <span>{k}회차 ({b.attempts}회)</span>
+                  <span>저장 {saveRate.toFixed(1)}% · 공유 {shareRate.toFixed(1)}%</span>
+                </div>
+                {/* 저장 bar */}
+                <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden", marginBottom: 3 }}>
+                  <div style={{ height: "100%", width: `${(saveRate / globalMaxRate) * 100}%`, background: "#C4687A" }} />
+                </div>
+                {/* 공유 bar */}
+                <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${(shareRate / globalMaxRate) * 100}%`, background: "#6be0a0" }} />
+                </div>
+              </div>
+            );
+          });
+        })()}
+        <p style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 8 }}>
+          <span style={{ color: "#C4687A" }}>■</span> 저장율 &nbsp; <span style={{ color: "#6be0a0" }}>■</span> 공유율
+        </p>
+      </div>
+
+      {/* 재뽑기 텀 분포 */}
+      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 16, padding: "16px 18px", marginBottom: 20 }}>
+        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 12 }}>
+          재분석 텀 분포 <span style={{ color: "rgba(255,255,255,0.35)" }}>({retryGapTotal}건)</span>
+        </p>
+        {retryGapTotal === 0 ? (
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>재분석 데이터 없음</p>
+        ) : (
+          retryGapBuckets.map(b => {
+            const rate = (b.count / retryGapTotal) * 100;
+            return (
+              <div key={b.label} style={{ marginBottom: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>
+                  <span>{b.label}</span>
+                  <span>{b.count}건 · {rate.toFixed(1)}%</span>
+                </div>
+                <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${rate}%`, background: "#a0d4f0" }} />
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
 
       {/* ── 섹션: 퍼포먼스 ── */}
