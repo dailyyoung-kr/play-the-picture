@@ -96,7 +96,7 @@ export default function ShareClient({ id }: { id: string }) {
             onClick={handleTryClick}
             style={{ background: "#C4687A", border: "none", borderRadius: 24, padding: "12px 32px", color: "#fff", fontSize: 14, cursor: "pointer" }}
           >
-            나도 해보기
+            내 사진으로 해보기
           </button>
         </div>
       </div>
@@ -208,10 +208,26 @@ export default function ShareClient({ id }: { id: string }) {
             <p className="font-medium mb-2" style={{ fontSize: 10, color: "#f0d080", letterSpacing: "0.05em" }}>플더픽이 추천한 이유</p>
             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.8 }}>{entry.reason}</p>
           </div>
+        </div>
 
-          <button className="w-full font-medium mb-8" onClick={handleTryClick}
-            style={{ background: "#C4687A", border: "none", borderRadius: 24, padding: 14, color: "#fff", fontSize: 14, cursor: "pointer" }}>
-            나도 해보기
+        {/* Sticky bottom CTA */}
+        <div
+          style={{
+            position: "sticky",
+            bottom: 0,
+            padding: "12px 20px calc(20px + env(safe-area-inset-bottom))",
+            background: "rgba(13,18,24,0.78)",
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
+            borderTop: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
+          <button
+            className="w-full font-medium"
+            onClick={handleTryClick}
+            style={{ background: "#C4687A", border: "none", borderRadius: 24, padding: 14, color: "#fff", fontSize: 14, cursor: "pointer" }}
+          >
+            내 사진으로 해보기
           </button>
         </div>
       </div>
