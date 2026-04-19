@@ -84,7 +84,19 @@
       "Bash(pkill -f \"next dev\")",
       "Bash(echo \"PID: $!\")",
       "Bash(echo \"EXIT:$?\")",
-      "Bash(grep -v \"^$\")"
+      "Bash(grep -v \"^$\")",
+      "Bash(vercel env:*)",
+      "Bash(curl -s https://vwyytppyvmkpwzjcfnzr.supabase.co/rest/v1/rpc/query -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3eXl0cHB5dm1rcHd6amNmbnpyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTYzMjA2NCwiZXhwIjoyMDkxMjA4MDY0fQ.CpvgUfH8BHd-VhHFQf8igubatZe11SkGN2H15ucVyvI' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3eXl0cHB5dm1rcHd6amNmbnpyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTYzMjA2NCwiZXhwIjoyMDkxMjA4MDY0fQ.CpvgUfH8BHd-VhHFQf8igubatZe11SkGN2H15ucVyvI' -H 'Content-Type: application/json' -d '{\"query\": \"SELECT indexname, indexdef FROM pg_indexes WHERE tablename = '\\\\''songs'\\\\'' ORDER BY indexname;\"}')",
+      "Bash(curl -s 'https://vwyytppyvmkpwzjcfnzr.supabase.co/rest/v1/pg_indexes?select=indexname,indexdef&tablename=eq.songs' -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3eXl0cHB5dm1rcHd6amNmbnpyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTYzMjA2NCwiZXhwIjoyMDkxMjA4MDY0fQ.CpvgUfH8BHd-VhHFQf8igubatZe11SkGN2H15ucVyvI' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3eXl0cHB5dm1rcHd6amNmbnpyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTYzMjA2NCwiZXhwIjoyMDkxMjA4MDY0fQ.CpvgUfH8BHd-VhHFQf8igubatZe11SkGN2H15ucVyvI')",
+      "Bash(identify public/apple-touch-icon.png)",
+      "Bash(sips -g pixelWidth -g pixelHeight public/apple-touch-icon.png)",
+      "Bash(vercel --prod --yes)",
+      "Bash(node -e \"const p=require\\('/Users/pcy_mac/play-the-picture/node_modules/next/package.json'\\); console.log\\(p.version\\)\")",
+      "Bash(node -e \"try{require\\('/Users/pcy_mac/play-the-picture/node_modules/next/server'\\).after; console.log\\('after: exists'\\)}catch\\(e\\){console.log\\('after: not found'\\)}\")",
+      "Bash(npx next *)",
+      "Bash(git reset *)",
+      "mcp__699b1683-6b65-4b5d-8e21-f26fe58d2875__execute_sql",
+      "mcp__699b1683-6b65-4b5d-8e21-f26fe58d2875__apply_migration"
     ]
   }
 }

@@ -10,7 +10,7 @@ type PrefLog = { id: string; created_at: string; genre: string | null; energy: n
 type AnalyzeLog = { id: string; created_at: string; status: string; response_time_ms: number | null; song: string | null; artist: string | null; device_id?: string | null };
 type EntryRow = { id: string; date: string; song: string; artist: string; genre: string | null; mood: string | null; device_id?: string | null };
 type ListenLog = { id: string; created_at: string; device_id?: string | null };
-type ViewLog  = { id: string; created_at: string; duration_seconds: number | null; exit_type: string | null };
+type ViewLog  = { id: string; created_at: string; duration_seconds: number | null; exit_type: string | null; device_id?: string | null };
 type LogRow = { id: string; created_at: string; device_id?: string | null };
 type SaveLog = { id: string; created_at: string; entry_id: string; device_id: string };
 
@@ -298,7 +298,7 @@ export default function AdminPage() {
       supabase.from("entries").select("id, date, song, artist, genre, mood, device_id").order("id", { ascending: false }),
       supabase.from("share_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("listen_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
-      supabase.from("result_view_logs").select("id, created_at, duration_seconds, exit_type").order("created_at", { ascending: false }),
+      supabase.from("result_view_logs").select("id, created_at, duration_seconds, exit_type, device_id").order("created_at", { ascending: false }),
       // share_views / try_click — RLS 우회 위해 supabaseAdmin 경유 서버 API 사용
       fetch("/api/admin/log-rows").then(r => r.json()) as Promise<{ shareViews: LogRow[]; tryClicks: LogRow[] }>,
       supabase.from("save_logs").select("id, created_at, entry_id, device_id").order("created_at", { ascending: false }),
@@ -502,7 +502,7 @@ export default function AdminPage() {
   const filteredListens = listenLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
   const filteredViews   = shareViews.filter(l => filterTs(l.created_at) && filterDevice(l));
   const filteredTry     = tryClicks.filter(l => filterTs(l.created_at) && filterDevice(l));
-  const filteredResultViews = viewLogs.filter(l => filterTs(l.created_at));
+  const filteredResultViews = viewLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
 
   // ── 퍼널 수치 ──
   const photoCount = filteredPhotos.length;
