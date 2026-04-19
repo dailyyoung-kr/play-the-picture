@@ -1190,7 +1190,7 @@ export default function AdminPage() {
         <FunnelStep icon="🎵" label="장르·에너지 선택" count={prefCount} conv={pct(analyzeUsers, analyzeUsers)} userCount={analyzeUsers} />
         <FunnelStep icon="✦" label="분석 시작" count={analyzeStartCount} conv={pct(successUsers, analyzeUsers)} userCount={analyzeUsers} />
         <FunnelStep icon="✓" label="분석 성공" count={successCount} conv={pct(listenUsers, successUsers)} userCount={successUsers} />
-        <FunnelStep icon="▶" label="듣기 클릭 (외부 이탈)" count={listenCount} conv={pct(saveUsers, listenUsers)} userCount={listenUsers} emphasis="weak" />
+        <FunnelStep icon="▶" label="듣기 클릭" count={listenCount} conv={pct(saveUsers, listenUsers)} userCount={listenUsers} />
         <FunnelStep icon="💾" label="결과 저장" count={saveCount} conv={pct(shareCount, saveUsers)} userCount={saveUsers} emphasis="strong" />
         {shareCount > 0 ? (
           <>
