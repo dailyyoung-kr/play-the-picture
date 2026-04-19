@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, Music } from "lucide-react";
 import { supabase, getDeviceId } from "@/lib/supabase";
 import { pixelInitiateCheckout } from "@/lib/fpixel";
 import { isAnalyticsEnabled } from "@/lib/analytics";
+import { captureUtmFromUrl } from "@/lib/utm";
 
 // 사진을 800px 이하로 압축해서 base64로 변환
 function compressImage(file: File): Promise<string> {
@@ -43,6 +44,9 @@ export default function UploadPage() {
   });
   const [toast, setToast] = useState("");
   const maxPhotos = 5;
+
+  // URL에 utm_* 있으면 sessionStorage에 저장 (이후 analyze_logs에 기록됨)
+  useEffect(() => { captureUtmFromUrl(); }, []);
 
   const showToast = (msg: string) => {
     setToast(msg);

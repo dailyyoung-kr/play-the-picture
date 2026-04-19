@@ -6,6 +6,7 @@ import { Archive, Music } from "lucide-react";
 import { trackEvent } from "@/lib/gtag";
 import { supabase, getDeviceId } from "@/lib/supabase";
 import { isAnalyticsEnabled } from "@/lib/analytics";
+import { getUtm } from "@/lib/utm";
 
 const GENRE_OPTIONS = [
   { value: "discover",      label: "장르 발견하기",  apiGenre: "장르 발견하기" },
@@ -176,9 +177,16 @@ export default function PreferencePage() {
     let logId: string | null = null;
     if (isAnalyticsEnabled()) {
       try {
+        const utm = getUtm();
         const { data: logData } = await supabase
           .from("analyze_logs")
-          .insert({ device_id: deviceId, status: "start" })
+          .insert({
+            device_id: deviceId,
+            status: "start",
+            utm_source: utm.utm_source ?? null,
+            utm_medium: utm.utm_medium ?? null,
+            utm_campaign: utm.utm_campaign ?? null,
+          })
           .select("id")
           .single();
         logId = logData?.id ?? null;

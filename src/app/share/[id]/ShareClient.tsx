@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { isAnalyticsEnabled } from "@/lib/analytics";
 import { pixelLead } from "@/lib/fpixel";
 import { getDeviceId } from "@/lib/supabase";
+import { captureUtmFromUrl } from "@/lib/utm";
 
 interface ShareEntry {
   id: string;
@@ -25,6 +26,9 @@ export default function ShareClient({ id }: { id: string }) {
   const [notFound, setNotFound] = useState(false);
   const [modalIndex, setModalIndex] = useState<number | null>(null);
   const viewLogged = useRef(false);
+
+  // URL에 utm_* 있으면 sessionStorage에 저장 (이후 analyze_logs에 기록됨)
+  useEffect(() => { captureUtmFromUrl(); }, []);
 
   // 공유 페이지 방문 기록 — entries fetch와 독립적으로 마운트 즉시 실행
   useEffect(() => {
