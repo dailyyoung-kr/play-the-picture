@@ -168,7 +168,7 @@ export default function PreferencePage() {
       fetch("/api/log-preference", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ genre: selectedGenre, energy: selectedEnergy }),
+        body: JSON.stringify({ genre: selectedGenre, energy: selectedEnergy, device_id: deviceId }),
       }).catch(() => {});
     }
 
@@ -225,6 +225,9 @@ export default function PreferencePage() {
           song: logSong,
           artist: logArtist,
           spotify_status: data.spotifyTrackId ? "found" : "not_found",
+          perf_db_ms: (data.perfDbMs as number | undefined) ?? null,
+          perf_claude_ms: (data.perfClaudeMs as number | undefined) ?? null,
+          photo_count: (data.photoCount as number | undefined) ?? photos.length,
         }).eq("id", logId);
       }
 

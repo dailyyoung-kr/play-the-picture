@@ -219,6 +219,7 @@ export async function newRecommend(
     }
   }
 
+  const perfDbMs = Date.now() - t1;
   perf("후보곡 필터링 완료", t1);
 
   if (candidates.length === 0) {
@@ -280,6 +281,7 @@ export async function newRecommend(
     }],
   });
 
+  const perfClaudeMs = Date.now() - t2;
   perf("Claude API 호출 완료", t2);
   const { input_tokens, output_tokens } = response.usage;
   const pricing = MODEL_PRICING[model] ?? MODEL_PRICING["claude-sonnet-4-6"];
@@ -335,6 +337,9 @@ export async function newRecommend(
     vibeType: result.vibeType,
     vibeDescription: result.vibeDescription,
     isGenreDiscovery: isDiscover,
+    perfDbMs,
+    perfClaudeMs,
+    photoCount: photos.length,
     ...(isDiscover && result.discoveredGenre ? { discoveredGenre: result.discoveredGenre } : {}),
   });
 }
