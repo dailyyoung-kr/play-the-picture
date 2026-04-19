@@ -601,7 +601,7 @@ export default function ResultPage() {
         const platforms = [
           {
             name: "YouTube Music에서 듣기",
-            url: musicLinks?.youtubeUrl ?? musicLinks?.youtubeFallback ?? `https://www.youtube.com/results?search_query=${encodeURIComponent(`${songName} ${artistName}`)}`,
+            url: musicLinks?.youtubeUrl ?? musicLinks?.youtubeFallback ?? `https://music.youtube.com/search?q=${encodeURIComponent(`${songName} ${artistName}`)}`,
             isDirect: !!musicLinks?.youtubeUrl,
             iconBg: "#FF0000",
             icon: (

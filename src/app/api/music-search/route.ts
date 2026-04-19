@@ -119,10 +119,10 @@ export async function GET(req: NextRequest) {
       ? `https://open.spotify.com/track/${spotifyId}`
       : null,
     youtubeUrl: youtubeId
-      ? `https://www.youtube.com/watch?v=${youtubeId}`
+      ? `https://music.youtube.com/watch?v=${youtubeId}`
       : null,
     // fallback: 검색 URL
     spotifyFallback: `https://open.spotify.com/search/${encodeURIComponent(query)}`,
-    youtubeFallback: `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`,
+    youtubeFallback: `https://music.youtube.com/search?q=${encodeURIComponent(query)}`,
   });
 }
