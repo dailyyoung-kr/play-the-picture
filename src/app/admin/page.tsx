@@ -799,7 +799,7 @@ export default function AdminPage() {
   // ── 색상 계산 ──
   // CONVERSION
   const convSuccessAccent = accentByRate(userSuccessRate, 95, 80);
-  const convListenAccent  = accentByRate(userListenRate,  30, 15);
+  const convListenAccent  = accentByRate(userListenRate,  70, 50);
   const convSaveAccent    = successUsers >= 10 ? accentByRate(userSaveRate,  15,  5) : C.gray;
   const convShareAccent   = successUsers >= 10 ? accentByRate(userShareRate, 10,  3) : C.gray;
   // PERFORMANCE
@@ -851,10 +851,74 @@ export default function AdminPage() {
   for (const e of entries) entryById[e.id] = e;
   const topSavedSongs = countBy(
     filteredSaveLogs
-      .map(l => entryById[l.entry_id])
+      .map(l => entryById[l.entry_id ?? ""])
       .filter((e): e is EntryRow => !!e && !!e.song)
       .map(e => `${e.song}${e.artist ? ` — ${e.artist}` : ""}`)
   ).slice(0, 5);
+
+  // ── ① 공유된 곡 Top 5 ──
+  const topSharedSongs = countBy(
+    filteredShares
+      .map(l => entryById[l.entry_id ?? ""])
+      .filter((e): e is EntryRow => !!e && !!e.song)
+      .map(e => `${e.song}${e.artist ? ` — ${e.artist}` : ""}`)
+  ).slice(0, 5);
+
+  // ── ② 장르별 저장률 / 공유율 ──
+  // 분모: preference_logs의 장르별 선택 수 (= 장르 선택 후 분석 시작한 유저 수 근사)
+  // 분자: save_logs / share_logs → entries.genre 조인
+  const genrePrefCount: Record<string, number> = {};
+  for (const p of filteredPrefs) {
+    if (!p.genre) continue;
+    genrePrefCount[p.genre] = (genrePrefCount[p.genre] ?? 0) + 1;
+  }
+  const genreSaveCount: Record<string, number> = {};
+  for (const s of filteredSaveLogs) {
+    const e = entryById[s.entry_id ?? ""];
+    if (!e?.genre) continue;
+    genreSaveCount[e.genre] = (genreSaveCount[e.genre] ?? 0) + 1;
+  }
+  const genreShareCount: Record<string, number> = {};
+  for (const s of filteredShares) {
+    const e = entryById[s.entry_id ?? ""];
+    if (!e?.genre) continue;
+    genreShareCount[e.genre] = (genreShareCount[e.genre] ?? 0) + 1;
+  }
+  const genreConvRows = GENRE_KEYS.map(key => {
+    const prefN  = genrePrefCount[key]  ?? 0;
+    const saveN  = genreSaveCount[key]  ?? 0;
+    const shareN = genreShareCount[key] ?? 0;
+    return {
+      key,
+      label: GENRE_LABEL[key] ?? key,
+      prefN,
+      saveN,
+      shareN,
+      saveRate:  prefN >= 10 ? (saveN  / prefN) * 100 : null,
+      shareRate: prefN >= 10 ? (shareN / prefN) * 100 : null,
+    };
+  }).sort((a, b) => b.prefN - a.prefN); // 선택 많은 장르 순
+
+  // ── ③ 신규 vs 재방문 유저 행동 비교 ──
+  // activeDate 있을 때만 의미 있음
+  const newDeviceSet = new Set<string>();
+  const retDeviceSet = new Set<string>();
+  if (activeDate) {
+    for (const did of distinctSet(filteredAnalyze)) {
+      if (firstSeenMap[did] === activeDate) newDeviceSet.add(did);
+      else retDeviceSet.add(did);
+    }
+  }
+  const newSuccessUsers = distinctSet(filteredAnalyze.filter(l => l.status === "success" && l.device_id && newDeviceSet.has(l.device_id))).size;
+  const retSuccessUsers = distinctSet(filteredAnalyze.filter(l => l.status === "success" && l.device_id && retDeviceSet.has(l.device_id))).size;
+  const newSaveUsers = distinctSet(filteredSaveLogs.filter(l => l.device_id && newDeviceSet.has(l.device_id))).size;
+  const retSaveUsers = distinctSet(filteredSaveLogs.filter(l => l.device_id && retDeviceSet.has(l.device_id))).size;
+  const newShareCount = filteredShares.filter(l => l.device_id && newDeviceSet.has(l.device_id)).length;
+  const retShareCount = filteredShares.filter(l => l.device_id && retDeviceSet.has(l.device_id)).length;
+  const newSaveRate  = newSuccessUsers > 0 ? (newSaveUsers  / newSuccessUsers) * 100 : null;
+  const retSaveRate  = retSuccessUsers > 0 ? (retSaveUsers  / retSuccessUsers) * 100 : null;
+  const newShareRate = newSuccessUsers > 0 ? (newShareCount / newSuccessUsers) * 100 : null;
+  const retShareRate = retSuccessUsers > 0 ? (retShareCount / retSuccessUsers) * 100 : null;
 
   const refreshLabel = lastRefresh
     ? lastRefresh.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
@@ -1030,7 +1094,7 @@ export default function AdminPage() {
           label="1회차 저장율"
           value={firstSaveRatePct != null ? firstSaveRatePct.toFixed(1) + "%" : "—"}
           sub={`${attemptBuckets["1"].saved}명 / ${attemptBuckets["1"].attempts}명`}
-          accent={attemptBuckets["1"].attempts >= 30 && firstSaveRatePct != null ? accentByRate(firstSaveRatePct.toFixed(1) + "%", 15, 5) : C.gray}
+          accent={attemptBuckets["1"].attempts >= 30 && firstSaveRatePct != null ? accentByRate(firstSaveRatePct.toFixed(1) + "%", 10, 5) : C.gray}
           tooltip={attemptBuckets["1"].attempts < 30 ? "표본 30명 미만 — 판단 보류" : "유저의 첫 성공 분석에서 저장까지 간 비율 (광고 ROI 직결 지표)"}
           avg7d={last7FirstSaveRate != null ? {
             value: last7FirstSaveRate.toFixed(1) + "%",
@@ -1066,7 +1130,7 @@ export default function AdminPage() {
           label="K-factor"
           value={kFactor != null ? kFactor.toFixed(2) : "—"}
           sub={`${tryCount} 유입 / ${successUsers}명`}
-          accent={successUsers >= 10 && kFactor != null && kFactor >= 0.3 ? C.green : C.gray}
+          accent={successUsers >= 10 && kFactor != null ? (kFactor >= 0.1 ? C.green : kFactor >= 0.05 ? C.yellow : C.red) : C.gray}
           tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 1명당 데려온 나도해보기 클릭 수. 1 이상이면 자력 성장, 미만이면 광고 의존"}
           avg7d={last7KFactor != null ? {
             value: last7KFactor.toFixed(2),
@@ -1371,6 +1435,46 @@ export default function AdminPage() {
         <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginTop: 8 }}>
           ※ 리텐션은 표본이 작아 변동이 큽니다. 2~3주 추세를 함께 보세요.
         </p>
+
+        {/* ── 신규 vs 재방문 행동 비교 ── */}
+        {activeDate && (retSuccessUsers > 0 || newSuccessUsers > 0) && (
+          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "14px 16px", marginTop: 12 }}>
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 2 }}>신규 vs 재방문 행동</p>
+            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginBottom: 10 }}>
+              성공 유저 기준 저장율·공유율 비교 (재방문 가치 측정)
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "auto 1fr 1fr", gap: "6px 14px", alignItems: "center", fontSize: 12 }}>
+              <span></span>
+              <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 11 }}>저장율</span>
+              <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 11 }}>공유율</span>
+
+              <span style={{ color: "rgba(255,255,255,0.55)" }}>신규 ({newSuccessUsers}명)</span>
+              <span style={{ color: "rgba(255,255,255,0.75)" }}>
+                {newSaveRate != null ? `${newSaveRate.toFixed(1)}%` : "—"}
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginLeft: 4 }}>({newSaveUsers}명)</span>
+              </span>
+              <span style={{ color: "rgba(255,255,255,0.75)" }}>
+                {newShareRate != null ? `${newShareRate.toFixed(1)}%` : "—"}
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginLeft: 4 }}>({newShareCount}건)</span>
+              </span>
+
+              <span style={{ color: "rgba(255,255,255,0.55)" }}>재방문 ({retSuccessUsers}명)</span>
+              <span style={{ color: retSaveRate != null && newSaveRate != null && retSaveRate > newSaveRate ? C.green : "rgba(255,255,255,0.75)", fontWeight: retSaveRate != null && newSaveRate != null && retSaveRate > newSaveRate ? 600 : 400 }}>
+                {retSaveRate != null ? `${retSaveRate.toFixed(1)}%` : "—"}
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginLeft: 4, fontWeight: 400 }}>({retSaveUsers}명)</span>
+              </span>
+              <span style={{ color: retShareRate != null && newShareRate != null && retShareRate > newShareRate ? C.green : "rgba(255,255,255,0.75)", fontWeight: retShareRate != null && newShareRate != null && retShareRate > newShareRate ? 600 : 400 }}>
+                {retShareRate != null ? `${retShareRate.toFixed(1)}%` : "—"}
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginLeft: 4, fontWeight: 400 }}>({retShareCount}건)</span>
+              </span>
+            </div>
+            {retSuccessUsers < 5 && (
+              <p style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 8 }}>
+                ※ 재방문 유저 표본 5명 미만 — 비교 신뢰도 낮음
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── 섹션: 콘텐츠 인사이트 ── */}
@@ -1384,6 +1488,47 @@ export default function AdminPage() {
       </div>
       <div style={{ marginBottom: 8 }}>
         <RankList title="💾 가장 많이 저장된 곡 Top 5" items={topSavedSongs} accent="#7ec8e3" />
+      </div>
+      <div style={{ marginBottom: 8 }}>
+        <RankList title="↑ 가장 많이 공유된 곡 Top 5" items={topSharedSongs} accent="#6be0a0" />
+      </div>
+
+      {/* ── 장르별 저장률/공유율 ── */}
+      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 16, padding: "18px 20px", marginBottom: 8 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 4 }}>🎸 장르별 저장률 / 공유율</p>
+        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 12 }}>
+          장르 선택 수 대비 저장·공유 비율 (장르당 10건 이상일 때 색상 표시)
+        </p>
+        {genreConvRows.every(r => r.prefN === 0) ? (
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>데이터 없음</p>
+        ) : (
+          (() => {
+            // 글로벌 max (색상 적용된 것만 기준)
+            const rates = genreConvRows.flatMap(r => [r.saveRate, r.shareRate].filter((v): v is number => v != null));
+            const globalMax = Math.max(1, ...rates);
+            return genreConvRows.map(r => (
+              <div key={r.key} style={{ marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 4 }}>
+                  <span>{r.label} <span style={{ color: "rgba(255,255,255,0.3)" }}>({r.prefN})</span></span>
+                  <span style={{ color: r.prefN < 10 ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.65)" }}>
+                    {r.saveRate != null ? `저장 ${r.saveRate.toFixed(1)}%` : `저장 ${r.saveN}건`} · {r.shareRate != null ? `공유 ${r.shareRate.toFixed(1)}%` : `공유 ${r.shareN}건`}
+                  </span>
+                </div>
+                {/* 저장 bar */}
+                <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden", marginBottom: 2 }}>
+                  <div style={{ height: "100%", width: `${((r.saveRate ?? 0) / globalMax) * 100}%`, background: r.prefN < 10 ? "rgba(196,104,122,0.35)" : "#C4687A" }} />
+                </div>
+                {/* 공유 bar */}
+                <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${((r.shareRate ?? 0) / globalMax) * 100}%`, background: r.prefN < 10 ? "rgba(107,224,160,0.35)" : "#6be0a0" }} />
+                </div>
+              </div>
+            ));
+          })()
+        )}
+        <p style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 8 }}>
+          <span style={{ color: "#C4687A" }}>■</span> 저장률 &nbsp; <span style={{ color: "#6be0a0" }}>■</span> 공유율
+        </p>
       </div>
 
       {/* ── 섹션: Spotify API 상태 (접힘) ── */}
