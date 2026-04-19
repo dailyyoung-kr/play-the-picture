@@ -8,7 +8,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-    const { genre, energy } = await req.json();
+    const { genre, energy, device_id } = await req.json();
 
     if (!genre) {
       return NextResponse.json({ error: "genre 필요" }, { status: 400 });
@@ -17,13 +17,13 @@ export async function POST(req: NextRequest) {
     // energy 컬럼 포함 시도
     const { error } = await supabaseAdmin
       .from("preference_logs")
-      .insert({ genre, energy: energy ?? null });
+      .insert({ genre, energy: energy ?? null, device_id: device_id ?? null });
 
     if (error) {
-      // energy 컬럼 없을 경우 genre만 저장
+      // energy 컬럼 없을 경우 genre + device_id만 저장
       const { error: e2 } = await supabaseAdmin
         .from("preference_logs")
-        .insert({ genre });
+        .insert({ genre, device_id: device_id ?? null });
       if (e2) {
         console.error("[log-preference] insert 실패:", e2.message);
         return NextResponse.json({ error: e2.message }, { status: 500 });
