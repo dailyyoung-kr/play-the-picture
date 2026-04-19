@@ -12,11 +12,11 @@ export async function GET() {
     const [viewsRes, tryRes] = await Promise.all([
       supabaseAdmin
         .from("share_views")
-        .select("id, created_at")
+        .select("id, created_at, device_id")
         .order("created_at", { ascending: false }),
       supabaseAdmin
         .from("try_click")
-        .select("id, created_at")
+        .select("id, created_at, device_id")
         .order("created_at", { ascending: false }),
     ]);
 

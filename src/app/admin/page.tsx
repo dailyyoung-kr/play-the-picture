@@ -6,13 +6,21 @@ import { supabase } from "@/lib/supabase";
 const ADMIN_PW = process.env.NEXT_PUBLIC_ADMIN_PASSWORD ?? "coldboardp1!";
 
 type PhotoLog = { id: string; created_at: string; device_id?: string | null };
-type PrefLog = { id: string; created_at: string; genre: string | null; energy: number | null };
+type PrefLog = { id: string; created_at: string; genre: string | null; energy: number | null; device_id?: string | null };
 type AnalyzeLog = { id: string; created_at: string; status: string; response_time_ms: number | null; song: string | null; artist: string | null; device_id?: string | null };
 type EntryRow = { id: string; date: string; song: string; artist: string; genre: string | null; mood: string | null; device_id?: string | null };
 type ListenLog = { id: string; created_at: string; device_id?: string | null };
 type ViewLog  = { id: string; created_at: string; duration_seconds: number | null; exit_type: string | null };
-type LogRow = { id: string; created_at: string };
+type LogRow = { id: string; created_at: string; device_id?: string | null };
 type SaveLog = { id: string; created_at: string; entry_id: string; device_id: string };
+
+// 내부 테스트 기기 목록 (콤마 구분). 대시보드에서 유저/테스트 데이터 구분용
+const INTERNAL_DEVICE_IDS = new Set(
+  (process.env.NEXT_PUBLIC_INTERNAL_DEVICE_IDS ?? "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean)
+);
 type SpotifyStatus = {
   status: "ok" | "rate_limited" | "token_failed";
   checkedAt: number;
@@ -229,6 +237,16 @@ export default function AdminPage() {
   const [pw, setPw] = useState("");
   const [toast, setToast] = useState("");
   const [tab, setTab] = useState<"today" | "yesterday" | "all" | "custom">("today");
+  const [viewMode, setViewMode] = useState<"user" | "test">("user");
+
+  // viewMode localStorage 복원/저장
+  useEffect(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem("admin_view_mode") : null;
+    if (saved === "user" || saved === "test") setViewMode(saved);
+  }, []);
+  useEffect(() => {
+    if (typeof window !== "undefined") localStorage.setItem("admin_view_mode", viewMode);
+  }, [viewMode]);
   const [customStart, setCustomStart] = useState<string>("");
   const [customEnd,   setCustomEnd]   = useState<string>("");
   const [adminOpen, setAdminOpen] = useState(false);
@@ -275,10 +293,10 @@ export default function AdminPage() {
     setLoading(true);
     const [photoRes, prefRes, analyzeRes, entriesRes, shareRes, listenRes, viewRes, logRowsRes, saveRes] = await Promise.all([
       supabase.from("photo_upload_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
-      supabase.from("preference_logs").select("id, created_at, genre, energy").order("created_at", { ascending: false }),
+      supabase.from("preference_logs").select("id, created_at, genre, energy, device_id").order("created_at", { ascending: false }),
       supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, song, artist, device_id").order("created_at", { ascending: false }),
       supabase.from("entries").select("id, date, song, artist, genre, mood, device_id").order("id", { ascending: false }),
-      supabase.from("share_logs").select("id, created_at").order("created_at", { ascending: false }),
+      supabase.from("share_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("listen_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("result_view_logs").select("id, created_at, duration_seconds, exit_type").order("created_at", { ascending: false }),
       // share_views / try_click — RLS 우회 위해 supabaseAdmin 경유 서버 API 사용
@@ -467,14 +485,23 @@ export default function AdminPage() {
     if (tab === "custom")    return rangeValid ? (d >= rangeStartDate && d <= rangeEndDate) : false;
     return true; // "all"
   };
-  const filteredPhotos  = photoLogs.filter(l => filterTs(l.created_at));
-  const filteredPrefs   = prefLogs.filter(l => filterTs(l.created_at));
-  const filteredAnalyze = analyzeLogs.filter(l => filterTs(l.created_at));
-  const filteredSaveLogs = saveLogs.filter(l => filterTs(l.created_at));
-  const filteredShares  = shareLogs.filter(l => filterTs(l.created_at));
-  const filteredListens = listenLogs.filter(l => filterTs(l.created_at));
-  const filteredViews   = shareViews.filter(l => filterTs(l.created_at));
-  const filteredTry     = tryClicks.filter(l => filterTs(l.created_at));
+  // viewMode 기반 device_id 필터
+  // - "user": 내부 테스트 기기 제외 (device_id NULL은 유저 데이터로 간주 = 포함)
+  // - "test": 내부 테스트 기기만 포함
+  const filterDevice = (row: { device_id?: string | null }): boolean => {
+    if (INTERNAL_DEVICE_IDS.size === 0) return true; // env 미설정 시 전부 통과
+    const did = row.device_id;
+    if (viewMode === "user") return !did || !INTERNAL_DEVICE_IDS.has(did);
+    return !!did && INTERNAL_DEVICE_IDS.has(did);
+  };
+  const filteredPhotos  = photoLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
+  const filteredPrefs   = prefLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
+  const filteredAnalyze = analyzeLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
+  const filteredSaveLogs = saveLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
+  const filteredShares  = shareLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
+  const filteredListens = listenLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
+  const filteredViews   = shareViews.filter(l => filterTs(l.created_at) && filterDevice(l));
+  const filteredTry     = tryClicks.filter(l => filterTs(l.created_at) && filterDevice(l));
   const filteredResultViews = viewLogs.filter(l => filterTs(l.created_at));
 
   // ── 퍼널 수치 ──
@@ -537,7 +564,7 @@ export default function AdminPage() {
 
   // 신규 / 재방문 (전체 데이터에서 첫 방문일 기준)
   const firstSeenMap: Record<string, string> = {};
-  for (const log of analyzeLogs) {
+  for (const log of analyzeLogs.filter(filterDevice)) {
     if (!log.device_id) continue;
     const d = timestampToKSTDate(log.created_at);
     if (!firstSeenMap[log.device_id] || d < firstSeenMap[log.device_id]) {
@@ -554,13 +581,13 @@ export default function AdminPage() {
   }
   // "전체" 탭일 때는 누적 유저 수만 표시
   const totalUniqueUsers = new Set(
-    analyzeLogs.map(l => l.device_id).filter((d): d is string => !!d)
+    analyzeLogs.filter(filterDevice).map(l => l.device_id).filter((d): d is string => !!d)
   ).size;
 
   // ── 리텐션 계산 (analyze_logs 전체 기준, 항상 today 기준) ──
   // 날짜별 방문 device_id 집합
   const visitsByDate: Record<string, Set<string>> = {};
-  for (const log of analyzeLogs) {
+  for (const log of analyzeLogs.filter(filterDevice)) {
     if (!log.device_id) continue;
     const d = timestampToKSTDate(log.created_at);
     if (!visitsByDate[d]) visitsByDate[d] = new Set();
@@ -712,6 +739,42 @@ export default function AdminPage() {
           {loading ? "로딩 중..." : "↻ 새로고침"}
         </button>
       </div>
+
+      {/* 데이터 소스 토글 (유저 / 테스트) */}
+      {INTERNAL_DEVICE_IDS.size > 0 && (
+        <div style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: "0.05em" }}>데이터</span>
+          <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: 3 }}>
+            {(["user", "test"] as const).map((m) => {
+              const isActive = viewMode === m;
+              const label = m === "user" ? "유저 데이터" : "테스트 데이터";
+              return (
+                <button
+                  key={m}
+                  onClick={() => setViewMode(m)}
+                  style={{
+                    padding: "5px 14px",
+                    borderRadius: 18,
+                    border: "none",
+                    background: isActive ? (m === "test" ? "#4a6a8a" : "#C4687A") : "transparent",
+                    color: isActive ? "#fff" : "rgba(255,255,255,0.5)",
+                    fontSize: 12,
+                    fontWeight: isActive ? 600 : 400,
+                    cursor: "pointer",
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          {viewMode === "test" && (
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>
+              내부 기기 {INTERNAL_DEVICE_IDS.size}개 기록만 표시
+            </span>
+          )}
+        </div>
+      )}
 
       {/* 날짜 필터 탭 */}
       <div style={{ marginBottom: 22 }}>
