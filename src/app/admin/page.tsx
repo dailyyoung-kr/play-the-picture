@@ -133,15 +133,24 @@ function useCountdown(targetMs: number | null): string {
 }
 
 function ConvCard({
-  label, value, sub, accent = "#C4687A", tooltip,
+  label, value, sub, accent = "#C4687A", tooltip, avg7d,
 }: {
   label: string; value: string; sub?: string; accent?: string; tooltip?: string;
+  avg7d?: { value: string; delta?: "up" | "down" | "flat" | null };
 }) {
+  const deltaColor = avg7d?.delta === "up" ? "#6be0a0" : avg7d?.delta === "down" ? "#f07070" : "rgba(255,255,255,0.4)";
+  const deltaArrow = avg7d?.delta === "up" ? "▲" : avg7d?.delta === "down" ? "▼" : "·";
   return (
     <div title={tooltip} style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px 18px", cursor: tooltip ? "help" : undefined }}>
       <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", display: "block", marginBottom: 6 }}>{label}</span>
       <span style={{ fontSize: 28, fontWeight: 700, color: accent, lineHeight: 1.1, display: "block" }}>{value}</span>
       {sub && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.32)", marginTop: 4, display: "block" }}>{sub}</span>}
+      {avg7d && (
+        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 6, display: "block" }}>
+          최근 7일 평균 <span style={{ color: "rgba(255,255,255,0.55)", fontWeight: 600 }}>{avg7d.value}</span>
+          {avg7d.delta && <span style={{ color: deltaColor, marginLeft: 6 }}>{deltaArrow}</span>}
+        </span>
+      )}
     </div>
   );
 }
@@ -196,22 +205,28 @@ function RankList({
 }
 
 function FunnelStep({
-  icon, label, count, conv, isLast, userCount,
+  icon, label, count, conv, isLast, userCount, emphasis = "normal",
 }: {
   icon: string; label: string; count: number; conv?: string; isLast?: boolean; userCount?: number;
+  emphasis?: "strong" | "normal" | "weak";
 }) {
+  // 배경색은 모든 스텝 통일 (emphasis 차이는 label/arrow 색에만 반영)
+  const bgAlpha  = 0.055;
+  const labelColor = emphasis === "weak" ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.85)";
+  // 화살표 색: strong이어도 pink 유지 (전환율 숫자는 중립 의미). weak만 회색으로 톤다운
+  const arrowColor = emphasis === "weak" ? "rgba(255,255,255,0.35)" : "#C4687A";
   return (
     <div>
       <div style={{
         display: "flex", alignItems: "center", gap: 12,
         padding: "11px 16px",
-        background: "rgba(255,255,255,0.055)",
+        background: `rgba(255,255,255,${bgAlpha})`,
         borderRadius: 12,
       }}>
         <span style={{ fontSize: 15, width: 22, textAlign: "center", flexShrink: 0 }}>{icon}</span>
-        <span style={{ flex: 1, fontSize: 13, color: "rgba(255,255,255,0.85)" }}>{label}</span>
+        <span style={{ flex: 1, fontSize: 13, color: labelColor }}>{label}</span>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0 }}>
-          <span style={{ fontSize: 22, fontWeight: 700, color: "#fff", lineHeight: 1.1 }}>{count.toLocaleString()}회</span>
+          <span style={{ fontSize: 22, fontWeight: 700, color: emphasis === "weak" ? "rgba(255,255,255,0.6)" : "#fff", lineHeight: 1.1 }}>{count.toLocaleString()}회</span>
           {userCount != null && (
             <span style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", marginTop: 1 }}>유저 {userCount.toLocaleString()}명</span>
           )}
@@ -221,7 +236,7 @@ function FunnelStep({
         <div style={{ display: "flex", alignItems: "center", padding: "2px 0 2px 26px", gap: 8 }}>
           <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.12)" }} />
           {conv && conv !== "—" && (
-            <span style={{ fontSize: 11, color: "#C4687A", fontWeight: 500 }}>↓ {conv}</span>
+            <span style={{ fontSize: 11, color: arrowColor, fontWeight: 500 }}>↓ {conv}</span>
           )}
           {conv === "—" && (
             <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)" }}>↓</span>
@@ -625,11 +640,11 @@ export default function AdminPage() {
 
   // 재뽑기 텀 분포 버킷
   const retryGapBuckets = [
-    { label: "27–45s",     min: 0,    max: 45 },
-    { label: "45–90s",     min: 45,   max: 90 },
-    { label: "90s–5min",   min: 90,   max: 300 },
-    { label: "5min–1h",    min: 300,  max: 3600 },
-    { label: "1h+",        min: 3600, max: Infinity },
+    { label: "27–45초",    min: 0,    max: 45 },
+    { label: "45–90초",    min: 45,   max: 90 },
+    { label: "90초–5분",   min: 90,   max: 300 },
+    { label: "5분–1시간",  min: 300,  max: 3600 },
+    { label: "1시간+",     min: 3600, max: Infinity },
   ].map(b => ({
     ...b,
     count: retryGapsSec.filter(g => g >= b.min && g < b.max).length,
@@ -644,6 +659,45 @@ export default function AdminPage() {
   // K-factor (단순화): 성공 유저 1명당 만들어낸 "나도 해보기 클릭" 수
   // = 공유율 × 공유당 유입률
   const kFactor = successUsers > 0 ? (tryCount / successUsers) : null;
+
+  // ── 최근 7일 평균 (탭과 무관하게 항상 today-7 ~ today-1 구간) ──
+  // 하루 편차가 큰 KEY METRICS의 벤치마크로 사용
+  const last7Start = kstOffset(today, -7); // today 기준 -7일 (포함)
+  const in7Days = (ts: string): boolean => {
+    const d = timestampToKSTDate(ts);
+    return d >= last7Start && d < today; // 어제까지 7일간 (오늘 제외)
+  };
+  const last7Analyze = analyzeLogs.filter(l => in7Days(l.created_at) && filterDevice(l));
+  const last7Saves   = saveLogs.filter(l => in7Days(l.created_at) && filterDevice(l));
+  const last7Shares  = recoveredShareLogs.filter(l => in7Days(l.created_at) && filterDevice(l));
+  const last7Views   = shareViews.filter(l => in7Days(l.created_at) && filterDevice(l));
+  const last7Try     = tryClicks.filter(l => in7Days(l.created_at) && filterDevice(l));
+  const last7SuccessUsers = distinctSet(last7Analyze.filter(l => l.status === "success")).size;
+  const last7ShareRate  = last7SuccessUsers > 0 ? (last7Shares.length / last7SuccessUsers) * 100 : null;
+  const last7InflowRate = last7Views.length > 0 ? (last7Try.length / last7Views.length) * 100 : null;
+  const last7KFactor    = last7SuccessUsers > 0 ? (last7Try.length / last7SuccessUsers) : null;
+
+  // 7일 1회차 저장율: 각 device의 첫 성공 → 두 번째 성공 전까지 구간에 save 있는지
+  const last7SuccessByDevice: Record<string, number[]> = {};
+  for (const l of last7Analyze) {
+    if (l.status !== "success" || !l.device_id) continue;
+    (last7SuccessByDevice[l.device_id] ??= []).push(new Date(l.created_at).getTime());
+  }
+  for (const t of Object.values(last7SuccessByDevice)) t.sort((a, b) => a - b);
+  const last7SavesByDevice: Record<string, number[]> = {};
+  for (const l of last7Saves) {
+    if (!l.device_id) continue;
+    (last7SavesByDevice[l.device_id] ??= []).push(new Date(l.created_at).getTime());
+  }
+  let last7FirstAttempts = 0, last7FirstSaves = 0;
+  for (const [did, times] of Object.entries(last7SuccessByDevice)) {
+    last7FirstAttempts++;
+    const start = times[0];
+    const end = times.length > 1 ? times[1] : Infinity;
+    const saves = last7SavesByDevice[did] ?? [];
+    if (saves.some(t => t >= start && t < end)) last7FirstSaves++;
+  }
+  const last7FirstSaveRate = last7FirstAttempts > 0 ? (last7FirstSaves / last7FirstAttempts) * 100 : null;
 
   // ── USERS 섹션 ──
   // DAU: 기준일에 device_id가 있는 analyze_logs
@@ -776,7 +830,7 @@ export default function AdminPage() {
   const perfUnder10Accent = rvGray ? C.gray : (() => {
     if (under10Pct === "—") return C.gray;
     const v = parseFloat(under10Pct);
-    return v <= 20 ? C.green : v <= 40 ? C.yellow : C.red;
+    return v <= 60 ? C.green : v <= 80 ? C.yellow : C.red;
   })();
 
   // ── 콘텐츠 인사이트 ──
@@ -952,37 +1006,82 @@ export default function AdminPage() {
       {/* ── 섹션: KEY METRICS (북극성 지표) ── */}
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>KEY METRICS</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+        {/* 공유율 */}
         <ConvCard
           label="공유율"
           value={userShareRate}
           sub={`${shareCount}건 / ${successUsers}명`}
           accent={successUsers >= 10 ? accentByRate(userShareRate, 10, 3) : C.gray}
           tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 대비 공유 건수 (바이럴 핵심)"}
+          avg7d={last7ShareRate != null ? {
+            value: last7ShareRate.toFixed(1) + "%",
+            delta: successUsers > 0
+              ? (() => {
+                  const curr = (shareCount / successUsers) * 100;
+                  const diff = curr - last7ShareRate;
+                  if (Math.abs(diff) < Math.max(last7ShareRate * 0.1, 1)) return "flat" as const;
+                  return diff > 0 ? "up" as const : "down" as const;
+                })()
+              : null,
+          } : undefined}
         />
+        {/* 1회차 저장율 — 표본 30 이상에서만 색상 판정 */}
         <ConvCard
           label="1회차 저장율"
           value={firstSaveRatePct != null ? firstSaveRatePct.toFixed(1) + "%" : "—"}
           sub={`${attemptBuckets["1"].saved}명 / ${attemptBuckets["1"].attempts}명`}
-          accent={attemptBuckets["1"].attempts >= 10 && firstSaveRatePct != null ? accentByRate(firstSaveRatePct.toFixed(1) + "%", 15, 5) : C.gray}
-          tooltip={attemptBuckets["1"].attempts < 10 ? "표본 10명 미만 — 판단 보류" : "유저의 첫 성공 분석에서 저장까지 간 비율 (광고 ROI 직결 지표)"}
+          accent={attemptBuckets["1"].attempts >= 30 && firstSaveRatePct != null ? accentByRate(firstSaveRatePct.toFixed(1) + "%", 15, 5) : C.gray}
+          tooltip={attemptBuckets["1"].attempts < 30 ? "표본 30명 미만 — 판단 보류" : "유저의 첫 성공 분석에서 저장까지 간 비율 (광고 ROI 직결 지표)"}
+          avg7d={last7FirstSaveRate != null ? {
+            value: last7FirstSaveRate.toFixed(1) + "%",
+            delta: firstSaveRatePct != null
+              ? (() => {
+                  const diff = firstSaveRatePct - last7FirstSaveRate;
+                  if (Math.abs(diff) < Math.max(last7FirstSaveRate * 0.1, 1)) return "flat" as const;
+                  return diff > 0 ? "up" as const : "down" as const;
+                })()
+              : null,
+          } : undefined}
         />
+        {/* 유입 전환율 */}
         <ConvCard
           label="유입 전환율"
-          value={inflowConvRate != null ? inflowConvRate.toFixed(1) + "%" : "—"}
+          value={(inflowConvRate ?? 0).toFixed(1) + "%"}
           sub={`${tryCount}건 / ${viewCount}건`}
           accent={viewCount >= 10 && inflowConvRate != null ? accentByRate(inflowConvRate.toFixed(1) + "%", 20, 10) : C.gray}
           tooltip={viewCount < 10 ? "공유 조회 10건 미만 — 판단 보류" : "공유 페이지 조회 → 나도 해보기 클릭"}
+          avg7d={last7InflowRate != null ? {
+            value: last7InflowRate.toFixed(1) + "%",
+            delta: inflowConvRate != null
+              ? (() => {
+                  const diff = inflowConvRate - last7InflowRate;
+                  if (Math.abs(diff) < Math.max(last7InflowRate * 0.1, 1)) return "flat" as const;
+                  return diff > 0 ? "up" as const : "down" as const;
+                })()
+              : null,
+          } : undefined}
         />
+        {/* K-factor */}
         <ConvCard
           label="K-factor"
           value={kFactor != null ? kFactor.toFixed(2) : "—"}
           sub={`${tryCount} 유입 / ${successUsers}명`}
-          accent={successUsers >= 10 && kFactor != null ? (kFactor >= 1 ? C.green : kFactor >= 0.3 ? C.yellow : C.red) : C.gray}
+          accent={successUsers >= 10 && kFactor != null && kFactor >= 0.3 ? C.green : C.gray}
           tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 1명당 데려온 나도해보기 클릭 수. 1 이상이면 자력 성장, 미만이면 광고 의존"}
+          avg7d={last7KFactor != null ? {
+            value: last7KFactor.toFixed(2),
+            delta: kFactor != null
+              ? (() => {
+                  const diff = kFactor - last7KFactor;
+                  if (Math.abs(diff) < Math.max(last7KFactor * 0.1, 0.05)) return "flat" as const;
+                  return diff > 0 ? "up" as const : "down" as const;
+                })()
+              : null,
+          } : undefined}
         />
       </div>
 
-      {/* ── 섹션: 유저 ── */}
+      {/* ── 섹션: 유저 (축소 — DAU + 신규/재방문 비율만) ── */}
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>USERS</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
         {(activeDate || (tab === "custom" && rangeValid)) ? (
@@ -994,7 +1093,7 @@ export default function AdminPage() {
                 rangeDayCount === 1 ? `DAU (${rangeStartDate})` :
                 "기간 내 활동 유저"
               }
-              value={dau.toLocaleString()}
+              value={`${dau.toLocaleString()}명`}
               sub={
                 tab === "custom" && rangeDayCount > 1
                   ? `일평균 ${(dau / rangeDayCount).toFixed(1)}명`
@@ -1002,20 +1101,13 @@ export default function AdminPage() {
               }
               accent={C.white}
             />
-            <ConvCard
-              label="신규 유저"
-              value={newUsers.toLocaleString()}
-              sub={`전체 대비 ${pct(newUsers, dau)}`}
-              accent={C.white}
-              tooltip="해당 날짜에 처음 분석한 device_id"
-            />
-            <ConvCard
-              label="재방문 유저"
-              value={returnUsers.toLocaleString()}
-              sub={`전체 대비 ${pct(returnUsers, dau)}`}
-              accent={C.gray}
-              tooltip="이전에도 분석한 적 있는 device_id"
-            />
+            <div title="신규(첫 분석) / 재방문 비율. 재방문 비율이 높을수록 바이럴·재방문 가치 상승" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px 18px", cursor: "help" }}>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", display: "block", marginBottom: 6 }}>신규 / 재방문</span>
+              <span style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.1, display: "block", color: "rgba(255,255,255,0.75)" }}>
+                {pct(newUsers, dau)} <span style={{ color: "rgba(255,255,255,0.35)" }}>/</span> {pct(returnUsers, dau)}
+              </span>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.32)", marginTop: 4, display: "block" }}>{newUsers}명 / {returnUsers}명</span>
+            </div>
           </>
         ) : (
           <ConvCard
@@ -1034,13 +1126,13 @@ export default function AdminPage() {
         <FunnelStep icon="🎵" label="장르·에너지 선택" count={prefCount} conv={pct(analyzeUsers, analyzeUsers)} userCount={analyzeUsers} />
         <FunnelStep icon="✦" label="분석 시작" count={analyzeStartCount} conv={pct(successUsers, analyzeUsers)} userCount={analyzeUsers} />
         <FunnelStep icon="✓" label="분석 성공" count={successCount} conv={pct(listenUsers, successUsers)} userCount={successUsers} />
-        <FunnelStep icon="▶" label="듣기 클릭" count={listenCount} conv={pct(saveUsers, listenUsers)} userCount={listenUsers} />
-        <FunnelStep icon="💾" label="결과 저장" count={saveCount} conv={pct(shareCount, saveUsers)} userCount={saveUsers} />
+        <FunnelStep icon="▶" label="듣기 클릭 (외부 이탈)" count={listenCount} conv={pct(saveUsers, listenUsers)} userCount={listenUsers} emphasis="weak" />
+        <FunnelStep icon="💾" label="결과 저장" count={saveCount} conv={pct(shareCount, saveUsers)} userCount={saveUsers} emphasis="strong" />
         {shareCount > 0 ? (
           <>
-            <FunnelStep icon="↑" label="공유하기" count={shareCount} conv={pct(viewCount, shareCount)} />
+            <FunnelStep icon="↑" label="공유하기" count={shareCount} conv={pct(viewCount, shareCount)} emphasis="strong" />
             <FunnelStep icon="👁" label="공유 페이지 조회" count={viewCount} conv={pct(tryCount, viewCount)} />
-            <FunnelStep icon="→" label="나도 해보기 클릭" count={tryCount} isLast />
+            <FunnelStep icon="→" label="나도 해보기 클릭" count={tryCount} isLast emphasis="strong" />
           </>
         ) : (
           <div style={{
@@ -1062,30 +1154,42 @@ export default function AdminPage() {
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>CONVERSION</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
         <ConvCard label="분석 성공률" value={userSuccessRate} sub={`${successUsers}명 / ${analyzeUsers}명`} accent={convSuccessAccent} tooltip="분석 시작 유저 중 성공한 유저 비율" />
-        <ConvCard label="듣기 클릭률" value={userListenRate} sub={`${listenUsers}명 / ${successUsers}명`} accent={convListenAccent} tooltip="AI 추천 만족도 지표 (유저 기준)" />
-        <ConvCard label="저장률" value={userSaveRate} sub={`${saveUsers}명 / ${successUsers}명`} accent={convSaveAccent} tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 중 저장한 유저 비율"} />
-        <ConvCard label="공유율" value={userShareRate} sub={`${filteredShares.length}건 / ${successUsers}명`} accent={convShareAccent} tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 대비 공유 건수"} />
-        <ConvCard label="유입 전환율" value={pct(tryCount, viewCount)} sub={`${tryCount} / ${viewCount}`} accent={C.gray} tooltip="공유 페이지 조회 → 나도 해보기 클릭" />
+        <ConvCard label="듣기 클릭률" value={userListenRate} sub={`${listenUsers}명 / ${successUsers}명`} accent={convListenAccent} tooltip="AI 추천 만족도 지표 (유저 기준). 외부 이탈 신호이기도 해서 참고용" />
+        <ConvCard label="전체 저장률 (유저 기준)" value={userSaveRate} sub={`${saveUsers}명 / ${successUsers}명`} accent={convSaveAccent} tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 중 한 번이라도 저장한 유저 비율 (회차 무관). 1회차 저장율은 KEY METRICS 참고"} />
+        <ConvCard label="전체 공유율 (유저 기준)" value={userShareRate} sub={`${filteredShares.length}건 / ${successUsers}명`} accent={convShareAccent} tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 대비 공유 건수 (회차 무관). KEY METRICS와 동일 정의"} />
       </div>
 
       {/* ── 섹션: VIRAL LOOP ── */}
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>VIRAL LOOP</p>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
-        <ConvCard
-          label="공유 1건당 조회"
-          value={viewPerShare != null ? viewPerShare.toFixed(1) : "—"}
-          sub={`${viewCount}조회 / ${shareCount}공유`}
-          accent={shareCount >= 5 && viewPerShare != null ? (viewPerShare >= 3 ? C.green : viewPerShare >= 1 ? C.yellow : C.red) : C.gray}
-          tooltip={shareCount < 5 ? "공유 5건 미만 — 판단 보류" : "공유 1건이 만들어낸 페이지 조회 수"}
-        />
-        <ConvCard
-          label="공유 1건당 유입"
-          value={tryPerShare != null ? tryPerShare.toFixed(2) : "—"}
-          sub={`${tryCount}유입 / ${shareCount}공유`}
-          accent={shareCount >= 5 && tryPerShare != null ? (tryPerShare >= 0.5 ? C.green : tryPerShare >= 0.2 ? C.yellow : C.red) : C.gray}
-          tooltip={shareCount < 5 ? "공유 5건 미만 — 판단 보류" : "공유 1건이 만들어낸 나도해보기 클릭 수"}
-        />
-      </div>
+      {shareCount === 0 ? (
+        <div style={{
+          background: "rgba(255,255,255,0.03)", borderRadius: 14, padding: "14px 18px", marginBottom: 20,
+          display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <span style={{ fontSize: 15 }}>↑</span>
+          <span style={{ flex: 1, fontSize: 13, color: "rgba(255,255,255,0.45)" }}>기간 내 공유 없음</span>
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
+            공유 0 · 조회 {viewCount} · 유입 {tryCount}
+          </span>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+          <ConvCard
+            label="공유 1건당 조회"
+            value={viewPerShare != null ? viewPerShare.toFixed(1) : "—"}
+            sub={`${viewCount}조회 / ${shareCount}공유`}
+            accent={shareCount >= 5 && viewPerShare != null ? (viewPerShare >= 2 ? C.green : viewPerShare >= 0.5 ? C.yellow : C.red) : C.gray}
+            tooltip={shareCount < 5 ? "공유 5건 미만 — 판단 보류" : "공유 1건이 만들어낸 페이지 조회 수"}
+          />
+          <ConvCard
+            label="공유 1건당 유입"
+            value={tryPerShare != null ? tryPerShare.toFixed(2) : "—"}
+            sub={`${tryCount}유입 / ${shareCount}공유`}
+            accent={shareCount >= 5 && tryPerShare != null ? (tryPerShare >= 0.5 ? C.green : tryPerShare >= 0.2 ? C.yellow : C.red) : C.gray}
+            tooltip={shareCount < 5 ? "공유 5건 미만 — 판단 보류" : "공유 1건이 만들어낸 나도해보기 클릭 수"}
+          />
+        </div>
+      )}
 
       {/* ── 섹션: QUALITY (회차별 + 재뽑기 텀) ── */}
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>QUALITY</p>
@@ -1160,7 +1264,7 @@ export default function AdminPage() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
         <ConvCard
           label="평균 응답 시간"
-          value={avgResponseMs != null ? (avgResponseMs >= 1000 ? `${(avgResponseMs / 1000).toFixed(1)}s` : `${avgResponseMs}ms`) : "—"}
+          value={avgResponseMs != null ? (avgResponseMs >= 1000 ? `${(avgResponseMs / 1000).toFixed(1)}초` : `${avgResponseMs}ms`) : "—"}
           sub={`${completedLogs.length}건 기준`}
           accent={perfResponseAccent}
         />
