@@ -179,13 +179,20 @@ export default function ResultPage() {
       const url = `https://play-the-picture.vercel.app/share/${entryId}`;
       const songName = result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song;
       const artistName = result.song.includes(" - ") ? result.song.split(" - ").slice(1).join(" - ") : "";
+      const vibeType = result.vibeType ?? result.vibe_type ?? "";
+      const shareText = [
+        vibeType ? `${vibeType}의 오늘의 한 곡` : "오늘의 한 곡",
+        `${songName}${artistName ? ` — ${artistName}` : ""}`,
+        "",
+        "나의 오늘은 어떤 곡일까?",
+      ].join("\n");
 
       // 1) Web Share API 시도
       if (navigator.share) {
         try {
           await navigator.share({
             title: `${songName}${artistName ? ` — ${artistName}` : ""}`,
-            text: "오늘의 사진으로 추천받은 노래예요. 나도 해볼까요? ✦",
+            text: shareText,
             url,
           });
           return; // 성공 시 종료
