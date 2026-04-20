@@ -8,7 +8,7 @@ const supabaseAdmin = createClient(
 );
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -17,9 +17,13 @@ export async function GET(
     return NextResponse.json({ error: "id 필요" }, { status: 400 });
   }
 
+  // ?only=photos — 공유 페이지가 SSR 본문 받은 뒤 사진만 lazy load할 때 사용
+  const only = req.nextUrl.searchParams.get("only");
+  const selectCols = only === "photos" ? "photos" : "*";
+
   const { data, error } = await supabaseAdmin
     .from("entries")
-    .select("*")
+    .select(selectCols)
     .eq("id", id)
     .single();
 
