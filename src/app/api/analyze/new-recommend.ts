@@ -320,6 +320,7 @@ export async function newRecommend(
       const { error: logErr } = await supabaseAdmin.from("recommendation_logs").insert({
         device_id: deviceId,
         song_id: selectedSong.id,
+        vibe_type: result.vibeType ?? null,
       });
       if (logErr) console.error("[new] recommendation_logs insert 실패:", logErr.message);
       else console.log(`[new] 추천 이력 기록: device=${deviceId}, song=${selectedSong.id}`);
