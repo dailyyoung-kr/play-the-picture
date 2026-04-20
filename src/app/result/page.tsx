@@ -291,8 +291,8 @@ export default function ResultPage() {
       logViewDurationRef.current("listen_click");
     }
     setShowListenSheet(true);
-    // spotifyTrackId가 이미 있으면 music-search 호출 불필요
-    if (!musicLinks && result && !result.spotifyTrackId) {
+    // DB 먼저 조회 → youtube_video_id 포함한 딥링크 획득 (spotifyTrackId 유무 무관)
+    if (!musicLinks && result) {
       const songName = result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song;
       const artistName = result.song.includes(" - ") ? result.song.split(" - ").slice(1).join(" - ") : "";
       fetchMusicLinks(songName, artistName);

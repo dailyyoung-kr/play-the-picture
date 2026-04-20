@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
 
   type FoundTrack = {
     spotifyTrackId: string;
+    youtubeVideoId: string | null;  // YouTube 동영상 ID (듣기 버튼 딥링크용)
     inputSong: string;      // 사용자 입력 곡명
     inputArtist: string;    // 사용자 입력 아티스트
     spotifySong: string;    // Spotify 반환 곡명 (검색 추적용)
@@ -81,6 +82,31 @@ export async function POST(req: NextRequest) {
     albumArtUrl: string | null;
     queryLine: string;
   };
+
+  // YouTube 검색 (실패해도 에러 없이 null 반환 — Spotify 저장은 계속 진행)
+  const YT_BLOCK_KEYWORDS = ["news", "breaking", "속보", "참사", "사고", "재난", "사망", "뉴스", "warning", "live breaking"];
+  async function searchYouTubeVideo(query: string): Promise<string | null> {
+    const apiKey = process.env.YOUTUBE_API_KEY;
+    if (!apiKey) return null;
+    try {
+      const res = await fetch(
+        `https://www.googleapis.com/youtube/v3/search?part=id,snippet&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&maxResults=5&order=relevance&key=${apiKey}`
+      );
+      if (!res.ok) {
+        console.log("[import-text] YouTube 응답 오류:", res.status);
+        return null;
+      }
+      const data = await res.json();
+      const items = data.items ?? [];
+      const filtered = items.filter((v: { snippet: { title: string } }) => {
+        const title = (v.snippet?.title ?? "").toLowerCase();
+        return !YT_BLOCK_KEYWORDS.some((kw) => title.includes(kw));
+      });
+      return filtered[0]?.id?.videoId ?? null;
+    } catch {
+      return null;
+    }
+  }
 
   const found: FoundTrack[] = [];
   const failed: string[] = [];
@@ -120,8 +146,14 @@ export async function POST(req: NextRequest) {
           console.log(`[import-text] 검색 결과 없음: ${line}`);
           failed.push(line);
         } else {
+          // Spotify 찾은 곡만 YouTube도 검색 (실제 곡명+아티스트로 정확도↑)
+          const ytQuery = `${track.name} ${track.artists.map(a => a.name).join(" ")}`.trim();
+          const youtubeVideoId = await searchYouTubeVideo(ytQuery);
+          console.log(`[import-text] YouTube: ${ytQuery} → ${youtubeVideoId ?? "null"}`);
+
           found.push({
             spotifyTrackId: track.id,
+            youtubeVideoId,
             inputSong: trackName,
             inputArtist: artistName,
             spotifySong: track.name,
@@ -165,19 +197,50 @@ export async function POST(req: NextRequest) {
 
   const prompt = isAutoGenre
     ? `아래 곡 목록에 energy 값(1~5)과 genre를 붙여줘.
-
 energy: 1=잔잔, 2=여유, 3=설렘, 4=신남, 5=파워풀
-
-genre 분류 기준:
-- kpop: K-Pop 메이저 아티스트 (아이유, BTS, 에스파, 케이시, 볼빨간사춘기, 멜로망스, 도경수, 태연, 성시경, 다비치 등)
-- pop: 글로벌 팝 (Ed Sheeran, Taylor Swift, Dua Lipa 등)
-- hiphop: 힙합/랩 (한국+글로벌)
-- indie: 인디/얼터너티브/포크/락 (적재, 소란, 에피톤 프로젝트, 선우정아, 뎁트, 모트, 짙은, 실리카겔, 데이식스, The 1975 등)
-- rnb: R&B/소울 (Crush, 딘, 차우 등)
-- acoustic_jazz: 어쿠스틱/재즈/보사노바
-
+genre 분류 기준 :
+- kpop: 한국 아이돌/메이저 팝 + 한국 메이저 밴드
+  * 아이돌: BTS, BLACKPINK, 에스파, ILLIT, RIIZE, TWICE, NewJeans, 세븐틴,
+           IVE, NMIXX, LE SSERAFIM, Stray Kids, TWS, BOYNEXTDOOR, NCT
+  * 메이저 솔로: 아이유, 태연, 도경수, 백현, G-DRAGON, 전소미
+  * 메이저 밴드: DAY6, LUCY
+- pop: 글로벌 메인스트림 팝 (영미권/일본 메이저)
+  * 글로벌 TOP: Taylor Swift, Ed Sheeran, Dua Lipa, Ariana Grande, Sabrina Carpenter,
+              Billie Eilish, Olivia Rodrigo, Bruno Mars, Charlie Puth, The Weeknd
+  * 감성 팝: Dean Lewis, Jamie Miller, Lauv, Lewis Capaldi, Jeremy Zucker, Alec Benjamin
+  * 일본 J-pop 메이저: 宇多田ヒカル, Fujii Kaze (통합 팝으로)
+- hiphop: 힙합/랩/로파이/재즈힙합 (장르 성격이 랩이거나 lofi 비트 중심)
+  * 글로벌: Kendrick Lamar, Kanye West, Drake, Tyler The Creator, Playboi Carti,
+          Travis Scott, Kid Cudi, Mac Miller, Post Malone, Don Toliver, J.Cole
+  * 한국: 박재범, 지코, 창모, 이센스, 염따, ASH ISLAND, 쿠기, 식케이, 에픽하이,
+         펀치넬로, 페노메코, 김하온, B.I, 타블로, 비비
+  * Lofi/재즈힙합: Nujabes, Marcus D, Kyo Itachi, Emapea, Jazz Liberatorz
+- indie: 한국 인디/밴드/싱어송라이터 + 글로벌 인디/얼터너티브 + J-pop/J-rock
+  * 한국 인디: 검정치마, 잔나비, 혁오, 새소년, 선우정아, 적재, 소란,
+              에피톤 프로젝트, 뎁트, 모트, 짙은, 실리카겔, 10CM, 카더가든,
+              데이먼스 이어, 경서, 호아, 우효, HANRORO, LUCY
+  * 글로벌 인디: LANY, The 1975, Phoebe Bridgers, Clairo, Lizzy McAlpine,
+                keshi, yung kai, Ruth B, HYBS, d4vd, HONNE
+  * 일본 J-rock/J-pop: YOASOBI, Vaundy, King Gnu, Official髭男dism,
+                     Mrs. GREEN APPLE, 米津玄師, あいみょん
+- rnb: R&B/소울 (장르 성격 중요 — 한국 아티스트도 R&B면 kpop 아님)
+  * 글로벌: Daniel Caesar, SZA, Frank Ocean, Bruno Mars (R&B 곡), Steve Lacy,
+          The Weeknd (R&B 곡), Khalid, Chris Brown, USHER, Beyoncé, Rihanna,
+          Omar Apollo, Alina Baraz, Jhené Aiko, Kehlani
+  * 한국: Crush, 딘, 차우, 죠지, 백예린, Colde, JUNNY, DPR IAN, offonoff,
+         문수진, 고요, 다운, Zion.T, 정기고, 헨리, THAMA
+- acoustic_jazz: 어쿠스틱/재즈/보사노바/영화 OST 재즈
+  * 재즈 클래식: Frank Sinatra, Nat King Cole, Ella Fitzgerald, Louis Armstrong,
+              Sarah Vaughan, Nina Simone, Duke Jordan
+  * 현대 재즈/보사노바: Bruno Major, Norah Jones, Suchmos, 윤석철트리오,
+                     Maria Kim, Haewon Moon, 나윤선, 웅산
+  * OST: Ryan Gosling (La La Land), Justin Hurwitz
+  * 어쿠스틱 싱어송라이터: Fujii Kaze (어쿠스틱 곡 한정), grentperez
+【애매한 경계 처리 규칙】
+1. 한국 아티스트 중 애매하면: 대형 기획사 소속 or 아이돌 → kpop / 싱어송라이터·밴드 → indie
+2. R&B vs hiphop: 랩 비중 높으면 hiphop, 보컬 중심이면 rnb
+3. pop vs indie: 빌보드 TOP 40급 글로벌 히트 → pop, 그 아래 → indie
 JSON 배열로만 응답. 각 항목: {"index": N, "energy": N, "genre": "값"}
-
 ${songList}`
     : `아래 곡 목록에 energy 값(1~5)을 붙여줘.
 1=잔잔, 2=여유, 3=설렘, 4=신남, 5=파워풀
@@ -250,6 +313,7 @@ ${songList}`;
 
   const rows = newFoundIndices.map(({ t, i }) => ({
     spotify_track_id: t.spotifyTrackId,
+    youtube_video_id: t.youtubeVideoId,
     song: t.inputSong,
     artist: t.inputArtist || t.spotifyArtist,
     spotify_query_song: t.spotifySong,

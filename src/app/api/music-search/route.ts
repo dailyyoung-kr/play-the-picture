@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 // Spotify Access Token 발급 (Client Credentials Flow)
 async function getSpotifyToken(): Promise<string | null> {
@@ -108,7 +114,43 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "검색어가 없어요" }, { status: 400 });
   }
 
-  // 병렬로 두 플랫폼 검색
+  // ── STEP 1: DB 조회 (songs 테이블에 이미 캐시된 값 있으면 즉시 반환) ──
+  // song + artist 문자열 매칭 (ilike로 대소문자/공백 어느정도 허용)
+  const { data: dbRow } = await supabaseAdmin
+    .from("songs")
+    .select("id, spotify_track_id, youtube_video_id")
+    .ilike("song", song)
+    .ilike("artist", artist)
+    .limit(1)
+    .maybeSingle();
+
+  if (dbRow) {
+    console.log("[music-search] DB hit:", { song, artist, cachedYoutube: !!dbRow.youtube_video_id });
+
+    // YouTube ID가 없으면 API 호출 + UPDATE (lazy backfill)
+    let youtubeId = dbRow.youtube_video_id as string | null;
+    if (!youtubeId) {
+      youtubeId = await searchYouTubeVideo(query);
+      if (youtubeId) {
+        const { error: upErr } = await supabaseAdmin
+          .from("songs")
+          .update({ youtube_video_id: youtubeId })
+          .eq("id", dbRow.id);
+        if (upErr) console.log("[music-search] youtube_video_id UPDATE 실패:", upErr.message);
+      }
+    }
+
+    const spotifyId = dbRow.spotify_track_id as string | null;
+    return NextResponse.json({
+      spotifyUrl: spotifyId ? `https://open.spotify.com/track/${spotifyId}` : null,
+      youtubeUrl: youtubeId ? `https://music.youtube.com/watch?v=${youtubeId}` : null,
+      spotifyFallback: `https://open.spotify.com/search/${encodeURIComponent(query)}`,
+      youtubeFallback: `https://music.youtube.com/search?q=${encodeURIComponent(query)}`,
+    });
+  }
+
+  // ── STEP 2: DB miss — 기존처럼 Spotify + YouTube 병렬 검색 ──
+  console.log("[music-search] DB miss → API fallback:", { song, artist });
   const [spotifyId, youtubeId] = await Promise.all([
     searchSpotifyTrack(song, artist),
     searchYouTubeVideo(query),
