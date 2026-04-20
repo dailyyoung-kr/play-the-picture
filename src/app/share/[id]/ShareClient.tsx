@@ -7,8 +7,7 @@ import { pixelLead } from "@/lib/fpixel";
 import { getDeviceId } from "@/lib/supabase";
 import { captureUtmFromUrl } from "@/lib/utm";
 
-// SSR 주입용 — photos 제외한 본문 필드
-export interface ShareEntryLite {
+interface ShareEntry {
   id: string;
   song: string;
   artist: string;
@@ -16,21 +15,15 @@ export interface ShareEntryLite {
   tags: string[];
   vibe_type: string;
   vibe_description: string;
+  photos: string[];
   album_art?: string | null;
 }
 
-interface ShareEntry extends ShareEntryLite {
-  photos: string[];
-}
-
-export default function ShareClient({ id, initialEntry }: { id: string; initialEntry: ShareEntryLite | null }) {
+export default function ShareClient({ id }: { id: string }) {
   const router = useRouter();
 
-  // SSR로 본문은 이미 받아옴 — photos만 빈 배열로 시작해서 lazy load
-  const [entry, setEntry] = useState<ShareEntry | null>(
-    initialEntry ? { ...initialEntry, photos: [] } : null
-  );
-  const [notFound, setNotFound] = useState(initialEntry === null);
+  const [entry, setEntry] = useState<ShareEntry | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [modalIndex, setModalIndex] = useState<number | null>(null);
   const viewLogged = useRef(false);
 
@@ -52,17 +45,16 @@ export default function ShareClient({ id, initialEntry }: { id: string; initialE
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // photos만 lazy load — 본문은 SSR로 이미 보이고 있음
+  // entries 데이터 로드 — supabaseAdmin 경유 서버 API 사용 (RLS 우회)
   useEffect(() => {
-    if (!id || !initialEntry) return;
-    fetch(`/api/entries/${id}?only=photos`)
+    if (!id) return;
+    fetch(`/api/entries/${id}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data?.photos && Array.isArray(data.photos)) {
-          setEntry((prev) => (prev ? { ...prev, photos: data.photos } : prev));
-        }
+        if (!data) setNotFound(true);
+        else setEntry(data as ShareEntry);
       })
-      .catch(() => { /* 사진 로드 실패는 본문 표시에 영향 없음 */ });
+      .catch(() => setNotFound(true));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
