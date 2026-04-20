@@ -129,7 +129,7 @@ export default function UploadPage() {
           className="font-semibold mb-3"
           style={{ fontSize: 26, color: "#fff", lineHeight: 1.35, letterSpacing: "-0.5px" }}
         >
-          오늘의 사진은<br />어떤 노래일까?
+          오늘 찍은 사진에<br />어떤 노래가 어울릴까?
         </h1>
 
         {/* 부제목 */}
@@ -137,7 +137,7 @@ export default function UploadPage() {
           className="mb-7"
           style={{ fontSize: 14, color: "rgba(255,255,255,0.52)", lineHeight: 1.7 }}
         >
-          AI가 사진 속 분위기를 읽고, 딱 맞는 한 곡을 골라줘요
+          AI가 사진 분위기를 읽고, 딱 맞는 한 곡을 골라줘요
         </p>
 
         {/* 섹션 타이틀 + 카운트 배지 */}
