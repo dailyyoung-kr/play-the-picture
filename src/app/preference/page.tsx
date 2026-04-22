@@ -484,8 +484,6 @@ export default function PreferencePage() {
                       <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{right}</span>
                     </div>
                     <div style={{ position: "relative", height: 6, background: "rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden" }}>
-                      {/* 중앙 기준선 */}
-                      <div style={{ position: "absolute", left: "50%", top: 0, width: 1, height: "100%", background: "rgba(255,255,255,0.18)" }} />
                       {/* 중앙에서 양방향으로 채워지는 막대 */}
                       <div style={{
                         position: "absolute",

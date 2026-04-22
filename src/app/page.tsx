@@ -326,7 +326,7 @@ export default function UploadPage() {
               cursor: "pointer",
             }}
           >
-            노래 찾으러 가기
+            다음 →
           </button>
         )}
 
