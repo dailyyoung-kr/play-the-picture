@@ -112,7 +112,7 @@ export default function UploadPage() {
       />
 
       {/* 메인 콘텐츠 — 세로 중앙 정렬 */}
-      <div className="flex-1 flex flex-col" style={{ paddingTop: "18vh" }}>
+      <div className="flex-1 flex flex-col justify-center">
 
       {/* 상단 앱 이름 */}
       <div
@@ -124,13 +124,15 @@ export default function UploadPage() {
 
       {/* 본문 */}
       <div className="flex flex-col px-5">
-        {/* 헤드라인 + 부제목 — 0장·1장+ 공통 */}
+        {/* 헤드라인 */}
         <h1
           className="font-semibold mb-3"
           style={{ fontSize: 26, color: "#fff", lineHeight: 1.35, letterSpacing: "-0.5px" }}
         >
           오늘 찍은 사진에<br />어떤 노래가 어울릴까?
         </h1>
+
+        {/* 부제목 */}
         <p
           className="mb-7"
           style={{ fontSize: 14, color: "rgba(255,255,255,0.52)", lineHeight: 1.7 }}
@@ -138,214 +140,157 @@ export default function UploadPage() {
           AI가 사진 분위기를 읽고, 딱 맞는 한 곡을 골라줘요
         </p>
 
-        {/* 사진 컨테이너 — 0~3장 고정 높이, 4장부터 그리드로 확장 */}
-        <div style={{
-          position: "relative",
-          width: "100%",
-          height: photos.length >= 3 ? "auto" : 220,
-          minHeight: 220,
-          borderRadius: 16,
-          border: "1.5px dashed rgba(196,104,122,0.6)",
-          background: "rgba(196,104,122,0.08)",
-          marginBottom: 14,
-          overflow: "hidden",
-        }}>
-          {photos.length === 0 ? (
+        {/* 섹션 타이틀 + 카운트 배지 */}
+        <div className="flex justify-between items-center mb-3">
+          <div style={{ position: "relative", paddingBottom: 5 }}>
+            <span className="font-semibold" style={{ fontSize: 16, color: "#fff" }}>
+              사진 추가
+            </span>
+            <div
+              style={{
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                width: 32,
+                height: 2,
+                background: "#C4687A",
+                borderRadius: 2,
+              }}
+            />
+          </div>
+          <span
+            className="font-medium"
+            style={{
+              background: "#C4687A",
+              color: "#fff",
+              fontSize: 11,
+              padding: "3px 10px",
+              borderRadius: 20,
+            }}
+          >
+            {photos.length} / {maxPhotos}
+          </span>
+        </div>
+
+        {/* 사진 슬롯 — 가로 스크롤 */}
+        <div style={{ position: "relative", marginBottom: 8 }}>
+        <div className="no-scrollbar" style={{ display: "flex", flexDirection: "row", gap: 8, overflowX: "auto", paddingRight: photos.length >= 3 ? 40 : 0 }}>
+          {photos.map((src, i) => (
+            <div
+              key={i}
+              style={{
+                width: 100, height: 124, borderRadius: 10,
+                overflow: "hidden", position: "relative", flexShrink: 0,
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt={`사진 ${i + 1}`}
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+              />
+              <button
+                onClick={() => removePhoto(i)}
+                style={{
+                  position: "absolute", top: 5, right: 5,
+                  width: 18, height: 18,
+                  background: "rgba(0,0,0,0.6)", borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 9, color: "#fff", cursor: "pointer", border: "none",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+
+          {/* + 슬롯 (5장 미만일 때만) */}
+          {photos.length < maxPhotos && (
             <label
               htmlFor="photo-input"
               style={{
-                width: "100%", height: "100%",
-                display: "flex", flexDirection: "column",
-                alignItems: "center", justifyContent: "center",
-                gap: 12, cursor: "pointer",
+                width: 100, height: 124, borderRadius: 10, flexShrink: 0,
+                border: "1px solid rgba(255,255,255,0.15)",
+                background: "rgba(255,255,255,0.04)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 18, color: "rgba(255,255,255,0.3)",
+                cursor: "pointer",
               }}
             >
-              <div
-                style={{
-                  width: 48, height: 48, borderRadius: "50%",
-                  background: "#C4687A",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 26, color: "#fff", fontWeight: 300, lineHeight: 1,
-                }}
-              >
-                +
-              </div>
-              <span style={{ fontSize: 15, color: "#fff", fontWeight: 500 }}>
-                사진 추가하기
-              </span>
-              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
-                최대 5장까지 추가할 수 있어요
-              </span>
+              +
             </label>
-          ) : photos.length >= 3 ? (
-            /* 3~5장: 6컬럼 그리드(각 아이템 span 2) — 마지막 줄 가운데 정렬 + 크기 동일 */
-            (() => {
-              const items: Array<{ type: "photo"; src: string; idx: number } | { type: "add" }> = photos.map((src, idx) => ({ type: "photo" as const, src, idx }));
-              if (photos.length < maxPhotos) items.push({ type: "add" as const });
-              const rowSize = 3;
-              return (
-                <div style={{ padding: 14, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 8 }}>
-                  {items.map((item, i) => {
-                    const rowIdx = Math.floor(i / rowSize);
-                    const colIdx = i % rowSize;
-                    const totalRows = Math.ceil(items.length / rowSize);
-                    const isLastRow = rowIdx === totalRows - 1;
-                    const lastRowCount = items.length - (totalRows - 1) * rowSize;
-                    const offset = isLastRow ? (rowSize - lastRowCount) : 0;
-                    const gridColumnStart = offset + colIdx * 2 + 1;
-                    const style = {
-                      gridColumn: `${gridColumnStart} / span 2`,
-                      aspectRatio: "120 / 148",
-                      borderRadius: 10,
-                      overflow: "hidden",
-                      position: "relative" as const,
-                    };
-                    return item.type === "photo" ? (
-                      <div key={`p-${item.idx}`} style={style}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={item.src}
-                          alt={`사진 ${item.idx + 1}`}
-                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                        />
-                        <button
-                          onClick={() => removePhoto(item.idx)}
-                          style={{
-                            position: "absolute", top: 5, right: 5,
-                            width: 18, height: 18,
-                            background: "rgba(0,0,0,0.6)", borderRadius: "50%",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            fontSize: 9, color: "#fff", cursor: "pointer", border: "none",
-                          }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <label
-                        key={`add-${i}`}
-                        htmlFor="photo-input"
-                        style={{
-                          ...style,
-                          background: "rgba(255,255,255,0.05)",
-                          display: "flex", flexDirection: "column",
-                          alignItems: "center", justifyContent: "center", gap: 4,
-                          color: "#C4687A",
-                          cursor: "pointer",
-                        }}
-                      >
-                        <span style={{ fontSize: 22, lineHeight: 1 }}>+</span>
-                        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>{photos.length + 1}/{maxPhotos}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              );
-            })()
-          ) : (
-            <>
-              <div style={{ height: "100%", display: "flex", alignItems: "center", padding: 14 }}>
-                <div className="no-scrollbar" style={{ display: "flex", gap: 8, overflowX: "auto", paddingRight: photos.length >= 3 ? 44 : 0, width: "100%" }}>
-                  {photos.map((src, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        width: 120, height: 148, borderRadius: 10,
-                        overflow: "hidden", position: "relative", flexShrink: 0,
-                      }}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={src}
-                        alt={`사진 ${i + 1}`}
-                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                      />
-                      <button
-                        onClick={() => removePhoto(i)}
-                        style={{
-                          position: "absolute", top: 5, right: 5,
-                          width: 18, height: 18,
-                          background: "rgba(0,0,0,0.6)", borderRadius: "50%",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: 9, color: "#fff", cursor: "pointer", border: "none",
-                        }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-
-                  {/* + 슬롯 */}
-                  <label
-                    htmlFor="photo-input"
-                    style={{
-                      width: 120, height: 148, borderRadius: 10, flexShrink: 0,
-                      background: "rgba(255,255,255,0.05)",
-                      display: "flex", flexDirection: "column",
-                      alignItems: "center", justifyContent: "center", gap: 4,
-                      color: "#C4687A",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <span style={{ fontSize: 22, lineHeight: 1 }}>+</span>
-                    <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>{photos.length + 1}/{maxPhotos}</span>
-                  </label>
-                </div>
-              </div>
-              {/* 오른쪽 페이드 — 3장 이상일 때 */}
-              {photos.length >= 3 && (
-                <div style={{
-                  position: "absolute", top: 14, right: 14,
-                  width: 28, height: "calc(100% - 28px)",
-                  background: "linear-gradient(to right, rgba(196,104,122,0) 0%, rgba(24,15,20,0.9) 100%)",
-                  pointerEvents: "none",
-                  borderTopRightRadius: 10, borderBottomRightRadius: 10,
-                }} />
-              )}
-            </>
+          )}
+        </div>
+          {/* 오른쪽 페이드 그라데이션 — 3장 이상일 때만 */}
+          {photos.length >= 3 && (
+            <div style={{
+              position: "absolute", top: 0, right: 0,
+              width: 60, height: "100%",
+              background: "linear-gradient(to right, transparent 0%, #0d1218 100%)",
+              pointerEvents: "none",
+            }} />
           )}
         </div>
 
-        {/* 프라이버시 문구 — 항상 표시 */}
-        <p className="text-center" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", marginBottom: 20 }}>
+        {/* 안내 문구 */}
+        <p className="text-right" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", marginTop: 12 }}>
+          최대 5장까지 추가할 수 있어요
+        </p>
+        <p className="text-right" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", marginBottom: 20 }}>
           사진은 노래 추천에만 사용돼요
         </p>
 
-        {/* 분석 버튼 — 1장 이상일 때만 등장 */}
-        {photos.length > 0 && (
-          <button
-            className="w-full font-medium mb-2"
-            onClick={handleNext}
-            style={{
-              background: "#C4687A",
-              border: "none",
-              borderRadius: 24,
-              padding: 14,
-              color: "#fff",
-              fontSize: 14,
-              cursor: "pointer",
-            }}
-          >
-            다음 →
-          </button>
-        )}
+        {/* 사진 추가 버튼 */}
+        <label
+          htmlFor={photos.length >= maxPhotos ? undefined : "photo-input"}
+          className="w-full mb-2"
+          style={{
+            display: "block",
+            background: "transparent",
+            border: "1px solid rgba(255,255,255,0.25)",
+            borderRadius: 24,
+            padding: "10px 0",
+            color: photos.length >= maxPhotos ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.65)",
+            fontSize: 14,
+            textAlign: "center",
+            cursor: photos.length >= maxPhotos ? "default" : "pointer",
+          }}
+        >
+          사진 추가하기
+        </label>
 
-        {/* 스텝 점 3개 — 사진 1장 이상일 때만 */}
-        {photos.length > 0 && (
-          <div className="flex gap-2 justify-center py-3">
-            {[true, false, false].map((active, i) => (
-              <div
-                key={i}
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: active ? "#fff" : "rgba(255,255,255,0.25)",
-                }}
-              />
-            ))}
-          </div>
-        )}
+        {/* 다음 버튼 */}
+        <button
+          className="w-full font-medium mb-2"
+          onClick={handleNext}
+          disabled={photos.length === 0}
+          style={{
+            background: photos.length === 0 ? "rgba(196,104,122,0.4)" : "#C4687A",
+            border: "none",
+            borderRadius: 24,
+            padding: 14,
+            color: "#fff",
+            fontSize: 14,
+            cursor: photos.length === 0 ? "default" : "pointer",
+          }}
+        >
+          다음 →
+        </button>
+
+        {/* 스텝 점 3개 */}
+        <div className="flex gap-2 justify-center py-3">
+          {[true, false, false].map((active, i) => (
+            <div
+              key={i}
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: active ? "#fff" : "rgba(255,255,255,0.25)",
+              }}
+            />
+          ))}
+        </div>
       </div>
       </div>{/* 메인 콘텐츠 wrapper 끝 */}
 
