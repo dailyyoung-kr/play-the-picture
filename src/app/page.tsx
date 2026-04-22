@@ -144,21 +144,12 @@ export default function UploadPage() {
 
         {/* 섹션 타이틀 + 카운트 배지 — 사진 1장 이상일 때만 */}
         {photos.length > 0 && (
-          <div className="flex justify-between items-center mb-3">
+          <div className="mb-3">
             <span className="font-semibold" style={{ fontSize: 16, color: "#fff" }}>
-              사진 추가
-            </span>
-            <span
-              className="font-medium"
-              style={{
-                background: "rgba(255,255,255,0.1)",
-                color: "rgba(255,255,255,0.75)",
-                fontSize: 11,
-                padding: "3px 10px",
-                borderRadius: 20,
-              }}
-            >
-              {photos.length} / {maxPhotos}
+              사진 추가{" "}
+              <span style={{ color: "rgba(255,255,255,0.45)", fontWeight: 400 }}>
+                · 최대 {maxPhotos}장
+              </span>
             </span>
           </div>
         )}
@@ -245,10 +236,10 @@ export default function UploadPage() {
                     htmlFor="photo-input"
                     style={{
                       width: 120, height: 148, borderRadius: 10, flexShrink: 0,
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      background: "rgba(255,255,255,0.04)",
+                      border: "1.5px dashed rgba(196,104,122,0.35)",
+                      background: "rgba(196,104,122,0.04)",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 18, color: "rgba(255,255,255,0.3)",
+                      fontSize: 18, color: "rgba(196,104,122,0.55)",
                       cursor: "pointer",
                     }}
                   >
@@ -268,7 +259,7 @@ export default function UploadPage() {
             </div>
 
             {/* 안내 문구 — 프라이버시 안심만 유지 */}
-            <p className="text-right" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", marginTop: 12, marginBottom: 20 }}>
+            <p className="text-center" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", marginTop: 12, marginBottom: 20 }}>
               사진은 노래 추천에만 사용돼요
             </p>
 

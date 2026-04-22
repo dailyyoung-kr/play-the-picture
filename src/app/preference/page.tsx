@@ -268,7 +268,7 @@ export default function PreferencePage() {
         <span className="font-medium" style={{ fontSize: 15, color: "#fff" }}>
           오늘의 취향
         </span>
-        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)" }}>2 / 2</span>
+        <span style={{ fontSize: 20, visibility: "hidden" }}>←</span>
       </div>
 
       <p className="text-center mb-5" style={{ fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
@@ -383,6 +383,19 @@ export default function PreferencePage() {
         <p className="text-center mb-2" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)" }}>
           10초면 오늘의 한 곡이 나와요
         </p>
+        <div className="flex gap-2 justify-center py-3">
+          {[false, true, false].map((active, i) => (
+            <div
+              key={i}
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: active ? "#fff" : "rgba(255,255,255,0.25)",
+              }}
+            />
+          ))}
+        </div>
       </div>
 
       {/* 로딩 오버레이 — 3단계 스토리텔링 */}
@@ -470,18 +483,20 @@ export default function PreferencePage() {
                       <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{left}</span>
                       <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{right}</span>
                     </div>
-                    <div style={{ position: "relative", height: 6, background: "rgba(255,255,255,0.08)", borderRadius: 3 }}>
+                    <div style={{ position: "relative", height: 6, background: "rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden" }}>
+                      {/* 중앙 기준선 */}
+                      <div style={{ position: "absolute", left: "50%", top: 0, width: 1, height: "100%", background: "rgba(255,255,255,0.18)" }} />
+                      {/* 중앙에서 양방향으로 채워지는 막대 */}
                       <div style={{
                         position: "absolute",
-                        left: gaugeAnimated ? `calc(${gaugeTargets[i]}% - 7px)` : "calc(50% - 7px)",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        width: 14,
-                        height: 14,
-                        borderRadius: "50%",
+                        left: gaugeAnimated ? `${Math.min(50, gaugeTargets[i])}%` : "50%",
+                        top: 0,
+                        width: gaugeAnimated ? `${Math.abs(gaugeTargets[i] - 50)}%` : "0%",
+                        height: "100%",
                         background: "#C4687A",
-                        boxShadow: "0 0 6px rgba(196,104,122,0.6)",
-                        transition: `left ${0.75 + i * 0.12}s cubic-bezier(0.4, 0, 0.2, 1) ${i * 0.1}s`,
+                        borderRadius: 3,
+                        boxShadow: "0 0 8px rgba(196,104,122,0.5)",
+                        transition: `left ${0.75 + i * 0.12}s cubic-bezier(0.4, 0, 0.2, 1) ${i * 0.1}s, width ${0.75 + i * 0.12}s cubic-bezier(0.4, 0, 0.2, 1) ${i * 0.1}s`,
                       }} />
                     </div>
                   </div>
