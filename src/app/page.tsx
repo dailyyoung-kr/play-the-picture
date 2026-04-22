@@ -230,12 +230,12 @@ export default function UploadPage() {
                           background: "rgba(255,255,255,0.05)",
                           display: "flex", flexDirection: "column",
                           alignItems: "center", justifyContent: "center", gap: 4,
-                          color: "rgba(196,104,122,0.7)",
+                          color: "#C4687A",
                           cursor: "pointer",
                         }}
                       >
                         <span style={{ fontSize: 22, lineHeight: 1 }}>+</span>
-                        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>{photos.length}/{maxPhotos}</span>
+                        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>{photos.length + 1}/{maxPhotos}</span>
                       </label>
                     );
                   })}
@@ -283,12 +283,12 @@ export default function UploadPage() {
                       background: "rgba(255,255,255,0.05)",
                       display: "flex", flexDirection: "column",
                       alignItems: "center", justifyContent: "center", gap: 4,
-                      color: "rgba(196,104,122,0.7)",
+                      color: "#C4687A",
                       cursor: "pointer",
                     }}
                   >
                     <span style={{ fontSize: 22, lineHeight: 1 }}>+</span>
-                    <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>{photos.length}/{maxPhotos}</span>
+                    <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>{photos.length + 1}/{maxPhotos}</span>
                   </label>
                 </div>
               </div>
