@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, Music } from "lucide-react";
+import { Archive, Music, Music2, SlidersHorizontal } from "lucide-react";
 import { trackEvent } from "@/lib/gtag";
 import { supabase, getDeviceId } from "@/lib/supabase";
 import { isAnalyticsEnabled } from "@/lib/analytics";
@@ -279,8 +279,8 @@ export default function PreferencePage() {
 
         {/* 카드 1: 장르 */}
         <div className="mb-4 p-5" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14 }}>
-          <p className="mb-3 font-medium" style={{ fontSize: 13, color: "rgba(255,255,255,0.90)" }}>
-            🎵 어떤 음악이 끌려요?
+          <p className="mb-3 font-medium" style={{ fontSize: 13, color: "rgba(255,255,255,0.90)", display: "flex", alignItems: "center", gap: 6 }}>
+            <Music2 size={14} strokeWidth={1.8} /> 어떤 음악이 끌려요?
           </p>
           <div className="flex flex-wrap gap-2">
             {GENRE_OPTIONS.map((g) => (
@@ -305,8 +305,8 @@ export default function PreferencePage() {
 
         {/* 카드 2: 분위기 (에너지 스펙트럼) */}
         <div className="mb-4 p-5" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14 }}>
-          <p className="mb-4 font-medium" style={{ fontSize: 13, color: "rgba(255,255,255,0.90)" }}>
-            🎚️ 어떤 분위기로 듣고 싶어요?
+          <p className="mb-4 font-medium" style={{ fontSize: 13, color: "rgba(255,255,255,0.90)", display: "flex", alignItems: "center", gap: 6 }}>
+            <SlidersHorizontal size={14} strokeWidth={1.8} /> 어떤 분위기로 듣고 싶어요?
           </p>
 
           {/* 스펙트럼 바 */}

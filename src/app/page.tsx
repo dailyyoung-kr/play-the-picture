@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, Music } from "lucide-react";
+import { Archive, Music, ArrowRight } from "lucide-react";
 import { supabase, getDeviceId } from "@/lib/supabase";
 import { pixelInitiateCheckout } from "@/lib/fpixel";
 import { isAnalyticsEnabled } from "@/lib/analytics";
@@ -272,9 +272,13 @@ export default function UploadPage() {
               color: "#fff",
               fontSize: 14,
               cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
             }}
           >
-            다음 →
+            다음 <ArrowRight size={16} strokeWidth={2} />
           </button>
         )}
 

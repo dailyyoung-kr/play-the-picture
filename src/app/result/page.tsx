@@ -61,7 +61,7 @@ export default function ResultPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewState, setPreviewState] = useState<"idle" | "ready" | "playing" | "done">("idle");
   const [previewProgress, setPreviewProgress] = useState(0); // 0~1
-  const [ctaRevealed, setCtaRevealed] = useState(false); // 재생 시작 10초 후 true
+  const [ctaRevealed, setCtaRevealed] = useState(false); // 재생 시작 8초 후 true
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasStartedPreviewRef = useRef(false); // 미리듣기 최초 재생 여부
   const ctaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -401,10 +401,10 @@ export default function ResultPage() {
       audio.play().then(() => {
         setPreviewState("playing");
         trackEvent("preview_play", { song: result?.song });
-        // 최초 재생 시점부터 10초(실시간) 타이머 — 일시정지해도 유지
+        // 최초 재생 시점부터 8초(실시간) 타이머 — 일시정지해도 유지
         if (!hasStartedPreviewRef.current) {
           hasStartedPreviewRef.current = true;
-          ctaTimerRef.current = setTimeout(() => setCtaRevealed(true), 10000);
+          ctaTimerRef.current = setTimeout(() => setCtaRevealed(true), 8000);
         }
       }).catch(() => {
         // 재생 실패 시 fallback: 바로 본편 버튼으로
