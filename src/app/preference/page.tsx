@@ -39,7 +39,14 @@ const VIBE_AXES = [
   { left: "혼자",   right: "함께" },
   { left: "일상적", right: "특별함" },
 ];
-const WAVE_DELAYS = [0, 0.18, 0.36, 0.18, 0];
+const WAVE_BARS = [
+  { delay: 0,    duration: 0.72, anim: "wave1" },
+  { delay: 0.18, duration: 0.88, anim: "wave2" },
+  { delay: 0.32, duration: 0.64, anim: "wave3" },
+  { delay: 0.08, duration: 0.80, anim: "wave2" },
+  { delay: 0.26, duration: 0.70, anim: "wave1" },
+  { delay: 0.04, duration: 0.92, anim: "wave3" },
+];
 const PHASE3_TEXTS = [
   "딱 맞는 한 곡을 고르고 있어요",
   "거의 다 골랐어요",
@@ -121,7 +128,7 @@ export default function PreferencePage() {
 
     for (let i = 1; i <= LAST; i++) {
       const base = i * 3000;
-      timers.push(setTimeout(() => setPhase3TextVisible(false), base - 400));
+      timers.push(setTimeout(() => setPhase3TextVisible(false), base - 300));
       const idx = i;
       timers.push(setTimeout(() => {
         setPhase3TextIndex(idx);
@@ -526,7 +533,7 @@ export default function PreferencePage() {
                       letterSpacing: "-0.3px",
                       lineHeight: 1.55,
                       opacity: i === phase3TextIndex && phase3TextVisible ? 1 : 0,
-                      transition: "opacity 0.4s ease",
+                      transition: "opacity 0.3s ease",
                     }}
                   >
                     {text}
@@ -543,14 +550,14 @@ export default function PreferencePage() {
                   height: 32,
                 }}
               >
-                {WAVE_DELAYS.map((delay, i) => (
+                {WAVE_BARS.map((bar, i) => (
                   <div
                     key={i}
                     style={{
                       width: 4,
                       borderRadius: 2,
                       background: "#C4687A",
-                      animation: `wave 0.8s ease-in-out ${delay}s infinite alternate`,
+                      animation: `${bar.anim} ${bar.duration}s ease-in-out ${bar.delay}s infinite`,
                     }}
                   />
                 ))}
@@ -614,7 +621,9 @@ export default function PreferencePage() {
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
-        @keyframes wave { from { height: 8px; } to { height: 32px; } }
+        @keyframes wave1 { 0%, 100% { height: 6px; } 50% { height: 22px; } }
+        @keyframes wave2 { 0%, 100% { height: 10px; } 50% { height: 32px; } }
+        @keyframes wave3 { 0%, 100% { height: 4px; } 50% { height: 16px; } }
       `}</style>
     </div>
   );
