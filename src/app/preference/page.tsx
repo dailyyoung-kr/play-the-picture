@@ -272,7 +272,7 @@ export default function PreferencePage() {
       </div>
 
       <p className="text-center mb-5" style={{ fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
-        정확한 추천을 위해 두 가지만 더 알려주세요
+        정확한 추천을 위해 두 가지만 알려주세요
       </p>
 
       <div className="flex-1 flex flex-col px-5 overflow-y-auto">
