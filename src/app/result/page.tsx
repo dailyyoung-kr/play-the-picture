@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseWithDeviceId } from "@/lib/supabase";
-import { Archive, Music } from "lucide-react";
+import { Archive, Music, Play, Pause, Bookmark, Camera, RotateCcw, Check } from "lucide-react";
 import { getDeviceId } from "@/lib/device";
 import { trackEvent } from "@/lib/gtag";
 import { pixelViewContent, pixelLead } from "@/lib/fpixel";
@@ -56,6 +56,13 @@ export default function ResultPage() {
   const [loadingLinks, setLoadingLinks] = useState(false);
   const [modalIndex, setModalIndex] = useState<number | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+
+  // ── iTunes 30초 미리듣기 ──
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewState, setPreviewState] = useState<"idle" | "ready" | "playing" | "done">("idle");
+  const [previewProgress, setPreviewProgress] = useState(0); // 0~1
+  const [ctaRevealed, setCtaRevealed] = useState(false); // 재생 10초 경과 후 true
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // ── 체류 시간 트래킹 ──
   const enterTimeRef   = useRef<number>(Date.now());
@@ -338,6 +345,60 @@ export default function ResultPage() {
     if (photosRaw) setPhotos(JSON.parse(photosRaw));
   }, []);
 
+  // 재생 중 rAF로 진행도 갱신 (부드러운 애니메이션) + 10초 경과 시 CTA 노출
+  useEffect(() => {
+    if (previewState !== "playing") return;
+    let rafId: number;
+    const tick = () => {
+      const a = audioRef.current;
+      if (a && a.duration) {
+        setPreviewProgress(a.currentTime / a.duration);
+        if (a.currentTime >= 10) setCtaRevealed(true);
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [previewState]);
+
+  // iTunes 미리듣기 URL 조회 (백그라운드, fire-and-forget)
+  useEffect(() => {
+    if (!result?.song) return;
+    const songName = result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song;
+    const artistName = result.song.includes(" - ") ? result.song.split(" - ").slice(1).join(" - ") : "";
+    if (!songName || !artistName) return;
+
+    const controller = new AbortController();
+    fetch(
+      `/api/itunes-preview?title=${encodeURIComponent(songName)}&artist=${encodeURIComponent(artistName)}`,
+      { signal: controller.signal }
+    )
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.previewUrl) {
+          setPreviewUrl(d.previewUrl);
+          setPreviewState("ready");
+        }
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [result?.song]);
+
+  // 미리듣기 재생/일시정지 토글
+  const togglePreview = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (previewState === "ready") {
+      audio.play().then(() => setPreviewState("playing")).catch(() => {
+        // 재생 실패 시 fallback: 바로 본편 버튼으로
+        setPreviewState("done");
+      });
+    } else if (previewState === "playing") {
+      audio.pause();
+      setPreviewState("ready"); // 일시정지 → 다시 ▶로 복귀 (본편 스왑 X)
+    }
+  };
+
   if (!result) {
     return (
       <div
@@ -509,21 +570,122 @@ export default function ResultPage() {
 
       <div className="px-5 pb-2">
 
-        {/* Primary: 지금 바로 듣기 */}
-        <button
-          className="w-full font-medium"
-          onClick={handleListenClick}
-          style={{
-            background: "#C4687A",
-            border: "none",
-            borderRadius: 24, padding: 14,
-            color: "#fff",
-            fontSize: 14, cursor: "pointer",
-            marginBottom: 8,
-          }}
-        >
-          ▶ 지금 바로 듣기
-        </button>
+        {/* Primary: 미리듣기(미디어 플레이어) → 지금 바로 듣기 (상태별 스왑) */}
+        {previewUrl && (
+          <audio
+            ref={audioRef}
+            src={previewUrl}
+            preload="none"
+            onEnded={() => {
+              // 재생 완료 → 다시 듣기 가능하도록 ready로 복귀
+              setPreviewState("ready");
+              setPreviewProgress(0);
+            }}
+          />
+        )}
+        {/* 미리듣기 플레이어: ready/playing 상태에서 노출 */}
+        {(previewState === "ready" || previewState === "playing") && (() => {
+          const PREVIEW_DURATION = 30;
+          const elapsed = Math.floor(previewProgress * PREVIEW_DURATION);
+          const fmt = (s: number) => `0:${String(Math.max(0, s)).padStart(2, "0")}`;
+          return (
+            <div
+              role="button"
+              onClick={togglePreview}
+              style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "10px 14px",
+                marginBottom: 8,
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 24,
+                cursor: "pointer",
+              }}
+            >
+              {/* 재생/일시정지 원형 버튼 */}
+              <div style={{
+                width: 32, height: 32, borderRadius: "50%",
+                background: "#C4687A",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "#fff", flexShrink: 0,
+              }}>
+                {previewState === "ready"
+                  ? <Play size={14} fill="#fff" strokeWidth={0} style={{ marginLeft: 1 }} />
+                  : <Pause size={14} fill="#fff" strokeWidth={0} />}
+              </div>
+
+              {/* 진행바 영역 — 상단에 "미리 듣기" 라벨 중앙 정렬 */}
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+                <div style={{
+                  fontSize: 9, color: "rgba(255,255,255,0.45)",
+                  letterSpacing: "0.02em", lineHeight: 1,
+                  textAlign: "center",
+                }}>
+                  미리 듣기
+                </div>
+                <div style={{ position: "relative", height: 14, display: "flex", alignItems: "center" }}>
+                  <div style={{
+                    position: "absolute", left: 0, right: 0, top: "50%",
+                    transform: "translateY(-50%)",
+                    height: 3, borderRadius: 2,
+                    background: "rgba(255,255,255,0.15)",
+                  }} />
+                  <div style={{
+                    position: "absolute", left: 0, top: "50%",
+                    transform: "translateY(-50%)",
+                    width: `${previewProgress * 100}%`,
+                    height: 3, borderRadius: 2,
+                    background: "#C4687A",
+                  }} />
+                  <div style={{
+                    position: "absolute", top: "50%",
+                    left: `${previewProgress * 100}%`,
+                    transform: "translate(-50%, -50%)",
+                    width: 10, height: 10, borderRadius: "50%",
+                    background: "#fff",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                  }} />
+                </div>
+              </div>
+
+              {/* 시간 표시 */}
+              <div style={{
+                fontSize: 11, color: "rgba(255,255,255,0.6)",
+                fontVariantNumeric: "tabular-nums",
+                minWidth: 56, textAlign: "right", flexShrink: 0,
+              }}>
+                {fmt(elapsed)} / 0:30
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* 지금 바로 듣기 CTA: idle/done 상태 또는 재생 10초 경과 후 노출 */}
+        {(previewState === "idle" || previewState === "done" || ctaRevealed) && (
+          <button
+            className="w-full font-medium"
+            onClick={handleListenClick}
+            style={{
+              background: "#C4687A",
+              border: "none",
+              borderRadius: 24, padding: 14,
+              color: "#fff",
+              fontSize: 14, cursor: "pointer",
+              marginBottom: 8,
+              animation: ctaRevealed && (previewState === "ready" || previewState === "playing") ? "fadeInCta 0.4s ease" : undefined,
+            }}
+          >
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <Play size={14} fill="#fff" strokeWidth={0} /> 음악앱에서 듣기
+            </span>
+          </button>
+        )}
+        <style jsx>{`
+          @keyframes fadeInCta {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        `}</style>
 
         {/* Secondary: 저장 + 공유 나란히 */}
         <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
@@ -539,7 +701,17 @@ export default function ResultPage() {
               fontSize: 13, cursor: (saving || isSaved) ? "default" : "pointer",
             }}
           >
-            {isSaved ? "✓ 보관됨" : (saving ? "저장 중..." : "💾 보관하기")}
+            {isSaved ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <Check size={15} strokeWidth={1.8} /> 보관됨
+              </span>
+            ) : saving ? (
+              "저장 중..."
+            ) : (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <Bookmark size={15} strokeWidth={1.5} /> 보관하기
+              </span>
+            )}
           </button>
           <button
             className="font-medium"
@@ -554,7 +726,13 @@ export default function ResultPage() {
               fontSize: 13, cursor: sharing ? "default" : "pointer",
             }}
           >
-            {sharing ? "공유 중..." : "📷 결과 공유하기"}
+            {sharing ? (
+              "공유 중..."
+            ) : (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <Camera size={15} strokeWidth={1.5} /> 결과 공유하기
+              </span>
+            )}
           </button>
         </div>
 
@@ -576,7 +754,9 @@ export default function ResultPage() {
             textAlign: "center",
           }}
         >
-          한 번 더 해보기
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <RotateCcw size={13} strokeWidth={1.5} /> 한 번 더 해보기
+          </span>
         </button>
 
       </div>
