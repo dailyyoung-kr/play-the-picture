@@ -281,7 +281,7 @@ export default function PreferencePage() {
       </div>
 
       <p className="text-center mb-5" style={{ fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
-        두 가지만 알려주시면 딱 맞는 노래를 찾아드릴게요
+        정확한 추천을 위해 두 가지만 더 알려주세요
       </p>
 
       <div className="flex-1 flex flex-col px-5 overflow-y-auto">
@@ -386,11 +386,11 @@ export default function PreferencePage() {
               사진 분석 중...
             </>
           ) : (
-            "AI 분석 시작하기 ✦"
+            "분석 시작하기"
           )}
         </button>
         <p className="text-center mb-2" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)" }}>
-          플더픽이 오늘의 한 곡을 찾아드릴게요
+          10초면 오늘의 한 곡이 나와요
         </p>
       </div>
 

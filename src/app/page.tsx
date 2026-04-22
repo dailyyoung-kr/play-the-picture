@@ -267,11 +267,8 @@ export default function UploadPage() {
               )}
             </div>
 
-            {/* 안내 문구 */}
-            <p className="text-right" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", marginTop: 12 }}>
-              최대 5장까지 추가할 수 있어요
-            </p>
-            <p className="text-right" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", marginBottom: 20 }}>
+            {/* 안내 문구 — 프라이버시 안심만 유지 */}
+            <p className="text-right" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", marginTop: 12, marginBottom: 20 }}>
               사진은 노래 추천에만 사용돼요
             </p>
 
@@ -289,7 +286,7 @@ export default function UploadPage() {
                 cursor: "pointer",
               }}
             >
-              사진 분석하기 →
+              노래 찾으러 가기
             </button>
           </>
         )}
