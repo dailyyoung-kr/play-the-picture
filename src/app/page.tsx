@@ -112,7 +112,7 @@ export default function UploadPage() {
       />
 
       {/* 메인 콘텐츠 — 세로 중앙 정렬 */}
-      <div className="flex-1 flex flex-col justify-center">
+      <div className="flex-1 flex flex-col" style={{ paddingTop: "18vh" }}>
 
       {/* 상단 앱 이름 */}
       <div
@@ -124,46 +124,35 @@ export default function UploadPage() {
 
       {/* 본문 */}
       <div className="flex flex-col px-5">
-        {/* 헤드라인 */}
-        <h1
-          className="font-semibold mb-3"
-          style={{ fontSize: 26, color: "#fff", lineHeight: 1.35, letterSpacing: "-0.5px" }}
-        >
-          오늘 찍은 사진에<br />어떤 노래가 어울릴까?
-        </h1>
-
-        {/* 부제목 */}
-        <p
-          className="mb-7"
-          style={{ fontSize: 14, color: "rgba(255,255,255,0.52)", lineHeight: 1.7 }}
-        >
-          AI가 사진 분위기를 읽고, 딱 맞는 한 곡을 골라줘요
-        </p>
+        {/* 헤드라인 + 부제목 — 사진 0장일 때만 */}
+        {photos.length === 0 && (
+          <>
+            <h1
+              className="font-semibold mb-3"
+              style={{ fontSize: 26, color: "#fff", lineHeight: 1.35, letterSpacing: "-0.5px" }}
+            >
+              오늘 찍은 사진에<br />어떤 노래가 어울릴까?
+            </h1>
+            <p
+              className="mb-7"
+              style={{ fontSize: 14, color: "rgba(255,255,255,0.52)", lineHeight: 1.7 }}
+            >
+              AI가 사진 분위기를 읽고, 딱 맞는 한 곡을 골라줘요
+            </p>
+          </>
+        )}
 
         {/* 섹션 타이틀 + 카운트 배지 — 사진 1장 이상일 때만 */}
         {photos.length > 0 && (
           <div className="flex justify-between items-center mb-3">
-            <div style={{ position: "relative", paddingBottom: 5 }}>
-              <span className="font-semibold" style={{ fontSize: 16, color: "#fff" }}>
-                사진 추가
-              </span>
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: 0,
-                  left: 0,
-                  width: 32,
-                  height: 2,
-                  background: "#C4687A",
-                  borderRadius: 2,
-                }}
-              />
-            </div>
+            <span className="font-semibold" style={{ fontSize: 16, color: "#fff" }}>
+              사진 추가
+            </span>
             <span
               className="font-medium"
               style={{
-                background: "#C4687A",
-                color: "#fff",
+                background: "rgba(255,255,255,0.1)",
+                color: "rgba(255,255,255,0.75)",
                 fontSize: 11,
                 padding: "3px 10px",
                 borderRadius: 20,
@@ -220,12 +209,12 @@ export default function UploadPage() {
           <>
             {/* 사진 슬롯 — 가로 스크롤 */}
             <div style={{ position: "relative", marginBottom: 8 }}>
-              <div className="no-scrollbar" style={{ display: "flex", flexDirection: "row", gap: 8, overflowX: "auto", paddingRight: photos.length >= 3 ? 40 : 0 }}>
+              <div className="no-scrollbar" style={{ display: "flex", flexDirection: "row", gap: 8, overflowX: "auto", paddingRight: photos.length >= 3 ? 60 : 0 }}>
                 {photos.map((src, i) => (
                   <div
                     key={i}
                     style={{
-                      width: 100, height: 124, borderRadius: 10,
+                      width: 120, height: 148, borderRadius: 10,
                       overflow: "hidden", position: "relative", flexShrink: 0,
                     }}
                   >
@@ -255,7 +244,7 @@ export default function UploadPage() {
                   <label
                     htmlFor="photo-input"
                     style={{
-                      width: 100, height: 124, borderRadius: 10, flexShrink: 0,
+                      width: 120, height: 148, borderRadius: 10, flexShrink: 0,
                       border: "1px solid rgba(255,255,255,0.15)",
                       background: "rgba(255,255,255,0.04)",
                       display: "flex", alignItems: "center", justifyContent: "center",
@@ -271,7 +260,7 @@ export default function UploadPage() {
               {photos.length >= 3 && (
                 <div style={{
                   position: "absolute", top: 0, right: 0,
-                  width: 60, height: "100%",
+                  width: 30, height: "100%",
                   background: "linear-gradient(to right, transparent 0%, #0d1218 100%)",
                   pointerEvents: "none",
                 }} />

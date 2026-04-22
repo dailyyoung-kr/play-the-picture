@@ -287,7 +287,7 @@ export default function PreferencePage() {
       <div className="flex-1 flex flex-col px-5 overflow-y-auto">
 
         {/* 카드 1: 장르 */}
-        <div className="mb-3 p-4" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14 }}>
+        <div className="mb-4 p-5" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14 }}>
           <p className="mb-3 font-medium" style={{ fontSize: 13, color: "rgba(255,255,255,0.90)" }}>
             🎵 어떤 음악이 끌려요?
           </p>
@@ -313,7 +313,7 @@ export default function PreferencePage() {
         </div>
 
         {/* 카드 2: 분위기 (에너지 스펙트럼) */}
-        <div className="mb-3 p-4" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14 }}>
+        <div className="mb-4 p-5" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14 }}>
           <p className="mb-4 font-medium" style={{ fontSize: 13, color: "rgba(255,255,255,0.90)" }}>
             🎚️ 어떤 바이브로 듣고 싶어요?
           </p>
@@ -350,11 +350,6 @@ export default function PreferencePage() {
             ))}
           </div>
 
-          {/* 스펙트럼 라벨 */}
-          <div style={{ display: "flex", justifyContent: "space-between", padding: "0 2px" }}>
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)" }}>잔잔</span>
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)" }}>파워풀</span>
-          </div>
         </div>
 
         <div className="flex-1" />
@@ -365,21 +360,6 @@ export default function PreferencePage() {
             {error}
           </p>
         )}
-
-        {/* 스텝 점 */}
-        <div className="flex gap-2 justify-center py-3">
-          {[false, true].map((active, i) => (
-            <div
-              key={i}
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: active ? "#fff" : "rgba(255,255,255,0.25)",
-              }}
-            />
-          ))}
-        </div>
 
         {/* AI 분석 시작 버튼 */}
         <button
