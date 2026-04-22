@@ -240,42 +240,43 @@ export default function UploadPage() {
           사진은 노래 추천에만 사용돼요
         </p>
 
-        {/* 사진 추가 버튼 */}
-        <label
-          htmlFor={photos.length >= maxPhotos ? undefined : "photo-input"}
-          className="w-full mb-2"
-          style={{
-            display: "block",
-            background: "transparent",
-            border: "1px solid rgba(255,255,255,0.25)",
-            borderRadius: 24,
-            padding: "10px 0",
-            color: photos.length >= maxPhotos ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.65)",
-            fontSize: 14,
-            textAlign: "center",
-            cursor: photos.length >= maxPhotos ? "default" : "pointer",
-          }}
-        >
-          사진 추가하기
-        </label>
-
-        {/* 다음 버튼 */}
-        <button
-          className="w-full font-medium mb-2"
-          onClick={handleNext}
-          disabled={photos.length === 0}
-          style={{
-            background: photos.length === 0 ? "rgba(196,104,122,0.4)" : "#C4687A",
-            border: "none",
-            borderRadius: 24,
-            padding: 14,
-            color: "#fff",
-            fontSize: 14,
-            cursor: photos.length === 0 ? "default" : "pointer",
-          }}
-        >
-          다음 →
-        </button>
+        {/* 단일 CTA — 상태별 전환 */}
+        {photos.length === 0 ? (
+          <label
+            htmlFor="photo-input"
+            className="w-full mb-2"
+            style={{
+              display: "block",
+              background: "#C4687A",
+              border: "none",
+              borderRadius: 24,
+              padding: 14,
+              color: "#fff",
+              fontSize: 14,
+              fontWeight: 500,
+              textAlign: "center",
+              cursor: "pointer",
+            }}
+          >
+            사진 추가하기
+          </label>
+        ) : (
+          <button
+            className="w-full font-medium mb-2"
+            onClick={handleNext}
+            style={{
+              background: "#C4687A",
+              border: "none",
+              borderRadius: 24,
+              padding: 14,
+              color: "#fff",
+              fontSize: 14,
+              cursor: "pointer",
+            }}
+          >
+            다음 →
+          </button>
+        )}
 
         {/* 스텝 점 3개 */}
         <div className="flex gap-2 justify-center py-3">
