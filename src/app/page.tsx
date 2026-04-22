@@ -140,157 +140,187 @@ export default function UploadPage() {
           AI가 사진 분위기를 읽고, 딱 맞는 한 곡을 골라줘요
         </p>
 
-        {/* 섹션 타이틀 + 카운트 배지 */}
-        <div className="flex justify-between items-center mb-3">
-          <div style={{ position: "relative", paddingBottom: 5 }}>
-            <span className="font-semibold" style={{ fontSize: 16, color: "#fff" }}>
-              사진 추가
-            </span>
-            <div
+        {/* 섹션 타이틀 + 카운트 배지 — 사진 1장 이상일 때만 */}
+        {photos.length > 0 && (
+          <div className="flex justify-between items-center mb-3">
+            <div style={{ position: "relative", paddingBottom: 5 }}>
+              <span className="font-semibold" style={{ fontSize: 16, color: "#fff" }}>
+                사진 추가
+              </span>
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  width: 32,
+                  height: 2,
+                  background: "#C4687A",
+                  borderRadius: 2,
+                }}
+              />
+            </div>
+            <span
+              className="font-medium"
               style={{
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-                width: 32,
-                height: 2,
                 background: "#C4687A",
-                borderRadius: 2,
-              }}
-            />
-          </div>
-          <span
-            className="font-medium"
-            style={{
-              background: "#C4687A",
-              color: "#fff",
-              fontSize: 11,
-              padding: "3px 10px",
-              borderRadius: 20,
-            }}
-          >
-            {photos.length} / {maxPhotos}
-          </span>
-        </div>
-
-        {/* 사진 슬롯 — 가로 스크롤 */}
-        <div style={{ position: "relative", marginBottom: 8 }}>
-        <div className="no-scrollbar" style={{ display: "flex", flexDirection: "row", gap: 8, overflowX: "auto", paddingRight: photos.length >= 3 ? 40 : 0 }}>
-          {photos.map((src, i) => (
-            <div
-              key={i}
-              style={{
-                width: 100, height: 124, borderRadius: 10,
-                overflow: "hidden", position: "relative", flexShrink: 0,
+                color: "#fff",
+                fontSize: 11,
+                padding: "3px 10px",
+                borderRadius: 20,
               }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={src}
-                alt={`사진 ${i + 1}`}
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-              />
-              <button
-                onClick={() => removePhoto(i)}
-                style={{
-                  position: "absolute", top: 5, right: 5,
-                  width: 18, height: 18,
-                  background: "rgba(0,0,0,0.6)", borderRadius: "50%",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 9, color: "#fff", cursor: "pointer", border: "none",
-                }}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
+              {photos.length} / {maxPhotos}
+            </span>
+          </div>
+        )}
 
-          {/* + 슬롯 (5장 미만일 때만) */}
-          {photos.length < maxPhotos && (
+        {photos.length === 0 ? (
+          /* 사진 0장: 단일 CTA 큰 + 슬롯 */
+          <>
             <label
               htmlFor="photo-input"
               style={{
-                width: 100, height: 124, borderRadius: 10, flexShrink: 0,
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.04)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 18, color: "rgba(255,255,255,0.3)",
+                width: "100%",
+                height: 220,
+                borderRadius: 16,
+                border: "1.5px dashed rgba(196,104,122,0.6)",
+                background: "rgba(196,104,122,0.08)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 12,
+                cursor: "pointer",
+                transition: "all 0.25s ease",
+                marginBottom: 14,
+              }}
+            >
+              <div
+                style={{
+                  width: 48, height: 48, borderRadius: "50%",
+                  background: "#C4687A",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 26, color: "#fff", fontWeight: 300, lineHeight: 1,
+                }}
+              >
+                +
+              </div>
+              <span style={{ fontSize: 15, color: "#fff", fontWeight: 500 }}>
+                사진 추가하기
+              </span>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+                최대 5장까지 추가할 수 있어요
+              </span>
+            </label>
+            <p className="text-center" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", marginBottom: 20 }}>
+              사진은 노래 추천에만 사용돼요
+            </p>
+          </>
+        ) : (
+          <>
+            {/* 사진 슬롯 — 가로 스크롤 */}
+            <div style={{ position: "relative", marginBottom: 8 }}>
+              <div className="no-scrollbar" style={{ display: "flex", flexDirection: "row", gap: 8, overflowX: "auto", paddingRight: photos.length >= 3 ? 40 : 0 }}>
+                {photos.map((src, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      width: 100, height: 124, borderRadius: 10,
+                      overflow: "hidden", position: "relative", flexShrink: 0,
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={src}
+                      alt={`사진 ${i + 1}`}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                    />
+                    <button
+                      onClick={() => removePhoto(i)}
+                      style={{
+                        position: "absolute", top: 5, right: 5,
+                        width: 18, height: 18,
+                        background: "rgba(0,0,0,0.6)", borderRadius: "50%",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 9, color: "#fff", cursor: "pointer", border: "none",
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+
+                {/* + 슬롯 (5장 미만일 때만) */}
+                {photos.length < maxPhotos && (
+                  <label
+                    htmlFor="photo-input"
+                    style={{
+                      width: 100, height: 124, borderRadius: 10, flexShrink: 0,
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      background: "rgba(255,255,255,0.04)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 18, color: "rgba(255,255,255,0.3)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    +
+                  </label>
+                )}
+              </div>
+              {/* 오른쪽 페이드 그라데이션 — 3장 이상일 때만 */}
+              {photos.length >= 3 && (
+                <div style={{
+                  position: "absolute", top: 0, right: 0,
+                  width: 60, height: "100%",
+                  background: "linear-gradient(to right, transparent 0%, #0d1218 100%)",
+                  pointerEvents: "none",
+                }} />
+              )}
+            </div>
+
+            {/* 안내 문구 */}
+            <p className="text-right" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", marginTop: 12 }}>
+              최대 5장까지 추가할 수 있어요
+            </p>
+            <p className="text-right" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", marginBottom: 20 }}>
+              사진은 노래 추천에만 사용돼요
+            </p>
+
+            {/* 분석 버튼 */}
+            <button
+              className="w-full font-medium mb-2"
+              onClick={handleNext}
+              style={{
+                background: "#C4687A",
+                border: "none",
+                borderRadius: 24,
+                padding: 14,
+                color: "#fff",
+                fontSize: 14,
                 cursor: "pointer",
               }}
             >
-              +
-            </label>
-          )}
-        </div>
-          {/* 오른쪽 페이드 그라데이션 — 3장 이상일 때만 */}
-          {photos.length >= 3 && (
-            <div style={{
-              position: "absolute", top: 0, right: 0,
-              width: 60, height: "100%",
-              background: "linear-gradient(to right, transparent 0%, #0d1218 100%)",
-              pointerEvents: "none",
-            }} />
-          )}
-        </div>
+              사진 분석하기 →
+            </button>
+          </>
+        )}
 
-        {/* 안내 문구 */}
-        <p className="text-right" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", marginTop: 12 }}>
-          최대 5장까지 추가할 수 있어요
-        </p>
-        <p className="text-right" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", marginBottom: 20 }}>
-          사진은 노래 추천에만 사용돼요
-        </p>
-
-        {/* 사진 추가 버튼 */}
-        <label
-          htmlFor={photos.length >= maxPhotos ? undefined : "photo-input"}
-          className="w-full mb-2"
-          style={{
-            display: "block",
-            background: "transparent",
-            border: "1px solid rgba(255,255,255,0.25)",
-            borderRadius: 24,
-            padding: "10px 0",
-            color: photos.length >= maxPhotos ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.65)",
-            fontSize: 14,
-            textAlign: "center",
-            cursor: photos.length >= maxPhotos ? "default" : "pointer",
-          }}
-        >
-          사진 추가하기
-        </label>
-
-        {/* 다음 버튼 */}
-        <button
-          className="w-full font-medium mb-2"
-          onClick={handleNext}
-          disabled={photos.length === 0}
-          style={{
-            background: photos.length === 0 ? "rgba(196,104,122,0.4)" : "#C4687A",
-            border: "none",
-            borderRadius: 24,
-            padding: 14,
-            color: "#fff",
-            fontSize: 14,
-            cursor: photos.length === 0 ? "default" : "pointer",
-          }}
-        >
-          다음 →
-        </button>
-
-        {/* 스텝 점 3개 */}
-        <div className="flex gap-2 justify-center py-3">
-          {[true, false, false].map((active, i) => (
-            <div
-              key={i}
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: active ? "#fff" : "rgba(255,255,255,0.25)",
-              }}
-            />
-          ))}
-        </div>
+        {/* 스텝 점 3개 — 사진 1장 이상일 때만 */}
+        {photos.length > 0 && (
+          <div className="flex gap-2 justify-center py-3">
+            {[true, false, false].map((active, i) => (
+              <div
+                key={i}
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: active ? "#fff" : "rgba(255,255,255,0.25)",
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
       </div>{/* 메인 콘텐츠 wrapper 끝 */}
 
@@ -314,17 +344,19 @@ export default function UploadPage() {
         </div>
       )}
 
-      {/* 하단 네비게이션 */}
-      <div style={{ background: "rgba(0,0,0,0.45)", borderTop: "0.5px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-around", padding: "12px 0 28px" }}>
-        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", cursor: "pointer" }} onClick={() => router.push("/journal")}>
-          <Archive size={22} strokeWidth={1.5} />
-          아카이브
+      {/* 하단 네비게이션 — 사진 1장 이상일 때만 */}
+      {photos.length > 0 && (
+        <div style={{ background: "rgba(0,0,0,0.45)", borderTop: "0.5px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-around", padding: "12px 0 28px" }}>
+          <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", cursor: "pointer" }} onClick={() => router.push("/journal")}>
+            <Archive size={22} strokeWidth={1.5} />
+            아카이브
+          </div>
+          <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "#fff", cursor: "pointer" }} onClick={() => router.push("/")}>
+            <Music size={22} strokeWidth={1.5} />
+            노래 추천받기
+          </div>
         </div>
-        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "#fff", cursor: "pointer" }} onClick={() => router.push("/")}>
-          <Music size={22} strokeWidth={1.5} />
-          노래 추천받기
-        </div>
-      </div>
+      )}
     </div>
   );
 }
