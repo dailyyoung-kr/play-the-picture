@@ -52,7 +52,7 @@ const PHASE3_TEXTS = [
 
 export default function PreferencePage() {
   const router = useRouter();
-  const [selectedGenre, setSelectedGenre] = useState("indie");
+  const [selectedGenre, setSelectedGenre] = useState("discover");
   const [selectedEnergy, setSelectedEnergy] = useState(3);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
