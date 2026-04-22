@@ -375,6 +375,7 @@ export default function ResultPage() {
     )
       .then((r) => r.json())
       .then((d) => {
+        trackEvent("preview_match", { song: result.song, matched: !!d.previewUrl });
         if (d.previewUrl) {
           setPreviewUrl(d.previewUrl);
           setPreviewState("ready");
@@ -389,12 +390,16 @@ export default function ResultPage() {
     const audio = audioRef.current;
     if (!audio) return;
     if (previewState === "ready") {
-      audio.play().then(() => setPreviewState("playing")).catch(() => {
+      audio.play().then(() => {
+        setPreviewState("playing");
+        trackEvent("preview_play", { song: result?.song });
+      }).catch(() => {
         // 재생 실패 시 fallback: 바로 본편 버튼으로
         setPreviewState("done");
       });
     } else if (previewState === "playing") {
       audio.pause();
+      trackEvent("preview_pause", { song: result?.song, elapsed_sec: Math.floor(audio.currentTime) });
       setPreviewState("ready"); // 일시정지 → 다시 ▶로 복귀 (본편 스왑 X)
     }
   };
@@ -577,6 +582,7 @@ export default function ResultPage() {
             src={previewUrl}
             preload="none"
             onEnded={() => {
+              trackEvent("preview_complete", { song: result?.song });
               // 재생 완료 → 다시 듣기 가능하도록 ready로 복귀
               setPreviewState("ready");
               setPreviewProgress(0);
