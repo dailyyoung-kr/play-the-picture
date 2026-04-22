@@ -41,13 +41,12 @@ const VIBE_AXES = [
 ];
 const WAVE_DELAYS = [0, 0.18, 0.36, 0.18, 0];
 const PHASE3_TEXTS = [
-  "딱 맞는 한 곡을 고르고 있어요 🎵",
-  "당신이 좋아할만한 곡을 찾고 있어요",
-  "딱 한 곡이라 신중하게 고르고 있어요",
-  "조금만 더 기다려주세요",
-  "더 잘 어울리는 곡이 있는지 보고 있어요",
-  "플더픽이 최선을 다하고 있어요 🎵",
-  "거의 다 됐어요",
+  "딱 맞는 한 곡을 고르고 있어요",
+  "플더픽이 플레이리스트를 뒤적이는 중...",
+  "거의 다 골랐어요",
+  "다른 곡과 한번 더 비교하는 중",
+  "한 곡인 만큼 신중하게",
+  "마지막으로 한번 더 확인해볼게요",
 ];
 
 export default function PreferencePage() {
@@ -106,7 +105,7 @@ export default function PreferencePage() {
     };
   }, [loading]);
 
-  // 3단계 텍스트: index 0~3 순차 → 4~8 루프
+  // 3단계 텍스트: 0→5 순차 3초 간격, 마지막 [5]에서 정지 (루프 없음)
   useEffect(() => {
     if (loadingPhase !== 2) {
       setPhase3TextIndex(0);
@@ -118,10 +117,10 @@ export default function PreferencePage() {
     setPhase3TextVisible(true);
 
     const timers: ReturnType<typeof setTimeout>[] = [];
-    let loopInterval: ReturnType<typeof setInterval> | undefined;
+    const LAST = PHASE3_TEXTS.length - 1;
 
-    for (let i = 1; i <= 3; i++) {
-      const base = i * 4000;
+    for (let i = 1; i <= LAST; i++) {
+      const base = i * 3000;
       timers.push(setTimeout(() => setPhase3TextVisible(false), base - 400));
       const idx = i;
       timers.push(setTimeout(() => {
@@ -130,23 +129,8 @@ export default function PreferencePage() {
       }, base));
     }
 
-    const LOOP = [4, 5, 6];
-    let step = 0;
-    timers.push(setTimeout(() => {
-      loopInterval = setInterval(() => {
-        setPhase3TextVisible(false);
-        const nextIdx = LOOP[step % LOOP.length];
-        step++;
-        setTimeout(() => {
-          setPhase3TextIndex(nextIdx);
-          setPhase3TextVisible(true);
-        }, 400);
-      }, 4000);
-    }, 16000));
-
     return () => {
       timers.forEach(clearTimeout);
-      if (loopInterval) clearInterval(loopInterval);
     };
   }, [loadingPhase]);
 
@@ -470,7 +454,7 @@ export default function PreferencePage() {
                 );
               })()}
               <p style={{ color: "#C4687A", fontSize: 13, marginBottom: 28, textAlign: "center", letterSpacing: "0.04em" }}>
-                사진의 분위기를 파악했어요 ✦
+                사진 속 오늘을 읽었어요 ✦
               </p>
               <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 20 }}>
                 {VIBE_AXES.map(({ left, right }, i) => (
@@ -518,8 +502,6 @@ export default function PreferencePage() {
                   </div>
                 );
               })()}
-              <div style={{ fontSize: 52, marginBottom: 28, color: "#C4687A" }}>✦</div>
-
               <div
                 style={{
                   position: "relative",
