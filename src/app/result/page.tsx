@@ -478,13 +478,6 @@ export default function ResultPage() {
 
         {/* ── 섹션 3: 곡 정보 ── */}
         <div style={{ position: "relative", zIndex: 2, marginBottom: 10 }}>
-          {result.isGenreDiscovery && (
-            <div className="flex justify-center" style={{ marginBottom: 6 }}>
-              <span style={{ fontSize: 11, color: "#C4687A", border: "1px solid #C4687A", padding: "3px 10px", borderRadius: 20 }}>
-                오늘의 새로운 발견 🔭
-              </span>
-            </div>
-          )}
           <h1 className="font-semibold" style={{ fontSize: 26, color: "#fff", letterSpacing: "-0.5px", textAlign: "center", marginBottom: 4 }}>
             {result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song}
           </h1>
@@ -498,11 +491,6 @@ export default function ResultPage() {
               </span>
             ))}
           </div>
-          {result.isGenreDiscovery && result.discoveredGenre && (
-            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", textAlign: "center", marginBottom: 6 }}>
-              당신이 좋아할 것 같은 장르 : {result.discoveredGenre}
-            </p>
-          )}
         </div>
 
         {/* ── 섹션 4: 추천 이유 ── */}
