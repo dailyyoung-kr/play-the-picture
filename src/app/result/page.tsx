@@ -627,7 +627,7 @@ export default function ResultPage() {
                   letterSpacing: "0.02em", lineHeight: 1,
                   textAlign: "center",
                 }}>
-                  미리 듣기
+                  30초 미리듣기
                 </div>
                 <div style={{ position: "relative", height: 14, display: "flex", alignItems: "center" }}>
                   <div style={{

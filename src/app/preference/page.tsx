@@ -306,7 +306,7 @@ export default function PreferencePage() {
         {/* 카드 2: 분위기 (에너지 스펙트럼) */}
         <div className="mb-4 p-5" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14 }}>
           <p className="mb-4 font-medium" style={{ fontSize: 13, color: "rgba(255,255,255,0.90)" }}>
-            🎚️ 어떤 바이브로 듣고 싶어요?
+            🎚️ 어떤 분위기로 듣고 싶어요?
           </p>
 
           {/* 스펙트럼 바 */}
@@ -381,7 +381,7 @@ export default function PreferencePage() {
           )}
         </button>
         <p className="text-center mb-2" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)" }}>
-          10초면 오늘의 한 곡이 나와요
+          10초면 추천곡을 받아볼 수 있어요
         </p>
         <div className="flex gap-2 justify-center py-3">
           {[false, true, false].map((active, i) => (

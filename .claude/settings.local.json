@@ -96,7 +96,18 @@
       "Bash(npx next *)",
       "Bash(git reset *)",
       "mcp__699b1683-6b65-4b5d-8e21-f26fe58d2875__execute_sql",
-      "mcp__699b1683-6b65-4b5d-8e21-f26fe58d2875__apply_migration"
+      "mcp__699b1683-6b65-4b5d-8e21-f26fe58d2875__apply_migration",
+      "mcp__699b1683-6b65-4b5d-8e21-f26fe58d2875__list_tables",
+      "Bash(curl -s https://play-the-picture.vercel.app/)",
+      "Bash(grep -o \"오늘.\\\\{0,30\\\\}\")",
+      "Bash(curl -sI https://play-the-picture.vercel.app/)",
+      "Bash(curl -sI \"https://play-the-picture.vercel.app/?cb=$\\(date +%s\\)\")",
+      "Bash(curl -s \"https://play-the-picture.vercel.app/?cb=$\\(date +%s\\)\")",
+      "Bash(grep -oE \"오늘[^<]{0,30}\")",
+      "Bash(curl -s \"https://play-the-picture.vercel.app/\")",
+      "Bash(grep -oE \"어떤 노래[^<]{0,20}\")",
+      "Bash(awk -F',' 'NR>1 {count[$9]++} END {for \\(g in count\\) print g\": \"count[g]}' \"/Users/pcy_mac/Downloads/songs_rows \\(13\\).csv\")",
+      "Bash(sort -t':' -k2 -nr)"
     ]
   }
 }
