@@ -622,10 +622,11 @@ export default function ResultPage() {
                 cursor: "pointer",
               }}
             >
-              {/* 재생/일시정지 원형 버튼 */}
+              {/* 재생/일시정지 원형 버튼 — B안: 핑크 톤다운 (CTA와 경합 해소) */}
               <div style={{
                 width: 32, height: 32, borderRadius: "50%",
-                background: "#C4687A",
+                background: "rgba(255,255,255,0.14)",
+                border: "1px solid rgba(255,255,255,0.22)",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 color: "#fff", flexShrink: 0,
               }}>
@@ -680,34 +681,7 @@ export default function ResultPage() {
           );
         })()}
 
-        {/* 지금 바로 듣기 CTA: idle/done 상태 또는 재생 10초 경과 후 노출 */}
-        {(previewState === "idle" || previewState === "done" || ctaRevealed) && (
-          <button
-            className="w-full font-medium"
-            onClick={handleListenClick}
-            style={{
-              background: "#C4687A",
-              border: "none",
-              borderRadius: 24, padding: 14,
-              color: "#fff",
-              fontSize: 14, cursor: "pointer",
-              marginBottom: 8,
-              animation: ctaRevealed && (previewState === "ready" || previewState === "playing") ? "fadeInCta 0.4s ease" : undefined,
-            }}
-          >
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <Play size={14} fill="#fff" strokeWidth={0} /> 음악앱에서 듣기
-            </span>
-          </button>
-        )}
-        <style jsx>{`
-          @keyframes fadeInCta {
-            from { opacity: 0; transform: translateY(-4px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-        `}</style>
-
-        {/* Secondary: 저장 + 공유 나란히 */}
+        {/* Secondary: 저장 + 공유 나란히 — A안 실험: CTA보다 위로 이동 (성장 지표 우선) */}
         <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
           <button
             onClick={handleSaveToSupabase}
@@ -756,6 +730,24 @@ export default function ResultPage() {
           </button>
         </div>
 
+        {/* 지금 바로 듣기 CTA — A안 실험: 저장/공유 아래로 이동 (외부 이탈 전 체류 유도) */}
+        <button
+          className="w-full font-medium"
+          onClick={handleListenClick}
+          style={{
+            background: "#C4687A",
+            border: "none",
+            borderRadius: 24, padding: 14,
+            color: "#fff",
+            fontSize: 14, cursor: "pointer",
+            marginBottom: 16,
+          }}
+        >
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <Play size={14} fill="#fff" strokeWidth={0} /> 음악앱에서 듣기
+          </span>
+        </button>
+
         {/* 다시 해보기 — 텍스트 링크 */}
         <button
           className="w-full"
@@ -767,7 +759,7 @@ export default function ResultPage() {
           style={{
             background: "none",
             border: "none",
-            color: "#ffffff",
+            color: "rgba(255,255,255,0.45)",
             fontSize: 13,
             cursor: "pointer",
             padding: "6px 0",
