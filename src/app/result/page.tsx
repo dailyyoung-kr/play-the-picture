@@ -61,10 +61,7 @@ export default function ResultPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewState, setPreviewState] = useState<"idle" | "ready" | "playing" | "done">("idle");
   const [previewProgress, setPreviewProgress] = useState(0); // 0~1
-  const [ctaRevealed, setCtaRevealed] = useState(false); // 재생 시작 8초 후 true
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const hasStartedPreviewRef = useRef(false); // 미리듣기 최초 재생 여부
-  const ctaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── 체류 시간 트래킹 ──
   const enterTimeRef   = useRef<number>(Date.now());
@@ -311,13 +308,6 @@ export default function ResultPage() {
   // savedEntryId가 바뀔 때마다 ref 동기화
   useEffect(() => { savedEntryIdRef.current = savedEntryId; }, [savedEntryId]);
 
-  // 언마운트 시 CTA 타이머 정리 (메모리 누수 방지)
-  useEffect(() => {
-    return () => {
-      if (ctaTimerRef.current) clearTimeout(ctaTimerRef.current);
-    };
-  }, []);
-
   // 체류 시간 트래킹: 마운트 시 시작, 언마운트/언로드 시 전송
   useEffect(() => {
     if (!isAnalyticsEnabled()) return;
@@ -401,11 +391,6 @@ export default function ResultPage() {
       audio.play().then(() => {
         setPreviewState("playing");
         trackEvent("preview_play", { song: result?.song });
-        // 최초 재생 시점부터 8초(실시간) 타이머 — 일시정지해도 유지
-        if (!hasStartedPreviewRef.current) {
-          hasStartedPreviewRef.current = true;
-          ctaTimerRef.current = setTimeout(() => setCtaRevealed(true), 8000);
-        }
       }).catch(() => {
         // 재생 실패 시 fallback: 바로 본편 버튼으로
         setPreviewState("done");
