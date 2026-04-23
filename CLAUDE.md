@@ -104,9 +104,10 @@
 # 🚨 에러 코드 분류
 
 ```
-usage_limit      → Anthropic 월 한도 초과 (503)
-rate_limit       → Anthropic 429
-overloaded       → Anthropic 529 (서버 과부하)
+usage_limit       → Anthropic 월 한도 초과 (503)
+rate_limit        → Anthropic 429
+device_rate_limit → 내부 device 기반 rate limit 초과 (분당 5 / 시간당 15 / 일당 50, 429)
+overloaded        → Anthropic 529 (서버 과부하)
 no_candidates    → 후보곡 0건
 no_photos        → 사진 없음
 api_key_missing  → API 키 누락

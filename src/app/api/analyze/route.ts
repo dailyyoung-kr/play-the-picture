@@ -1,13 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { newRecommend } from "./new-recommend";
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+// Rate limit 임계값 — 실유저 상위 케이스(최대 33회/일) 보호 + 어뷰저 차단
+const RATE_LIMITS = {
+  perMinute: 5,   // 분당 5회: 인간 물리적 한계(분당 2회)의 2배
+  perHour: 15,    // 시간당 15회: 평균 페이스 어뷰저 차단
+  perDay: 50,     // 일당 50회: 최대 33회 파워유저 보호 + 극단 어뷰저 차단
+};
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { photos } = body as { photos?: string[] };
+    const { photos, deviceId } = body as { photos?: string[]; deviceId?: string };
 
     if (!photos || photos.length === 0) {
       return NextResponse.json({ error: "사진이 없어요", error_code: "no_photos" }, { status: 400 });
+    }
+
+    // ── Device Rate Limit: 분당 5 / 시간당 15 / 일당 50 ──
+    // /preference에서 이미 status="start" 로그 insert 후 호출되므로 본인 포함 count
+    if (deviceId) {
+      const now = Date.now();
+      const [minuteRes, hourRes, dayRes] = await Promise.all([
+        supabaseAdmin.from("analyze_logs").select("id", { count: "exact", head: true })
+          .eq("device_id", deviceId).gte("created_at", new Date(now - 60_000).toISOString()),
+        supabaseAdmin.from("analyze_logs").select("id", { count: "exact", head: true })
+          .eq("device_id", deviceId).gte("created_at", new Date(now - 3_600_000).toISOString()),
+        supabaseAdmin.from("analyze_logs").select("id", { count: "exact", head: true })
+          .eq("device_id", deviceId).gte("created_at", new Date(now - 86_400_000).toISOString()),
+      ]);
+      const minuteCount = minuteRes.count ?? 0;
+      const hourCount = hourRes.count ?? 0;
+      const dayCount = dayRes.count ?? 0;
+
+      if (
+        minuteCount > RATE_LIMITS.perMinute ||
+        hourCount > RATE_LIMITS.perHour ||
+        dayCount > RATE_LIMITS.perDay
+      ) {
+        console.warn(`[device_rate_limit] device=${deviceId} min=${minuteCount} hour=${hourCount} day=${dayCount}`);
+        return NextResponse.json(
+          { error: "요청 가능한 분석 횟수를 초과했어요. 잠시 후 다시 시도해주세요 🙏", error_code: "device_rate_limit" },
+          { status: 429 }
+        );
+      }
     }
 
     return await newRecommend(body as Record<string, unknown>, photos);
