@@ -106,7 +106,7 @@ export default function ResultPage() {
     const today = kst.replace(/\.\s*/g, '-').replace(/-$/, '').trim();
 
     const prefsRaw = localStorage.getItem("ptp_prefs");
-    const prefs: { genre?: string; mood?: string } = prefsRaw ? JSON.parse(prefsRaw) : {};
+    const prefs: { genre?: string } = prefsRaw ? JSON.parse(prefsRaw) : {};
 
     const { data, error } = await getSupabaseWithDeviceId()
       .from("entries")
@@ -117,14 +117,12 @@ export default function ResultPage() {
         reason: result.reason,
         tags: result.tags,
         emotions: result.emotions ?? {},
-        vibe_spectrum: null,
         vibe_type: result.vibeType ?? result.vibe_type ?? "",
         vibe_description: result.vibeDescription ?? result.vibe_description ?? "",
         photos,
         album_art: result.albumArt ?? null,
         device_id: getDeviceId(),
         genre: prefs.genre ?? null,
-        mood: prefs.mood ?? null,
       })
       .select("id")
       .single();

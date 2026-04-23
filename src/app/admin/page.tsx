@@ -8,7 +8,7 @@ const ADMIN_PW = process.env.NEXT_PUBLIC_ADMIN_PASSWORD ?? "coldboardp1!";
 type PhotoLog = { id: string; created_at: string; device_id?: string | null };
 type PrefLog = { id: string; created_at: string; genre: string | null; energy: number | null; device_id?: string | null };
 type AnalyzeLog = { id: string; created_at: string; status: string; response_time_ms: number | null; song: string | null; artist: string | null; device_id?: string | null };
-type EntryRow = { id: string; date: string; song: string; artist: string; genre: string | null; mood: string | null; device_id?: string | null };
+type EntryRow = { id: string; date: string; song: string; artist: string; genre: string | null; device_id?: string | null };
 type ListenLog = { id: string; created_at: string; device_id?: string | null };
 type ViewLog  = { id: string; created_at: string; duration_seconds: number | null; exit_type: string | null; device_id?: string | null };
 type LogRow = { id: string; created_at: string; device_id?: string | null; entry_id?: string | null };
@@ -310,7 +310,7 @@ export default function AdminPage() {
       supabase.from("photo_upload_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("preference_logs").select("id, created_at, genre, energy, device_id").order("created_at", { ascending: false }),
       supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, song, artist, device_id").order("created_at", { ascending: false }),
-      supabase.from("entries").select("id, date, song, artist, genre, mood, device_id").order("id", { ascending: false }),
+      supabase.from("entries").select("id, date, song, artist, genre, device_id").order("id", { ascending: false }),
       supabase.from("share_logs").select("id, created_at, device_id, entry_id").order("created_at", { ascending: false }),
       supabase.from("listen_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("result_view_logs").select("id, created_at, duration_seconds, exit_type, device_id").order("created_at", { ascending: false }),

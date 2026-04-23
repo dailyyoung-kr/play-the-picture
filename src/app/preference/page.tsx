@@ -26,13 +26,6 @@ const ENERGY_OPTIONS = [
   { value: 5, label: "파워풀" },
 ];
 
-// energy → preference_logs DB 저장용 mood/listeningStyle 매핑
-function getLegacyParams(energy: number) {
-  if (energy <= 2) return { mood: "여유로워", listeningStyle: "휴식" };
-  if (energy === 3) return { mood: "설레",    listeningStyle: "산책/드라이브" };
-  return              { mood: "신나",         listeningStyle: "출근/등교길" };
-}
-
 const VIBE_AXES = [
   { left: "차분함", right: "에너제틱" },
   { left: "쿨함",   right: "따뜻함" },
@@ -153,7 +146,6 @@ export default function PreferencePage() {
     const deviceId = getDeviceId();
     const startTime = Date.now();
     const genreOption = GENRE_OPTIONS.find(g => g.value === selectedGenre) ?? GENRE_OPTIONS[0];
-    const { mood: legacyMood, listeningStyle: legacyStyle } = getLegacyParams(selectedEnergy);
 
     // 취향 선택 로그 (서버 API 경유 → supabaseAdmin으로 RLS 우회)
     if (isAnalyticsEnabled()) {
