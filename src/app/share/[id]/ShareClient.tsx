@@ -222,7 +222,7 @@ export default function ShareClient({ id }: { id: string }) {
             left: 0,
             right: 0,
             zIndex: 10,
-            padding: "24px 20px calc(20px + env(safe-area-inset-bottom))",
+            padding: "14px 20px calc(12px + env(safe-area-inset-bottom))",
             background: "linear-gradient(to bottom, rgba(13,18,24,0) 0%, rgba(13,18,24,0.25) 40%, rgba(13,18,24,0.5) 100%)",
             backdropFilter: "blur(12px)",
             WebkitBackdropFilter: "blur(12px)",
