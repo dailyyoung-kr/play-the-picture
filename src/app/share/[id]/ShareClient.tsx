@@ -108,14 +108,71 @@ export default function ShareClient({ id }: { id: string }) {
   }
 
   if (!entry) {
+    // 스켈레톤 로딩 — 실제 레이아웃과 동일한 구조로 placeholder 표시
+    const skel = "rgba(255,255,255,0.06)";
+    const skelBox = (w: number | string, h: number, mb = 0, extra: React.CSSProperties = {}) => (
+      <div style={{ width: w, height: h, borderRadius: 8, background: skel, marginBottom: mb, ...extra }} />
+    );
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)" }}
-      >
-        <div className="text-center">
-          <div style={{ fontSize: 32, marginBottom: 16 }}>✦</div>
-          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14 }}>불러오는 중...</p>
+      <div style={{ position: "relative", minHeight: "100vh", overflow: "hidden", background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)" }}>
+        <div className="min-h-screen flex flex-col" style={{ position: "relative", zIndex: 1 }}>
+          <div className="text-center pt-12 pb-3" style={{ fontSize: 15, letterSpacing: "0.2em", color: "#C4687A", fontFamily: "var(--font-dm-sans)", fontWeight: 300 }}>
+            Play the Picture
+          </div>
+          <div className="flex-1 flex flex-col px-5 overflow-y-auto" style={{ paddingBottom: 90 }}>
+            <p className="text-center mb-3" style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: "0.08em" }}>
+              플더픽의 추천곡
+            </p>
+            {/* 사진 placeholder */}
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+              <div style={{ width: 100, height: 100, borderRadius: 14, background: skel, border: "1px solid rgba(255,255,255,0.08)" }} />
+            </div>
+            {/* 바이브 박스 placeholder */}
+            <div style={{ width: "100%", marginBottom: 12, background: "rgba(255,255,255,0.05)", borderRadius: 14, padding: "12px 14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              {skelBox(60, 10)}
+              {skelBox(140, 18)}
+              {skelBox(180, 12)}
+            </div>
+            {/* 곡명 + 아티스트 + 태그 placeholder */}
+            <div className="text-center mb-4" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+              {skelBox(240, 26)}
+              {skelBox(100, 13)}
+              <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                {skelBox(50, 22, 0, { borderRadius: 20 })}
+                {skelBox(60, 22, 0, { borderRadius: 20 })}
+                {skelBox(50, 22, 0, { borderRadius: 20 })}
+              </div>
+            </div>
+            {/* 추천 이유 박스 placeholder */}
+            <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "14px 16px", marginTop: 12, marginBottom: 20, display: "flex", flexDirection: "column", gap: 8 }}>
+              {skelBox(100, 10, 4)}
+              {skelBox("100%", 12)}
+              {skelBox("95%", 12)}
+              {skelBox("80%", 12)}
+            </div>
+          </div>
+          {/* CTA는 실제 버튼 그대로 노출 — 로딩 중에도 클릭 가능 */}
+          <div
+            style={{
+              position: "fixed",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 10,
+              padding: "14px 20px calc(12px + env(safe-area-inset-bottom))",
+              background: "linear-gradient(to bottom, rgba(13,18,24,0) 0%, rgba(13,18,24,0.25) 40%, rgba(13,18,24,0.5) 100%)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+            }}
+          >
+            <button
+              className="w-full font-medium"
+              onClick={handleTryClick}
+              style={{ background: "#C4687A", border: "none", borderRadius: 24, padding: 14, color: "#fff", fontSize: 14, cursor: "pointer" }}
+            >
+              나도 해보기
+            </button>
+          </div>
         </div>
       </div>
     );
