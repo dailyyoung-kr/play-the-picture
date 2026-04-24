@@ -184,12 +184,18 @@ export default function ResultPage() {
       const songName = result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song;
       const artistName = result.song.includes(" - ") ? result.song.split(" - ").slice(1).join(" - ") : "";
 
+      // vibeType 있으면 "{vibeType}의 오늘의 노래", 없으면 브랜드 fallback
+      const vibeType = (result.vibeType ?? result.vibe_type ?? "").trim();
+      const shareText = vibeType
+        ? `${vibeType}의 오늘의 노래`
+        : "플더픽이 추천한 오늘의 노래";
+
       // 1) Web Share API 시도
       if (navigator.share) {
         try {
           await navigator.share({
             title: `${songName}${artistName ? ` — ${artistName}` : ""}`,
-            text: "나의 오늘은 어떤 곡일까? ✦",
+            text: shareText,
             url,
           });
           return; // 성공 시 종료
