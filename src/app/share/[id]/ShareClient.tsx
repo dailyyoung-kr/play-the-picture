@@ -223,10 +223,10 @@ export default function ShareClient({ id }: { id: string }) {
             right: 0,
             zIndex: 10,
             padding: "12px 20px calc(20px + env(safe-area-inset-bottom))",
-            background: "rgba(13,18,24,0.78)",
-            backdropFilter: "blur(14px)",
-            WebkitBackdropFilter: "blur(14px)",
-            borderTop: "1px solid rgba(255,255,255,0.06)",
+            background: "rgba(13,18,24,0.45)",
+            backdropFilter: "blur(24px)",
+            WebkitBackdropFilter: "blur(24px)",
+            borderTop: "1px solid rgba(255,255,255,0.08)",
           }}
         >
           <button
