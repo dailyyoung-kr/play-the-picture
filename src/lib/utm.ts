@@ -3,7 +3,7 @@
 // - analyze 시 sessionStorage에서 꺼내서 analyze_logs에 함께 기록
 // - 세션 종료(탭 닫힘) 시 자동 소멸 (오래된 utm 재사용 방지)
 
-const KEYS = ["utm_source", "utm_medium", "utm_campaign"] as const;
+const KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"] as const;
 type UtmKey = typeof KEYS[number];
 
 export type Utm = Partial<Record<UtmKey, string>>;
