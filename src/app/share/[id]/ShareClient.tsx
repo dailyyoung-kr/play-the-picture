@@ -149,7 +149,7 @@ export default function ShareClient({ id }: { id: string }) {
           Play the Picture
         </div>
 
-        <div className="flex-1 flex flex-col px-5 overflow-y-auto">
+        <div className="flex-1 flex flex-col px-5 overflow-y-auto" style={{ paddingBottom: 90 }}>
           <p className="text-center mb-3" style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: "0.08em" }}>
             플더픽의 추천곡
           </p>
@@ -214,11 +214,14 @@ export default function ShareClient({ id }: { id: string }) {
           </div>
         </div>
 
-        {/* Sticky bottom CTA */}
+        {/* Fixed bottom CTA — 항상 뷰포트 하단에 고정 */}
         <div
           style={{
-            position: "sticky",
+            position: "fixed",
             bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 10,
             padding: "12px 20px calc(20px + env(safe-area-inset-bottom))",
             background: "rgba(13,18,24,0.78)",
             backdropFilter: "blur(14px)",
