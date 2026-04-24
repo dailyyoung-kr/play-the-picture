@@ -121,7 +121,7 @@ export default function ShareClient({ id }: { id: string }) {
             onClick={handleTryClick}
             style={{ background: "#C4687A", border: "none", borderRadius: 24, padding: "12px 32px", color: "#fff", fontSize: 14, cursor: "pointer" }}
           >
-            나도 해보기
+            내 사진으로 해보기
           </button>
         </div>
       </div>
@@ -258,15 +258,12 @@ export default function ShareClient({ id }: { id: string }) {
             WebkitBackdropFilter: "blur(12px)",
           }}
         >
-          <p style={{ textAlign: "center", fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 10 }}>
-            내 사진으로 추천 받아보기
-          </p>
           <button
             className="w-full font-medium"
             onClick={handleTryClick}
             style={{ background: "#C4687A", border: "none", borderRadius: 24, padding: 14, color: "#fff", fontSize: 14, cursor: "pointer" }}
           >
-            나도 해보기
+            내 사진으로 해보기
           </button>
         </div>
       </div>
