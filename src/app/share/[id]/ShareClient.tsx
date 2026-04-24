@@ -17,6 +17,8 @@ interface ShareEntry {
   vibe_description: string;
   // undefined = 사진 아직 로딩 중, [] = 로딩 완료 + 사진 없음, [...] = 로딩 완료 + 사진 있음
   photos?: string[];
+  // meta 단계에서만 오는 값 — 실제 사진 개수로 placeholder 자리 확보용
+  photo_count?: number;
   album_art?: string | null;
 }
 
@@ -177,13 +179,16 @@ export default function ShareClient({ id }: { id: string }) {
           </p>
 
           {showPhotoSection && (() => {
-            const count = modalPhotos.length || 1;
+            // 로딩 중엔 photo_count 기준, 로딩 완료 후엔 modalPhotos 개수 기준
+            const count = photosLoaded ? (modalPhotos.length || 1) : (entry.photo_count || 1);
             const slotSize = count === 1 ? 100 : count === 2 ? 88 : count === 3 ? 80 : count === 4 ? 72 : 64;
             return (
               <div style={{ display: "flex", gap: 5, justifyContent: "center", flexWrap: "nowrap", marginBottom: 12 }}>
                 {!photosLoaded ? (
-                  // 사진 로딩 중 — 기본 100×100 placeholder 1개 (정확한 개수는 photos 도착 후 확정)
-                  <div style={{ width: 100, height: 100, borderRadius: 14, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)" }} />
+                  // 사진 로딩 중 — photo_count 만큼 동일 크기 placeholder 노출 → 레이아웃 shift 방지
+                  Array.from({ length: count }).map((_, i) => (
+                    <div key={i} style={{ width: slotSize, height: slotSize, borderRadius: 14, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", flexShrink: 0 }} />
+                  ))
                 ) : modalPhotos.length > 0 ? modalPhotos.map((src, i) => (
                   <div
                     key={i}

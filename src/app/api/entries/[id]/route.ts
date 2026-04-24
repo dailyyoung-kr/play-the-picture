@@ -18,25 +18,39 @@ export async function GET(
   }
 
   // fields 쿼리로 payload 분할 — 공유 페이지가 meta 먼저 fetch 후 photos 백그라운드 fetch
-  // meta: 사진(대용량 base64) 제외 메타데이터만 → 수 KB, 빠름
+  // meta: 사진(대용량 base64) 제외 메타데이터 + photo_count → 수 KB, 빠름
   // photos: 사진 배열만 → 대부분 payload
   // (없거나 all): 전체 — 기존 호출처 하위호환
   const fields = req.nextUrl.searchParams.get("fields") ?? "all";
-  const selectClause =
-    fields === "meta"
-      ? "id, song, artist, reason, tags, vibe_type, vibe_description, album_art, date, created_at, device_id, genre, emotions"
-      : fields === "photos"
-      ? "photos"
-      : "*";
 
+  if (fields === "photos") {
+    const { data, error } = await supabaseAdmin
+      .from("entries")
+      .select("photos")
+      .eq("id", id)
+      .single();
+    if (error || !data) return NextResponse.json({ error: "not found" }, { status: 404 });
+    return NextResponse.json(data);
+  }
+
+  // meta / all 모두 photos 포함해서 DB에서 조회 (DB→Next hop은 내부 네트워크라 오버헤드 작음)
   const { data, error } = await supabaseAdmin
     .from("entries")
-    .select(selectClause)
+    .select("*")
     .eq("id", id)
     .single();
 
   if (error || !data) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
+  }
+
+  if (fields === "meta") {
+    // 브라우저에는 photos 제거 + 개수만 전달 (레이아웃 자리 확보용)
+    const photos = (data as { photos?: unknown }).photos;
+    const photo_count = Array.isArray(photos) ? photos.length : 0;
+    const { photos: _omit, ...rest } = data as Record<string, unknown>;
+    void _omit;
+    return NextResponse.json({ ...rest, photo_count });
   }
 
   return NextResponse.json(data);
