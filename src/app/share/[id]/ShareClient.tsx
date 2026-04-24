@@ -121,7 +121,7 @@ export default function ShareClient({ id }: { id: string }) {
             onClick={handleTryClick}
             style={{ background: "#C4687A", border: "none", borderRadius: 24, padding: "12px 32px", color: "#fff", fontSize: 14, cursor: "pointer" }}
           >
-            내 사진으로 해보기
+            내 사진으로 해보기 ✦
           </button>
         </div>
       </div>
@@ -263,7 +263,7 @@ export default function ShareClient({ id }: { id: string }) {
             onClick={handleTryClick}
             style={{ background: "#C4687A", border: "none", borderRadius: 24, padding: 14, color: "#fff", fontSize: 14, cursor: "pointer" }}
           >
-            내 사진으로 해보기
+            내 사진으로 해보기 ✦
           </button>
         </div>
       </div>
