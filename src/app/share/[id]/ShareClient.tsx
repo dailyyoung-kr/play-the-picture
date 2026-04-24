@@ -258,6 +258,9 @@ export default function ShareClient({ id }: { id: string }) {
             WebkitBackdropFilter: "blur(12px)",
           }}
         >
+          <p style={{ textAlign: "center", fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 10 }}>
+            내 사진으로 추천 받아보기
+          </p>
           <button
             className="w-full font-medium"
             onClick={handleTryClick}
