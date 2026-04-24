@@ -8,7 +8,7 @@ const supabaseAdmin = createClient(
 );
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -17,9 +17,21 @@ export async function GET(
     return NextResponse.json({ error: "id 필요" }, { status: 400 });
   }
 
+  // fields 쿼리로 payload 분할 — 공유 페이지가 meta 먼저 fetch 후 photos 백그라운드 fetch
+  // meta: 사진(대용량 base64) 제외 메타데이터만 → 수 KB, 빠름
+  // photos: 사진 배열만 → 대부분 payload
+  // (없거나 all): 전체 — 기존 호출처 하위호환
+  const fields = req.nextUrl.searchParams.get("fields") ?? "all";
+  const selectClause =
+    fields === "meta"
+      ? "id, song, artist, reason, tags, vibe_type, vibe_description, album_art, date, created_at, device_id, genre, emotions"
+      : fields === "photos"
+      ? "photos"
+      : "*";
+
   const { data, error } = await supabaseAdmin
     .from("entries")
-    .select("*")
+    .select(selectClause)
     .eq("id", id)
     .single();
 

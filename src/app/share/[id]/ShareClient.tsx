@@ -15,7 +15,8 @@ interface ShareEntry {
   tags: string[];
   vibe_type: string;
   vibe_description: string;
-  photos: string[];
+  // undefined = 사진 아직 로딩 중, [] = 로딩 완료 + 사진 없음, [...] = 로딩 완료 + 사진 있음
+  photos?: string[];
   album_art?: string | null;
 }
 
@@ -45,23 +46,41 @@ export default function ShareClient({ id }: { id: string }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // entries 데이터 로드 — supabaseAdmin 경유 서버 API 사용 (RLS 우회)
+  // entries 데이터 2단계 로드:
+  //  1단계) meta (사진 제외) — 수 KB, 빠름 → 페이지 즉시 렌더
+  //  2단계) photos — 대용량 base64, 백그라운드에서 도착 시 placeholder 자리에 페이드 인
   useEffect(() => {
     if (!id) return;
-    fetch(`/api/entries/${id}`)
+    fetch(`/api/entries/${id}?fields=meta`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!data) setNotFound(true);
-        else setEntry(data as ShareEntry);
+        else setEntry({ ...data, photos: undefined } as ShareEntry);
       })
       .catch(() => setNotFound(true));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
+    if (!id || !entry || entry.photos !== undefined) return;
+    fetch(`/api/entries/${id}?fields=photos`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data) return;
+        const photos: string[] = Array.isArray(data.photos) ? data.photos : [];
+        setEntry((prev) => (prev ? { ...prev, photos } : null));
+      })
+      .catch(() => {
+        // photos fetch 실패 시 — 메타는 이미 떠있음. 빈 배열로 전환하여 album_art fallback 노출
+        setEntry((prev) => (prev ? { ...prev, photos: [] } : null));
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry?.id]);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!entry) return;
-      const photos = entry.photos.filter(s => s.startsWith("data:"));
+      const photos = (entry.photos ?? []).filter(s => s.startsWith("data:"));
       if (e.key === "Escape") setModalIndex(null);
       if (e.key === "ArrowRight") setModalIndex(i => i !== null && photos.length > 1 ? (i + 1) % photos.length : i);
       if (e.key === "ArrowLeft") setModalIndex(i => i !== null && photos.length > 1 ? (i - 1 + photos.length) % photos.length : i);
@@ -121,12 +140,15 @@ export default function ShareClient({ id }: { id: string }) {
     );
   }
 
-  const modalPhotos = entry.photos.filter(s => typeof s === "string" && s.startsWith("data:"));
-  const showAlbumArtFallback = modalPhotos.length === 0 && !!entry.album_art;
-  const showPhotoSection = modalPhotos.length > 0 || showAlbumArtFallback;
+  const photosLoaded = entry.photos !== undefined;
+  const modalPhotos = (entry.photos ?? []).filter(s => typeof s === "string" && s.startsWith("data:"));
+  const showAlbumArtFallback = photosLoaded && modalPhotos.length === 0 && !!entry.album_art;
+  // 로딩 중엔 placeholder 노출, 로딩 완료 후에만 실제 콘텐츠/앨범아트 표시
+  const showPhotoSection = !photosLoaded || modalPhotos.length > 0 || showAlbumArtFallback;
 
   return (
     <div style={{ position: "relative", minHeight: "100vh", overflow: "hidden" }}>
+      <style>{`@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }`}</style>
 
       {/* 앨범아트 배경 */}
       {entry.album_art && (
@@ -159,14 +181,17 @@ export default function ShareClient({ id }: { id: string }) {
             const slotSize = count === 1 ? 100 : count === 2 ? 88 : count === 3 ? 80 : count === 4 ? 72 : 64;
             return (
               <div style={{ display: "flex", gap: 5, justifyContent: "center", flexWrap: "nowrap", marginBottom: 12 }}>
-                {modalPhotos.length > 0 ? modalPhotos.map((src, i) => (
+                {!photosLoaded ? (
+                  // 사진 로딩 중 — 기본 100×100 placeholder 1개 (정확한 개수는 photos 도착 후 확정)
+                  <div style={{ width: 100, height: 100, borderRadius: 14, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)" }} />
+                ) : modalPhotos.length > 0 ? modalPhotos.map((src, i) => (
                   <div
                     key={i}
                     role="button"
                     tabIndex={0}
                     onClick={() => setModalIndex(i)}
                     onTouchEnd={(e) => { e.preventDefault(); setModalIndex(i); }}
-                    style={{ width: slotSize, height: slotSize, borderRadius: 14, border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0, overflow: "hidden", cursor: "pointer" }}
+                    style={{ width: slotSize, height: slotSize, borderRadius: 14, border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0, overflow: "hidden", cursor: "pointer", animation: "fadeIn 0.3s ease" }}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={src} alt={`사진 ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none", display: "block" }} />
