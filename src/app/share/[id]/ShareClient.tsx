@@ -223,7 +223,7 @@ export default function ShareClient({ id }: { id: string }) {
             right: 0,
             zIndex: 10,
             padding: "24px 20px calc(20px + env(safe-area-inset-bottom))",
-            background: "linear-gradient(to bottom, rgba(13,18,24,0) 0%, rgba(13,18,24,0.35) 40%, rgba(13,18,24,0.7) 100%)",
+            background: "linear-gradient(to bottom, rgba(13,18,24,0) 0%, rgba(13,18,24,0.25) 40%, rgba(13,18,24,0.5) 100%)",
             backdropFilter: "blur(12px)",
             WebkitBackdropFilter: "blur(12px)",
           }}
