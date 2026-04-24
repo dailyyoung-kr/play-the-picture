@@ -156,7 +156,7 @@ export default function ShareClient({ id }: { id: string }) {
 
           {showPhotoSection && (() => {
             const count = modalPhotos.length || 1;
-            const slotSize = count === 1 ? 140 : count === 2 ? 120 : count === 3 ? 100 : count === 4 ? 80 : 64;
+            const slotSize = count === 1 ? 100 : count === 2 ? 88 : count === 3 ? 80 : count === 4 ? 72 : 64;
             return (
               <div style={{ display: "flex", gap: 5, justifyContent: "center", flexWrap: "nowrap", marginBottom: 12 }}>
                 {modalPhotos.length > 0 ? modalPhotos.map((src, i) => (
