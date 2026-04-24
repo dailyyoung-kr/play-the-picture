@@ -187,7 +187,7 @@ export default function ResultPage() {
       // vibeType 있으면 "{vibeType}의 오늘의 노래", 없으면 브랜드 fallback
       const vibeType = (result.vibeType ?? result.vibe_type ?? "").trim();
       const shareText = vibeType
-        ? `${vibeType}의 오늘의 노래`
+        ? `${vibeType}의 오늘의 노래 ✦ 플더픽`
         : "플더픽이 추천한 오늘의 노래";
 
       // 1) Web Share API 시도
