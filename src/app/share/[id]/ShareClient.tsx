@@ -222,11 +222,10 @@ export default function ShareClient({ id }: { id: string }) {
             left: 0,
             right: 0,
             zIndex: 10,
-            padding: "12px 20px calc(20px + env(safe-area-inset-bottom))",
-            background: "rgba(13,18,24,0.45)",
-            backdropFilter: "blur(24px)",
-            WebkitBackdropFilter: "blur(24px)",
-            borderTop: "1px solid rgba(255,255,255,0.08)",
+            padding: "24px 20px calc(20px + env(safe-area-inset-bottom))",
+            background: "linear-gradient(to bottom, rgba(13,18,24,0) 0%, rgba(13,18,24,0.35) 40%, rgba(13,18,24,0.7) 100%)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
           }}
         >
           <button
