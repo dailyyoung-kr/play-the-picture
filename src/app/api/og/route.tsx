@@ -96,37 +96,55 @@ export async function GET(req: NextRequest) {
             background: "#0d1218",
           }}
         >
-          {/* 배경: 앨범아트 블러 — 우측 680px 영역에만 (정사각형 비율 유지) */}
+          {/* 우측 680px 앨범아트 영역 — 공유 페이지와 동일 시각 언어 */}
           {albumArt && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={albumArt}
-              alt=""
-              style={{
-                position: "absolute",
-                left: PHOTO_W,
-                top: 0,
-                width: 1200 - PHOTO_W,
-                height: PHOTO_H,
-                objectFit: "cover",
-                filter: "blur(40px)",
-                transform: "scale(1.05)",
-              }}
-            />
+            <>
+              {/* 1) 블러 배경 — 분위기용 */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={albumArt}
+                alt=""
+                style={{
+                  position: "absolute",
+                  left: PHOTO_W,
+                  top: 0,
+                  width: 1200 - PHOTO_W,
+                  height: PHOTO_H,
+                  objectFit: "cover",
+                  filter: "blur(40px) brightness(0.55)",
+                  transform: "scale(1.5)",
+                }}
+              />
+              {/* 2) 선명한 앨범아트 본체 — 식별 가능 레이어 (신규) */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={albumArt}
+                alt=""
+                style={{
+                  position: "absolute",
+                  left: PHOTO_W,
+                  top: 0,
+                  width: 1200 - PHOTO_W,
+                  height: PHOTO_H,
+                  objectFit: "contain",
+                  filter: "blur(4px) brightness(0.95)",
+                }}
+              />
+              {/* 3) 하단 그라디언트 — 곡명 박스 가독성 (평평한 오버레이 대체) */}
+              <div
+                style={{
+                  position: "absolute",
+                  left: PHOTO_W,
+                  top: 0,
+                  width: 1200 - PHOTO_W,
+                  height: PHOTO_H,
+                  background:
+                    "linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.35) 50%, rgba(0,0,0,0.75) 100%)",
+                  display: "flex",
+                }}
+              />
+            </>
           )}
-
-          {/* 어두운 오버레이 — 우측 영역에만 */}
-          <div
-            style={{
-              position: "absolute",
-              left: PHOTO_W,
-              top: 0,
-              width: 1200 - PHOTO_W,
-              height: PHOTO_H,
-              background: "rgba(0,0,0,0.55)",
-              display: "flex",
-            }}
-          />
 
           {/* 좌측: 사진 영역 — 전체 높이 */}
           <div
