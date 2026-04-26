@@ -28,18 +28,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const vibeType = (data.vibe_type ?? "").trim();
   const vibeDescription = (data.vibe_description ?? "").trim();
+  const songLine = `${data.song} — ${data.artist}`;
 
-  // #2 og:title — 항상 "song — artist" (플더픽 UI 일관성)
-  const title = `${data.song} — ${data.artist}`;
+  // #2 og:title — vibeType이 카드의 호기심 훅 (캐릭터명 → "뭐지?" 클릭 유발)
+  //   vibeType 누락 시에만 곡 정보로 fallback
+  const title = vibeType
+    ? `${vibeType}의 오늘의 노래`
+    : songLine;
 
-  // #3 og:description — vibeDescription이 바이럴 자산. 없으면 브랜드 fallback
-  //   vibeType만 누락: "플더픽이 추천한 오늘의 노래"
-  //   둘 다 누락 (legacy): "플더픽에서 새로운 노래를 발견해보세요"
+  // #3 og:description — vibeDescription이 바이럴 카피. 없으면 곡 정보로 fallback
+  //   (vibeDescription만 누락 시 곡명을 description으로 강등 → 정보 손실 없음)
   const description = vibeDescription
     ? vibeDescription
-    : vibeType
-    ? "플더픽이 추천한 오늘의 노래"
-    : "플더픽에서 새로운 노래를 발견해보세요";
+    : songLine;
   const url = `https://play-the-picture.vercel.app/share/${id}`;
 
   const ogImageUrl = `https://play-the-picture.vercel.app/api/og?id=${id}`;
