@@ -51,12 +51,14 @@ export async function GET(req: NextRequest) {
       }
 
       if (count === 3) {
+        // 1+2 레이아웃: 좌측 풀높이 메인 + 우측 상하 2개
+        // 기존 2상+1하(전체폭)은 하단이 1.68:1 가로 띠라 인물·세로 사진 잘림 심함
         const colW = (PHOTO_W - gap) / 2;
         const rowH = (PHOTO_H - gap) / 2;
         return [
-          { src: photos[0], x: 0,          y: 0,          w: colW,   h: rowH },
-          { src: photos[1], x: colW + gap,  y: 0,          w: colW,   h: rowH },
-          { src: photos[2], x: 0,           y: rowH + gap, w: PHOTO_W, h: rowH },
+          { src: photos[0], x: 0,          y: 0,          w: colW, h: PHOTO_H },
+          { src: photos[1], x: colW + gap, y: 0,          w: colW, h: rowH },
+          { src: photos[2], x: colW + gap, y: rowH + gap, w: colW, h: rowH },
         ];
       }
 
@@ -185,15 +187,15 @@ export async function GET(req: NextRequest) {
                 }}
               />
             )}
-            {/* 사진 영역 우측 페이드 */}
+            {/* 사진 영역 우측 페이드 — 사진 가림 최소화로 폭·어둡기 모두 축소 */}
             <div
               style={{
                 position: "absolute",
                 top: 0,
                 right: 0,
-                width: 80,
+                width: 40,
                 height: "100%",
-                background: "linear-gradient(to right, transparent, rgba(0,0,0,0.72))",
+                background: "linear-gradient(to right, transparent, rgba(0,0,0,0.4))",
                 display: "flex",
               }}
             />
