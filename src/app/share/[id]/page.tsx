@@ -12,7 +12,7 @@ async function fetchEntry(id: string) {
   );
   const { data } = await supabaseAdmin
     .from("entries")
-    .select("song, artist, album_art, vibe_type, vibe_description, reason")
+    .select("song, artist, album_art, vibe_type")
     .eq("id", id)
     .single();
   return data;
@@ -27,8 +27,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const vibeType = (data.vibe_type ?? "").trim();
-  const vibeDescription = (data.vibe_description ?? "").trim();
-  const reason = (data.reason ?? "").trim();
   const songLine = `${data.song} — ${data.artist}`;
 
   // #2 og:title — vibeType이 카드의 호기심 훅 (캐릭터명 → "뭐지?" 클릭 유발)
@@ -37,12 +35,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ? `${vibeType}의 오늘의 노래`
     : songLine;
 
-  // #3 og:description — reason(추천 이유) 우선, 없으면 vibeDescription, 둘 다 없으면 곡 정보
-  const description = reason
-    ? reason
-    : vibeDescription
-    ? vibeDescription
-    : songLine;
+  // #3 og:description — 정적 CTA형 카피 (truncation 0%, 수신자 본인 케이스 호기심 자극)
+  //   4/20 베이스라인("사진에서 어떤 노래가 나올지 궁금하다면?") 패턴 회귀
+  const description = "내 사진엔 어떤 노래가 어울릴까?";
   const url = `https://play-the-picture.vercel.app/share/${id}`;
 
   const ogImageUrl = `https://play-the-picture.vercel.app/api/og?id=${id}`;
