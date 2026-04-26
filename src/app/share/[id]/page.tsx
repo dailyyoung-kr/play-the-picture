@@ -12,7 +12,7 @@ async function fetchEntry(id: string) {
   );
   const { data } = await supabaseAdmin
     .from("entries")
-    .select("song, artist, album_art, vibe_type, vibe_description")
+    .select("song, artist, album_art, vibe_type, vibe_description, reason")
     .eq("id", id)
     .single();
   return data;
@@ -28,6 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const vibeType = (data.vibe_type ?? "").trim();
   const vibeDescription = (data.vibe_description ?? "").trim();
+  const reason = (data.reason ?? "").trim();
   const songLine = `${data.song} — ${data.artist}`;
 
   // #2 og:title — vibeType이 카드의 호기심 훅 (캐릭터명 → "뭐지?" 클릭 유발)
@@ -36,9 +37,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ? `${vibeType}의 오늘의 노래`
     : songLine;
 
-  // #3 og:description — vibeDescription이 바이럴 카피. 없으면 곡 정보로 fallback
-  //   (vibeDescription만 누락 시 곡명을 description으로 강등 → 정보 손실 없음)
-  const description = vibeDescription
+  // #3 og:description — reason(추천 이유) 우선, 없으면 vibeDescription, 둘 다 없으면 곡 정보
+  const description = reason
+    ? reason
+    : vibeDescription
     ? vibeDescription
     : songLine;
   const url = `https://play-the-picture.vercel.app/share/${id}`;
