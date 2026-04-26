@@ -28,7 +28,9 @@ export async function GET(req: NextRequest) {
     const photos: string[] = data?.photos ?? [];
 
     // 사진 영역: 좌측 전체 높이
-    const PHOTO_W = 520;
+    // 800:400 비율 — 사용자 사진을 강하게 강조 (개인화 = 바이럴 동력)
+    // 앨범아트는 식별만 가능하면 OK (텍스트로 보완됨)
+    const PHOTO_W = 800;
     const PHOTO_H = 630;
     const count = photos.length;
     const gap = 10;
@@ -96,7 +98,7 @@ export async function GET(req: NextRequest) {
             background: "#0d1218",
           }}
         >
-          {/* 우측 680px 앨범아트 영역 — 공유 페이지와 동일 시각 언어 */}
+          {/* 우측 400px 앨범아트 영역 — 공유 페이지와 동일 시각 언어 */}
           {albumArt && (
             <>
               {/* 1) 블러 배경 — 분위기용 */}
@@ -214,26 +216,26 @@ export async function GET(req: NextRequest) {
             Play the Picture
           </div>
 
-          {/* 우측 하단: 곡명 박스 */}
+          {/* 우측 하단: 곡명 박스 — 400px 폭에 맞게 폰트·여백 축소 */}
           <div
             style={{
               position: "absolute",
-              bottom: 40,
-              right: 40,
+              bottom: 32,
+              right: 24,
               background: "rgba(0,0,0,0.35)",
-              borderRadius: 12,
-              padding: "16px 22px",
+              borderRadius: 10,
+              padding: "12px 16px",
               display: "flex",
               flexDirection: "column",
-              maxWidth: 560,
+              maxWidth: 340,
             }}
           >
             <div
               style={{
                 color: "#ffffff",
-                fontSize: 56,
+                fontSize: 40,
                 fontWeight: 700,
-                lineHeight: 1.2,
+                lineHeight: 1.15,
                 letterSpacing: "-0.5px",
               }}
             >
@@ -242,8 +244,8 @@ export async function GET(req: NextRequest) {
             <div
               style={{
                 color: "rgba(255,255,255,0.8)",
-                fontSize: 32,
-                marginTop: 12,
+                fontSize: 24,
+                marginTop: 8,
               }}
             >
               {artist}
