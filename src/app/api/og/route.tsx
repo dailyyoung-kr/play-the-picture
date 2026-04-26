@@ -232,6 +232,7 @@ export async function GET(req: NextRequest) {
           >
             <div
               style={{
+                display: "flex",
                 color: "#ffffff",
                 fontSize: 56,
                 fontWeight: 700,
@@ -243,6 +244,7 @@ export async function GET(req: NextRequest) {
             </div>
             <div
               style={{
+                display: "flex",
                 color: "rgba(255,255,255,0.8)",
                 fontSize: 32,
                 marginTop: 12,
