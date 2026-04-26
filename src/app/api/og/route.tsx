@@ -227,7 +227,7 @@ export async function GET(req: NextRequest) {
               padding: "16px 22px",
               display: "flex",
               flexDirection: "column",
-              maxWidth: 560,
+              width: 560,
             }}
           >
             <div
@@ -238,6 +238,10 @@ export async function GET(req: NextRequest) {
                 fontWeight: 700,
                 lineHeight: 1.2,
                 letterSpacing: "-0.5px",
+                // satori가 wrap된 텍스트 height를 1줄로 측정해 artist가 겹쳐 그려지는 문제 회피.
+                // 2줄 분량(56*1.2*2=134) 고정 + overflow hidden으로 layout 안정화.
+                height: 134,
+                overflow: "hidden",
               }}
             >
               {song}
