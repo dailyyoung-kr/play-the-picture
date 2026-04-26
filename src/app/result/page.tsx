@@ -181,23 +181,12 @@ export default function ResultPage() {
       }
 
       const url = `https://play-the-picture.vercel.app/share/${entryId}`;
-      const songName = result.song.includes(" - ") ? result.song.split(" - ")[0] : result.song;
-      const artistName = result.song.includes(" - ") ? result.song.split(" - ").slice(1).join(" - ") : "";
 
-      // vibeType 있으면 의문형 호기심 훅, 없으면 브랜드 fallback
-      const vibeType = (result.vibeType ?? result.vibe_type ?? "").trim();
-      const shareText = vibeType
-        ? `${vibeType}의 오늘은 어떤 곡? ✦ 플더픽`
-        : "플더픽이 추천한 오늘의 노래";
-
-      // 1) Web Share API 시도
+      // 1) Web Share API 시도 — URL만 전달해 카톡에서 OG 카드 1개만 노출되도록.
+      //    text 동봉 시 노란 말풍선 + OG 카드 2개로 분리되므로, OG 카드 단독 노출 위해 제거.
       if (navigator.share) {
         try {
-          await navigator.share({
-            title: `${songName}${artistName ? ` — ${artistName}` : ""}`,
-            text: shareText,
-            url,
-          });
+          await navigator.share({ url });
           return; // 성공 시 종료
         } catch (shareErr) {
           const msg = shareErr instanceof Error ? shareErr.message : "";
