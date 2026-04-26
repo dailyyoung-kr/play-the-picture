@@ -182,6 +182,18 @@ export default function ResultPage() {
 
       const url = `https://play-the-picture.vercel.app/share/${entryId}`;
 
+      // 0) OG 이미지 미리 빌드 — 카톡 크롤러가 첫 fetch에서 cold start timeout 맞지 않도록
+      //    Vercel CDN에 캐시 워밍 (캐시 헤더는 /api/og에서 설정).
+      //    최대 6초 timeout 걸어 무한 대기 방지: 6초 넘기면 그냥 진행해도 카톡이 자체 retry할 수 있음.
+      try {
+        await Promise.race([
+          fetch(`/api/og?id=${entryId}`),
+          new Promise((resolve) => setTimeout(resolve, 6000)),
+        ]);
+      } catch {
+        // pre-trigger 실패해도 공유 자체는 진행
+      }
+
       // 1) Web Share API 시도 — URL만 전달해 카톡에서 OG 카드 1개만 노출되도록.
       //    text 동봉 시 노란 말풍선 + OG 카드 2개로 분리되므로, OG 카드 단독 노출 위해 제거.
       if (navigator.share) {
@@ -699,7 +711,7 @@ export default function ResultPage() {
             }}
           >
             {sharing ? (
-              "공유 중..."
+              "공유 준비 중..."
             ) : (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                 <Camera size={15} strokeWidth={1.5} /> 결과 공유하기

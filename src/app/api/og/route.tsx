@@ -256,6 +256,12 @@ export async function GET(req: NextRequest) {
       {
         width: 1200,
         height: 630,
+        headers: {
+          // entry는 immutable이므로 영구 캐시 안전.
+          // 첫 호출만 ImageResponse 빌드(4~6초), 이후 모든 요청은 Vercel edge 캐시에서 ~20ms.
+          // 카톡 크롤러가 timeout 만나는 문제를 근본적으로 해결.
+          "Cache-Control": "public, max-age=31536000, immutable",
+        },
       }
     );
   } catch (e) {
