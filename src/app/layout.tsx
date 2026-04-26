@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "플더픽 — 사진으로 지금 딱 맞는 노래 찾기",
     description: "오늘 찍은 사진으로 AI가 딱 맞는 한 곡을 추천해드려요 🎵",
-    url: "https://play-the-picture.vercel.app",
+    url: "https://playthepicture.com",
     type: "website",
   },
   twitter: {

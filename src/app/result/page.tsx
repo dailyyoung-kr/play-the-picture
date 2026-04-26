@@ -180,7 +180,7 @@ export default function ResultPage() {
         }).catch(() => {});
       }
 
-      const url = `https://play-the-picture.vercel.app/share/${entryId}`;
+      const url = `https://playthepicture.com/share/${entryId}`;
 
       // 0) OG 이미지 미리 빌드 — 카톡 크롤러가 첫 fetch에서 cold start timeout 맞지 않도록
       //    Vercel CDN에 캐시 워밍 (캐시 헤더는 /api/og에서 설정).

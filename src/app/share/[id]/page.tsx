@@ -38,9 +38,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // #3 og:description — 정적 CTA형 카피 (truncation 0%, 수신자 본인 케이스 호기심 자극)
   //   4/20 베이스라인("사진에서 어떤 노래가 나올지 궁금하다면?") 패턴 회귀
   const description = "내 사진엔 어떤 노래가 어울릴까?";
-  const url = `https://play-the-picture.vercel.app/share/${id}`;
+  const url = `https://playthepicture.com/share/${id}`;
 
-  const ogImageUrl = `https://play-the-picture.vercel.app/api/og?id=${id}`;
+  const ogImageUrl = `https://playthepicture.com/api/og?id=${id}`;
 
   return {
     title,
