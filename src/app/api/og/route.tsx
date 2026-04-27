@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
           {/* 우측 680px 앨범아트 영역 — 공유 페이지와 동일 시각 언어 */}
           {albumArt && (
             <>
-              {/* 1) 블러 배경 — 분위기용 */}
+              {/* 1) 블러 배경 — 분위기용 (40px → 20px로 단순화, satori 렌더링 비용 감소) */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={albumArt}
@@ -113,11 +113,11 @@ export async function GET(req: NextRequest) {
                   width: 1200 - PHOTO_W,
                   height: PHOTO_H,
                   objectFit: "cover",
-                  filter: "blur(40px) brightness(0.55)",
+                  filter: "blur(20px) brightness(0.55)",
                   transform: "scale(1.5)",
                 }}
               />
-              {/* 2) 선명한 앨범아트 본체 — 식별 가능 레이어 (신규) */}
+              {/* 2) 선명한 앨범아트 본체 — blur 제거로 식별성 ↑ + 빌드 비용 ↓ */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={albumArt}
@@ -129,7 +129,7 @@ export async function GET(req: NextRequest) {
                   width: 1200 - PHOTO_W,
                   height: PHOTO_H,
                   objectFit: "contain",
-                  filter: "blur(4px) brightness(0.95)",
+                  filter: "brightness(0.95)",
                 }}
               />
               {/* 3) 하단 그라디언트 — 곡명 박스 가독성 (평평한 오버레이 대체) */}
