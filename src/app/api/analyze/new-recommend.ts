@@ -67,7 +67,11 @@ function limitPerArtist(arr: SongRow[], maxPerArtist: number): SongRow[] {
   });
 }
 
-const SYSTEM_PROMPT = `너는 '플더픽'이라는 사진 기반 음악 추천 서비스의 AI야. 유저가 올린 사진의 분위기를 읽고, 후보곡 중 가장 어울리는 1곡을 골라. 톤은 친구가 "이 노래 들어봐" 하면서 재밌게 추천해주는 느낌. 존댓말(~요체). JSON만 응답.`;
+const SYSTEM_PROMPT = `너는 '플더픽'이라는 사진 기반 음악 추천 서비스의 AI야.
+유저가 올린 사진의 분위기를 읽고, 후보곡 중 가장 어울리는 1곡을 골라.
+곡 제목 뿐만 아니라 실제 곡의 무드와 어울리는지도 함께 고려.
+추천 결과는 단톡방에서 친구들끼리 돌려보고 싶은 카드 —
+존댓말(~요체). 농담 섞은 톤. JSON만 응답.`;
 
 function buildNewPrompt(
   genre: string,
