@@ -233,14 +233,16 @@ export async function GET(req: NextRequest) {
             <div
               style={{
                 display: "flex",
+                alignItems: "flex-end",
                 color: "#ffffff",
-                fontSize: 56,
+                fontSize: 48,
                 fontWeight: 700,
                 lineHeight: 1.2,
                 letterSpacing: "-0.5px",
                 // satori가 wrap된 텍스트 height를 1줄로 측정해 artist가 겹쳐 그려지는 문제 회피.
-                // 2줄 분량(56*1.2*2=134) 고정 + overflow hidden으로 layout 안정화.
-                height: 134,
+                // 2줄 분량(48*1.2*2=115.2 → 116) 고정. alignItems flex-end로
+                // 짧은 곡명 시 박스 하단 정렬되어 artist와 자연스러운 간격 유지.
+                height: 116,
                 overflow: "hidden",
               }}
             >
