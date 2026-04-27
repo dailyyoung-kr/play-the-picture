@@ -182,17 +182,12 @@ export default function ResultPage() {
 
       const url = `https://playthepicture.com/share/${entryId}`;
 
-      // 0) OG 이미지 미리 빌드 — 카톡 크롤러가 첫 fetch에서 cold start timeout 맞지 않도록
-      //    Vercel CDN에 캐시 워밍 (캐시 헤더는 /api/og에서 설정).
-      //    최대 6초 timeout 걸어 무한 대기 방지: 6초 넘기면 그냥 진행해도 카톡이 자체 retry할 수 있음.
-      try {
-        await Promise.race([
-          fetch(`/api/og?id=${entryId}`),
-          new Promise((resolve) => setTimeout(resolve, 6000)),
-        ]);
-      } catch {
-        // pre-trigger 실패해도 공유 자체는 진행
-      }
+      // 0) OG 이미지 background pre-trigger — await 없이 fire-and-forget.
+      //    이전엔 6초 await했지만, iOS Safari user activation 정책(~5초) 위반으로
+      //    navigator.share가 NotAllowedError 발생해 fallback(클립보드 복사)으로 빠짐.
+      //    user activation 보존 우선 — 카톡 크롤러는 진행 중 빌드도 timeout 길게(6~10초) 견딤.
+      //    Vercel CDN immutable 캐시(/api/og)로 같은 entry는 한 번 빌드 후 영구 캐시.
+      fetch(`/api/og?id=${entryId}`).catch(() => {});
 
       // 1) Web Share API 시도 — URL만 전달해 카톡에서 OG 카드 1개만 노출되도록.
       //    text 동봉 시 노란 말풍선 + OG 카드 2개로 분리되므로, OG 카드 단독 노출 위해 제거.
