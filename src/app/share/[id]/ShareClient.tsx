@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Play, Pause } from "lucide-react";
 import { isAnalyticsEnabled } from "@/lib/analytics";
 import { pixelLead } from "@/lib/fpixel";
 import { getDeviceId } from "@/lib/supabase";
+import { trackEvent } from "@/lib/gtag";
 import { captureUtmFromUrl } from "@/lib/utm";
 
 interface ShareEntry {
@@ -30,8 +32,93 @@ export default function ShareClient({ id }: { id: string }) {
   const [modalIndex, setModalIndex] = useState<number | null>(null);
   const viewLogged = useRef(false);
 
+  // ── iTunes 30초 미리듣기 (result 페이지와 동일 패턴) ──
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewState, setPreviewState] = useState<"idle" | "ready" | "playing" | "done">("idle");
+  const [previewProgress, setPreviewProgress] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   // URL에 utm_* 있으면 sessionStorage에 저장 (이후 analyze_logs에 기록됨)
   useEffect(() => { captureUtmFromUrl(); }, []);
+
+  // 재생 중 rAF로 진행도 갱신 (부드러운 애니메이션)
+  useEffect(() => {
+    if (previewState !== "playing") return;
+    let rafId: number;
+    const tick = () => {
+      const a = audioRef.current;
+      if (a && a.duration) {
+        setPreviewProgress(a.currentTime / a.duration);
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [previewState]);
+
+  // iTunes 미리듣기 URL 조회 (백그라운드, fire-and-forget)
+  useEffect(() => {
+    if (!entry?.song || !entry?.artist) return;
+
+    const controller = new AbortController();
+    const songName = entry.song;
+    const artistName = entry.artist;
+    fetch(
+      `/api/itunes-preview?title=${encodeURIComponent(songName)}&artist=${encodeURIComponent(artistName)}`,
+      { signal: controller.signal }
+    )
+      .then((r) => r.json())
+      .then((d) => {
+        trackEvent("preview_match", {
+          song: `${songName} - ${artistName}`,
+          matched: !!d.previewUrl,
+          match_score: d.score ?? null,
+          cache_hit: !!d.cache_hit,
+          page: "share",
+        });
+        if (d.previewUrl) {
+          setPreviewUrl(d.previewUrl);
+          setPreviewState("ready");
+        }
+      })
+      .catch(() => {});
+
+    // 페이지 떠날 때 재생 중이었다면 elapsed_sec 기록 (result와 동일 패턴)
+    return () => {
+      controller.abort();
+      const audio = audioRef.current;
+      if (audio && !audio.paused && !audio.ended && audio.currentTime > 0) {
+        trackEvent("preview_abandoned", {
+          song: `${songName} - ${artistName}`,
+          elapsed_sec: Math.floor(audio.currentTime),
+          page: "share",
+        });
+      }
+    };
+  }, [entry?.song, entry?.artist]);
+
+  // 미리듣기 재생/일시정지 토글
+  const togglePreview = () => {
+    const audio = audioRef.current;
+    if (!audio || !entry) return;
+    const songLabel = `${entry.song} - ${entry.artist}`;
+    if (previewState === "ready") {
+      audio.play().then(() => {
+        setPreviewState("playing");
+        trackEvent("preview_play", { song: songLabel, page: "share" });
+      }).catch(() => {
+        setPreviewState("done");
+      });
+    } else if (previewState === "playing") {
+      audio.pause();
+      trackEvent("preview_pause", {
+        song: songLabel,
+        elapsed_sec: Math.floor(audio.currentTime),
+        page: "share",
+      });
+      setPreviewState("ready");
+    }
+  };
 
   // 공유 페이지 방문 기록 — entries fetch와 독립적으로 마운트 즉시 실행
   useEffect(() => {
@@ -237,6 +324,95 @@ export default function ShareClient({ id }: { id: string }) {
               ))}
             </div>
           </div>
+
+          {/* iTunes 30초 미리듣기 — result 페이지와 동일 디자인 */}
+          {previewUrl && (
+            <audio
+              ref={audioRef}
+              src={previewUrl}
+              preload="none"
+              onEnded={() => {
+                trackEvent("preview_complete", {
+                  song: `${entry.song} - ${entry.artist}`,
+                  page: "share",
+                });
+                setPreviewState("ready");
+                setPreviewProgress(0);
+              }}
+            />
+          )}
+          {(previewState === "ready" || previewState === "playing") && (() => {
+            const PREVIEW_DURATION = 30;
+            const elapsed = Math.floor(previewProgress * PREVIEW_DURATION);
+            const fmt = (s: number) => `0:${String(Math.max(0, s)).padStart(2, "0")}`;
+            return (
+              <div
+                role="button"
+                onClick={togglePreview}
+                style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "10px 14px",
+                  marginTop: 12,
+                  background: "linear-gradient(180deg, rgba(196,104,122,0.16) 0%, rgba(196,104,122,0.06) 100%)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  borderRadius: 24,
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 6px rgba(0,0,0,0.12)",
+                  cursor: "pointer",
+                }}
+              >
+                <div style={{
+                  width: 32, height: 32, borderRadius: "50%",
+                  background: "rgba(255,255,255,0.14)",
+                  border: "1px solid rgba(255,255,255,0.22)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "#fff", flexShrink: 0,
+                }}>
+                  {previewState === "ready"
+                    ? <Play size={14} fill="#fff" strokeWidth={0} style={{ marginLeft: 1 }} />
+                    : <Pause size={14} fill="#fff" strokeWidth={0} />}
+                </div>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div style={{
+                    fontSize: 9, color: "rgba(255,255,255,0.45)",
+                    letterSpacing: "0.02em", lineHeight: 1,
+                    textAlign: "center",
+                  }}>
+                    30초 들어보기
+                  </div>
+                  <div style={{ position: "relative", height: 14, display: "flex", alignItems: "center" }}>
+                    <div style={{
+                      position: "absolute", left: 0, right: 0, top: "50%",
+                      transform: "translateY(-50%)",
+                      height: 3, borderRadius: 2,
+                      background: "rgba(255,255,255,0.15)",
+                    }} />
+                    <div style={{
+                      position: "absolute", left: 0, top: "50%",
+                      transform: "translateY(-50%)",
+                      width: `${previewProgress * 100}%`,
+                      height: 3, borderRadius: 2,
+                      background: "#C4687A",
+                    }} />
+                    <div style={{
+                      position: "absolute", top: "50%",
+                      left: `${previewProgress * 100}%`,
+                      transform: "translate(-50%, -50%)",
+                      width: 10, height: 10, borderRadius: "50%",
+                      background: "#fff",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                    }} />
+                  </div>
+                </div>
+                <div style={{
+                  fontSize: 11, color: "rgba(255,255,255,0.6)",
+                  fontVariantNumeric: "tabular-nums",
+                  minWidth: 56, textAlign: "right", flexShrink: 0,
+                }}>
+                  {fmt(elapsed)} / 0:30
+                </div>
+              </div>
+            );
+          })()}
 
           <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "14px 16px", marginTop: 12, marginBottom: 20 }}>
             <p className="font-medium mb-2" style={{ fontSize: 10, color: "#f0d080", letterSpacing: "0.05em" }}>플더픽이 추천한 이유</p>
