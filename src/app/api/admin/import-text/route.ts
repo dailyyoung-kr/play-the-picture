@@ -43,6 +43,7 @@ type SpotifyTrack = {
   id: string;
   name: string;
   duration_ms: number;
+  explicit: boolean;
   album: { name: string; images: { url: string }[] };
   artists: { name: string }[];
 };
@@ -110,6 +111,11 @@ export async function POST(req: NextRequest) {
 
   const found: FoundTrack[] = [];
   const failed: string[] = [];
+  // explicit (19금) 곡 거부 — 청소년 보호 정책 (4/29~)
+  // iTunes Search API가 explicit 곡 검색 자체를 글로벌 차단하므로 자동 매칭 불가능,
+  // 또한 18-24 광고 타겟이라도 미성년자 노출 가능성으로 법적 위험.
+  // → 처음부터 songs DB에 등록 안 함.
+  const rejectedExplicit: { line: string; song: string; artist: string; spotifyTrackId: string }[] = [];
 
   // 순차 처리 (병렬 금지)
   for (let i = 0; i < lines.length; i++) {
@@ -145,6 +151,16 @@ export async function POST(req: NextRequest) {
         if (!track) {
           console.log(`[import-text] 검색 결과 없음: ${line}`);
           failed.push(line);
+        } else if (track.explicit) {
+          // ⭐ explicit 거부
+          const artistJoined = track.artists.map(a => a.name).join(", ");
+          rejectedExplicit.push({
+            line,
+            song: track.name,
+            artist: artistJoined,
+            spotifyTrackId: track.id,
+          });
+          console.log(`[import-text] 🔞 explicit 거부: ${track.name} - ${artistJoined}`);
         } else {
           // Spotify 찾은 곡만 YouTube도 검색 (실제 곡명+아티스트로 정확도↑)
           const ytQuery = `${track.name} ${track.artists.map(a => a.name).join(" ")}`.trim();
@@ -182,7 +198,12 @@ export async function POST(req: NextRequest) {
   }
 
   if (found.length === 0) {
-    return NextResponse.json({ success: 0, failed, total: lines.length });
+    return NextResponse.json({
+      success: 0,
+      failed,
+      rejected_explicit: rejectedExplicit,
+      total: lines.length,
+    });
   }
 
   // Claude 태깅 (energy + 자동 분류 시 genre도 함께)
@@ -301,6 +322,7 @@ ${songList}`;
       success: 0,
       failed,
       duplicates,
+      rejected_explicit: rejectedExplicit,
       total: lines.length,
       genreBreakdown: {},
     });
@@ -340,10 +362,15 @@ ${songList}`;
     genreBreakdown[row.genre] = (genreBreakdown[row.genre] ?? 0) + 1;
   }
 
+  // added_songs — 클라이언트에서 백그라운드 미리듣기 매칭 트리거 (cache 자동 채움)
+  const addedSongs = rows.map((r) => ({ song: r.song, artist: r.artist }));
+
   return NextResponse.json({
     success: newFound.length,
     failed,
     duplicates,
+    rejected_explicit: rejectedExplicit,
+    added_songs: addedSongs,
     total: lines.length,
     genreBreakdown,
   });
