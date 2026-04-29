@@ -292,7 +292,6 @@ export default function AdminPage() {
     success: number;
     failed: string[];
     duplicates?: { song: string; artist: string; existingGenre: string }[];
-    rejected_explicit?: { line: string; song: string; artist: string; spotifyTrackId: string }[];
     added_songs?: { song: string; artist: string }[];
     total: number;
     genreBreakdown?: Record<string, number>;
@@ -1669,7 +1668,6 @@ export default function AdminPage() {
             <p style={{ fontSize: 13, color: "#fff", margin: "0 0 6px", fontWeight: 600 }}>
               ✅ {textResult.success}곡 저장
               {(textResult.duplicates?.length ?? 0) > 0 && <span style={{ color: "#f0c060", fontWeight: 400, marginLeft: 8 }}>/ ⚠️ {textResult.duplicates!.length}곡 중복</span>}
-              {(textResult.rejected_explicit?.length ?? 0) > 0 && <span style={{ color: "#e070c0", fontWeight: 400, marginLeft: 8 }}>/ 🔞 {textResult.rejected_explicit!.length}곡 거부</span>}
               {textResult.failed.length > 0 && <span style={{ color: "#f07070", fontWeight: 400, marginLeft: 8 }}>/ ❌ {textResult.failed.length}곡 실패</span>}
             </p>
             {textResult.genreBreakdown && Object.keys(textResult.genreBreakdown).length > 0 && (
@@ -1688,14 +1686,6 @@ export default function AdminPage() {
                 <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", margin: "0 0 4px" }}>⚠️ 중복 {textResult.duplicates!.length}곡 (기존 장르 유지):</p>
                 {textResult.duplicates!.map((d, i) => (
                   <p key={i} style={{ fontSize: 12, color: "#f0c060", margin: "2px 0" }}>• {d.song} - {d.artist} → {d.existingGenre}</p>
-                ))}
-              </div>
-            )}
-            {(textResult.rejected_explicit?.length ?? 0) > 0 && (
-              <div style={{ marginTop: 8 }}>
-                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", margin: "0 0 4px" }}>🔞 explicit 거부 {textResult.rejected_explicit!.length}곡 (청소년 보호 정책):</p>
-                {textResult.rejected_explicit!.map((r, i) => (
-                  <p key={i} style={{ fontSize: 12, color: "#e070c0", margin: "2px 0" }}>• {r.song} - {r.artist}</p>
                 ))}
               </div>
             )}
