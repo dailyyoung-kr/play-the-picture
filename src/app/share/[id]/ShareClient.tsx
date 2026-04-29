@@ -317,7 +317,14 @@ export default function ShareClient({ id }: { id: string }) {
 
           <div className="text-center mb-4">
             <h1 className="font-semibold mb-1" style={{ fontSize: 28, color: "#fff", letterSpacing: "-0.5px" }}>{entry.song}</h1>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.48)" }}>{entry.artist}</p>
+            <p className="mb-3" style={{ fontSize: 13, color: "rgba(255,255,255,0.48)" }}>{entry.artist}</p>
+            <div className="flex gap-2 justify-center flex-wrap">
+              {entry.tags.map((tag) => (
+                <span key={tag} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 20, border: "1px solid rgba(255,255,255,0.22)", color: "rgba(255,255,255,0.78)" }}>
+                  #{tag.replace(/^#+/, "")}
+                </span>
+              ))}
+            </div>
           </div>
 
           {/* iTunes 30초 미리듣기 — result 페이지와 동일 디자인 */}
