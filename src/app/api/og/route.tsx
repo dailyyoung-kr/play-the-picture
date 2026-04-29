@@ -201,21 +201,6 @@ export async function GET(req: NextRequest) {
             />
           </div>
 
-          {/* 상단 좌측 로고 */}
-          <div
-            style={{
-              position: "absolute",
-              top: 44,
-              left: 52,
-              color: "#C4687A",
-              fontSize: 18,
-              letterSpacing: "0.15em",
-              display: "flex",
-            }}
-          >
-            Play the Picture
-          </div>
-
           {/* 우측 하단: 곡명 박스 */}
           <div
             style={{
