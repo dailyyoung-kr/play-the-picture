@@ -256,15 +256,17 @@ export default function ShareClient({ id }: { id: string }) {
 
       <div className="min-h-screen flex flex-col" style={{ position: "relative", zIndex: 1, background: entry.album_art ? "transparent" : "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)" }}>
 
-        <div className="text-center pt-12 pb-3" style={{ fontSize: 15, letterSpacing: "0.2em", color: "#C4687A", fontFamily: "var(--font-dm-sans)", fontWeight: 300 }}>
-          Play the Picture
-        </div>
-
-        <div className="flex-1 flex flex-col px-5 overflow-y-auto" style={{ paddingBottom: 90 }}>
-          <p className="text-center mb-3" style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: "0.08em" }}>
+        {/* 상단 앱 이름 + 서브 문구 — result 페이지와 동일 패턴 */}
+        <div className="text-center" style={{ paddingTop: 20, paddingBottom: 6 }}>
+          <div style={{ fontSize: 11, letterSpacing: "0.2em", color: "#C4687A", fontFamily: "var(--font-dm-sans)", fontWeight: 300, marginBottom: 4 }}>
+            Play the Picture
+          </div>
+          <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: "0.08em", margin: 0 }}>
             플더픽의 추천곡
           </p>
+        </div>
 
+        <div className="flex-1 flex flex-col px-5 overflow-y-auto" style={{ paddingTop: 16, paddingBottom: 90 }}>
           {showPhotoSection && (() => {
             // 로딩 중엔 photo_count 기준, 로딩 완료 후엔 modalPhotos 개수 기준
             const count = photosLoaded ? (modalPhotos.length || 1) : (entry.photo_count || 1);
