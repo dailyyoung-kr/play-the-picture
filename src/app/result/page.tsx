@@ -373,14 +373,32 @@ export default function ResultPage() {
     )
       .then((r) => r.json())
       .then((d) => {
-        trackEvent("preview_match", { song: result.song, matched: !!d.previewUrl });
+        trackEvent("preview_match", {
+          song: result.song,
+          matched: !!d.previewUrl,
+          match_score: d.score ?? null,
+          cache_hit: !!d.cache_hit,
+        });
         if (d.previewUrl) {
           setPreviewUrl(d.previewUrl);
           setPreviewState("ready");
         }
       })
       .catch(() => {});
-    return () => controller.abort();
+
+    // 페이지 떠날 때 (unmount) 재생 중이었다면 elapsed_sec 기록
+    // → preview_pause / preview_complete 이벤트가 발화 안 되는 케이스 보강
+    //   (모바일 백그라운드, 페이지 이동, 탭 닫기 등)
+    return () => {
+      controller.abort();
+      const audio = audioRef.current;
+      if (audio && !audio.paused && !audio.ended && audio.currentTime > 0) {
+        trackEvent("preview_abandoned", {
+          song: result?.song,
+          elapsed_sec: Math.floor(audio.currentTime),
+        });
+      }
+    };
   }, [result?.song]);
 
   // 미리듣기 재생/일시정지 토글
