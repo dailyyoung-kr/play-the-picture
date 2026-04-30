@@ -8,9 +8,12 @@ const supabaseAdmin = createClient(
 );
 
 // Rate limit 임계값 — 실유저 상위 케이스(최대 33회/일) 보호 + 어뷰저 차단
+// 2026-04-30: 시간당 15 → 20 완화. 4월 누적 device_rate_limit 6건 모두 시간당 한도에서만
+//             발동했고, 차단된 3 device 모두 광고 유입 정상 헤비유저(13~19분간 14~15회 시도).
+//             분당 5는 봇 방어용으로 유지, 일당 50도 충분.
 const RATE_LIMITS = {
-  perMinute: 5,   // 분당 5회: 인간 물리적 한계(분당 2회)의 2배
-  perHour: 15,    // 시간당 15회: 평균 페이스 어뷰저 차단
+  perMinute: 5,   // 분당 5회: 인간 물리적 한계(분당 2회)의 2배 (봇 방어)
+  perHour: 20,    // 시간당 20회: 광고 유입 헤비유저 보호 (4/19 새벽 헤비유저 시간당 43건 같은 진짜 abuse는 여전히 차단)
   perDay: 50,     // 일당 50회: 최대 33회 파워유저 보호 + 극단 어뷰저 차단
 };
 
@@ -23,7 +26,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "사진이 없어요", error_code: "no_photos" }, { status: 400 });
     }
 
-    // ── Device Rate Limit: 분당 5 / 시간당 15 / 일당 50 ──
+    // ── Device Rate Limit: 분당 5 / 시간당 20 / 일당 50 ──
     // /preference에서 이미 status="start" 로그 insert 후 호출되므로 본인 포함 count
     if (deviceId) {
       const now = Date.now();
