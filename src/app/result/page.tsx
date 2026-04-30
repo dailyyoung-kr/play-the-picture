@@ -378,6 +378,7 @@ export default function ResultPage() {
           matched: !!d.previewUrl,
           match_score: d.score ?? null,
           cache_hit: !!d.cache_hit,
+          page: "result",
         });
         if (d.previewUrl) {
           setPreviewUrl(d.previewUrl);
@@ -396,6 +397,7 @@ export default function ResultPage() {
         trackEvent("preview_abandoned", {
           song: result?.song,
           elapsed_sec: Math.floor(audio.currentTime),
+          page: "result",
         });
       }
     };
@@ -408,14 +410,14 @@ export default function ResultPage() {
     if (previewState === "ready") {
       audio.play().then(() => {
         setPreviewState("playing");
-        trackEvent("preview_play", { song: result?.song });
+        trackEvent("preview_play", { song: result?.song, page: "result" });
       }).catch(() => {
         // 재생 실패 시 fallback: 바로 본편 버튼으로
         setPreviewState("done");
       });
     } else if (previewState === "playing") {
       audio.pause();
-      trackEvent("preview_pause", { song: result?.song, elapsed_sec: Math.floor(audio.currentTime) });
+      trackEvent("preview_pause", { song: result?.song, elapsed_sec: Math.floor(audio.currentTime), page: "result" });
       setPreviewState("ready"); // 일시정지 → 다시 ▶로 복귀 (본편 스왑 X)
     }
   };
@@ -598,7 +600,7 @@ export default function ResultPage() {
             src={previewUrl}
             preload="none"
             onEnded={() => {
-              trackEvent("preview_complete", { song: result?.song });
+              trackEvent("preview_complete", { song: result?.song, page: "result" });
               // 재생 완료 → 다시 듣기 가능하도록 ready로 복귀
               setPreviewState("ready");
               setPreviewProgress(0);
