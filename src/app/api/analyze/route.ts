@@ -76,8 +76,8 @@ export async function POST(req: NextRequest) {
           const oldestMs = new Date(oldestRow.created_at).getTime();
           const retryAtMs = oldestMs + windowMs;
           retryAfterSec = Math.max(1, Math.ceil((retryAtMs - now) / 1000));
-          if (retryAfterSec <= 60) {
-            waitMsg = "1분 안에";
+          if (retryAfterSec < 60) {
+            waitMsg = `${retryAfterSec}초 후`;
           } else if (retryAfterSec < 3600) {
             waitMsg = `약 ${Math.ceil(retryAfterSec / 60)}분 후`;
           } else {
