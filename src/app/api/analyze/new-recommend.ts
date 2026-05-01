@@ -257,20 +257,31 @@ export async function newRecommend(
     filteredCandidates = candidates;
   }
 
-  // 샘플링 (상한 30곡)
+  // ── 샘플링 (동적 한도) ──
+  // 2026-05-01 로컬 실험: K = max(30, min(50, ceil(P × 0.5)))
+  //   - 풀 30곡 미만: 풀 그대로
+  //   - 풀 30~60곡: 30곡 (하한)
+  //   - 풀 60~100곡: 풀의 50% (곡당 노출 확률 50% 보장)
+  //   - 풀 100곡 이상: 50곡 cap (Claude reasoning 부담 방지)
+  const dynamicLimit = Math.max(
+    30,
+    Math.min(50, Math.ceil(filteredCandidates.length * 0.5))
+  );
+
   let finalCandidates: SongRow[];
   if (isDiscover) {
-    // discover: 장르별 최대 5곡씩 균등 샘플링, 30곡 상한
-    finalCandidates = balancedSample(filteredCandidates, 5).slice(0, 30);
-  } else if (filteredCandidates.length > 30) {
-    finalCandidates = shuffleAndSlice(filteredCandidates, 30);
+    // discover: 장르당 균등 샘플링 (perGenre = limit ÷ 6 올림)
+    const perGenre = Math.ceil(dynamicLimit / 6);
+    finalCandidates = balancedSample(filteredCandidates, perGenre).slice(0, dynamicLimit);
+  } else if (filteredCandidates.length > dynamicLimit) {
+    finalCandidates = shuffleAndSlice(filteredCandidates, dynamicLimit);
   } else {
     finalCandidates = shuffleAndSlice(filteredCandidates, filteredCandidates.length);
   }
 
   // 아티스트 다양성: 같은 아티스트 최대 2곡
   finalCandidates = limitPerArtist(finalCandidates, 2);
-  console.log(`[new] 아티스트 필터 후: ${finalCandidates.length}곡`);
+  console.log(`[new] 동적 한도 ${dynamicLimit} (풀 ${filteredCandidates.length}곡), 아티스트 필터 후: ${finalCandidates.length}곡`);
 
   // ── STEP 2: Claude에게 사진 + 후보곡 전달 ──
 
