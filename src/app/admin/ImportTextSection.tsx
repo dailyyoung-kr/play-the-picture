@@ -79,6 +79,7 @@ function ImportTextSectionInner({ showToast }: Props) {
       const res = await fetch("/api/admin/import-text", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({ songs: textSongs, genre: textGenre }),
       });
       const data = await res.json();

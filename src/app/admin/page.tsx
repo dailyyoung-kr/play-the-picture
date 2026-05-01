@@ -4,8 +4,6 @@ import { useState, useEffect, useCallback, memo } from "react";
 import { supabase } from "@/lib/supabase";
 import { ImportTextSection } from "./ImportTextSection";
 
-const ADMIN_PW = process.env.NEXT_PUBLIC_ADMIN_PASSWORD ?? "coldboardp1!";
-
 type PhotoLog = { id: string; created_at: string; device_id?: string | null };
 type PrefLog = { id: string; created_at: string; genre: string | null; energy: number | null; device_id?: string | null };
 type AnalyzeLog = { id: string; created_at: string; status: string; response_time_ms: number | null; song: string | null; artist: string | null; device_id?: string | null };
@@ -261,8 +259,23 @@ function FunnelStep({
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [pw, setPw] = useState("");
   const [toast, setToast] = useState("");
+
+  // 페이지 로드 시 기존 세션 쿠키 유효성 확인
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/auth", { method: "GET", credentials: "same-origin" })
+      .then(res => {
+        if (cancelled) return;
+        if (res.ok) setAuthed(true);
+      })
+      .finally(() => {
+        if (!cancelled) setAuthChecked(true);
+      });
+    return () => { cancelled = true; };
+  }, []);
   const [tab, setTab] = useState<"today" | "yesterday" | "all" | "custom">("today");
   const [viewMode, setViewMode] = useState<"user" | "test">("user");
 
@@ -315,7 +328,7 @@ export default function AdminPage() {
       supabase.from("listen_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("result_view_logs").select("id, created_at, duration_seconds, exit_type, device_id").order("created_at", { ascending: false }),
       // share_views / try_click — RLS 우회 위해 supabaseAdmin 경유 서버 API 사용
-      fetch("/api/admin/log-rows").then(r => r.json()) as Promise<{ shareViews: LogRow[]; tryClicks: LogRow[] }>,
+      fetch("/api/admin/log-rows", { credentials: "same-origin" }).then(r => r.json()) as Promise<{ shareViews: LogRow[]; tryClicks: LogRow[] }>,
       supabase.from("save_logs").select("id, created_at, entry_id, device_id").order("created_at", { ascending: false }),
     ]);
 
@@ -341,7 +354,7 @@ export default function AdminPage() {
   const checkSpotify = useCallback(async () => {
     setSpotifyChecking(true);
     try {
-      const res = await fetch("/api/admin/spotify-status");
+      const res = await fetch("/api/admin/spotify-status", { credentials: "same-origin" });
       const data = await res.json();
       setSpotifyStatus(data);
     } catch {
@@ -359,14 +372,40 @@ export default function AdminPage() {
 
   // handleTextImport는 ./ImportTextSection.tsx 내부로 이전 (타이핑 지연 해결)
 
-  const handleLogin = () => {
-    if (pw === ADMIN_PW) {
-      setAuthed(true);
-    } else {
-      showToast("비밀번호가 틀렸어요");
-      setPw("");
+  const [loggingIn, setLoggingIn] = useState(false);
+  const handleLogin = async () => {
+    if (loggingIn) return;
+    setLoggingIn(true);
+    try {
+      const res = await fetch("/api/admin/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ password: pw }),
+      });
+      if (res.ok) {
+        setAuthed(true);
+        setPw("");
+      } else if (res.status === 401) {
+        showToast("비밀번호가 틀렸어요");
+        setPw("");
+      } else {
+        showToast("로그인에 실패했어요. 잠시 후 다시 시도해주세요");
+        setPw("");
+      }
+    } catch {
+      showToast("네트워크 오류가 발생했어요");
+    } finally {
+      setLoggingIn(false);
     }
   };
+
+  // ── 세션 확인 중: 빈 화면 ──
+  if (!authChecked) {
+    return (
+      <div style={{ minHeight: "100vh", background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)" }} />
+    );
+  }
 
   // ── 비밀번호 화면 ──
   if (!authed) {

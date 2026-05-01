@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { verifyAdminRequest } from "@/lib/admin-auth";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -7,7 +8,10 @@ const supabaseAdmin = createClient(
 );
 
 // admin 대시보드용 — anon key RLS 우회가 필요한 테이블들을 supabaseAdmin으로 읽기
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (!verifyAdminRequest(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const [viewsRes, tryRes] = await Promise.all([
       supabaseAdmin

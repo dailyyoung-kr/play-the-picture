@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
+import { verifyAdminRequest } from "@/lib/admin-auth";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -49,6 +50,10 @@ type SpotifyTrack = {
 };
 
 export async function POST(req: NextRequest) {
+  if (!verifyAdminRequest(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { songs, genre } = await req.json();
 
   if (!songs || typeof songs !== "string") {
