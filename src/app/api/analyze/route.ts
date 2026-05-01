@@ -48,9 +48,49 @@ export async function POST(req: NextRequest) {
         dayCount > RATE_LIMITS.perDay
       ) {
         console.warn(`[device_rate_limit] device=${deviceId} min=${minuteCount} hour=${hourCount} day=${dayCount}`);
+
+        // 어느 한도가 가장 빨리 풀리는지 계산해서 정확한 retry 시점 안내
+        let windowMs = 60_000;
+        let limit = RATE_LIMITS.perMinute;
+        let unit: "분당" | "시간당" | "일당" = "분당";
+        if (dayCount > RATE_LIMITS.perDay) {
+          windowMs = 86_400_000; limit = RATE_LIMITS.perDay; unit = "일당";
+        } else if (hourCount > RATE_LIMITS.perHour) {
+          windowMs = 3_600_000; limit = RATE_LIMITS.perHour; unit = "시간당";
+        }
+
+        // 윈도우 내 가장 오래된 요청 시각 + windowMs = 풀리는 시점
+        const { data: oldestRow } = await supabaseAdmin
+          .from("analyze_logs")
+          .select("created_at")
+          .eq("device_id", deviceId)
+          .gte("created_at", new Date(now - windowMs).toISOString())
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        let waitMsg = "잠시 후";
+        let retryAfterSec = 60;
+        if (oldestRow?.created_at) {
+          const oldestMs = new Date(oldestRow.created_at).getTime();
+          const retryAtMs = oldestMs + windowMs;
+          retryAfterSec = Math.max(1, Math.ceil((retryAtMs - now) / 1000));
+          if (retryAfterSec <= 60) {
+            waitMsg = "1분 안에";
+          } else if (retryAfterSec < 3600) {
+            waitMsg = `약 ${Math.ceil(retryAfterSec / 60)}분 후`;
+          } else {
+            waitMsg = `약 ${Math.ceil(retryAfterSec / 3600)}시간 후`;
+          }
+        }
+
         return NextResponse.json(
-          { error: "요청 가능한 분석 횟수를 초과했어요. 잠시 후 다시 시도해주세요 🙏", error_code: "device_rate_limit" },
-          { status: 429 }
+          {
+            error: `${waitMsg} 다시 시도 가능해요 (${unit} ${limit}회 한도) 🙏`,
+            error_code: "device_rate_limit",
+            retry_after_sec: retryAfterSec,
+          },
+          { status: 429, headers: { "Retry-After": String(retryAfterSec) } }
         );
       }
     }
