@@ -171,14 +171,30 @@ export default function ResultPage() {
       const entryId = await saveEntry();
       if (!entryId) throw new Error("저장 실패");
 
-      // 공유 로그 기록 (에러 나도 공유 흐름은 계속)
-      if (isAnalyticsEnabled()) {
-        fetch("/api/log-share", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ entry_id: entryId, device_id: getDeviceId() }),
-        }).catch(() => {});
-      }
+      // 공유 funnel 추적 — 'clicked'(시도) → 'completed'/'cancelled'/'fallback'으로 이행
+      // POST는 fire-and-forget (await X) — navigator.share user activation 보존 우선.
+      // POST 응답에서 row id를 받아 이후 PATCH로 상태 업데이트.
+      const logIdPromise: Promise<string | null> = isAnalyticsEnabled()
+        ? fetch("/api/log-share", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ entry_id: entryId, device_id: getDeviceId(), status: "clicked" }),
+          })
+            .then(r => r.json())
+            .then(d => (typeof d?.id === "string" ? d.id : null))
+            .catch(() => null)
+        : Promise.resolve(null);
+
+      const patchStatus = (status: "completed" | "cancelled" | "fallback") => {
+        logIdPromise.then(id => {
+          if (!id) return;
+          fetch(`/api/log-share/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status }),
+          }).catch(() => {});
+        });
+      };
 
       const url = `https://playthepicture.com/share/${entryId}`;
 
@@ -194,21 +210,28 @@ export default function ResultPage() {
       if (navigator.share) {
         try {
           await navigator.share({ url });
+          patchStatus("completed");
           return; // 성공 시 종료
         } catch (shareErr) {
           const msg = shareErr instanceof Error ? shareErr.message : "";
-          if (msg.includes("abort") || msg === "AbortError") return; // 사용자가 취소
+          const name = shareErr instanceof Error ? shareErr.name : "";
+          if (msg.includes("abort") || name === "AbortError" || msg === "AbortError") {
+            patchStatus("cancelled");
+            return; // 사용자가 취소
+          }
           // share 실패 → 클립보드로 fallback
         }
       }
 
-      // 2) 클립보드 복사 시도
+      // 2) 클립보드 복사 시도 — fallback 단계
       try {
         await navigator.clipboard.writeText(url);
         showToast("링크 복사됐어요! 카카오톡에 붙여넣기해서 공유하세요 ✦");
+        patchStatus("fallback");
       } catch {
         // 3) 클립보드도 안 되면 URL 직접 보여주기
         setShareUrl(url);
+        patchStatus("fallback");
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
