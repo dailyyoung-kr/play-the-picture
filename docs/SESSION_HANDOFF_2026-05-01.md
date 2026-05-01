@@ -418,6 +418,7 @@ hiphop     5.7% (4)
 | share_logs funnel status 도입 (저녁) | 본 문서 §13-8 |
 | 1주 funnel 모니터링 SQL | 본 문서 §13-8 |
 | 구글 Search Console 등록 완료 | 본 문서 §13-9 |
+| iTunes low_score 54곡 batch 처리 | 본 문서 §13-12 |
 | admin 인증 서버 사이드 (오후) | 본 문서 §13-3 |
 | robots/sitemap + 네이버 등록 (오후) | 본 문서 §13-4, §13-5 |
 
@@ -685,9 +686,11 @@ DNS TXT(`google-site-verification=eyT-5C_3Kqs45-vw4AAjLvA-WW23A4VmyNnHOrkwNi8`) 
 🥇 Tier 1 (5월 1주차):
 1. **5/8쯤 share funnel 1주 데이터 분석** ⭐ — silent 진짜 원인 확정
 2. ~~카카오 SDK 도입~~ → **funnel 데이터 보고 결정** (지금 확정 X)
-3. 네이버 웹페이지 수집 요청 (1분)
-4. Meta UTM 매크로 정리 (그대로)
-5. K-pop e=1 풀 보강 (그대로)
+3. **iTunes country fallback + low_score 54곡 batch 재처리** ⭐ (§13-12)
+4. 네이버 웹페이지 수집 요청 (1분)
+5. Meta UTM 매크로 정리 (그대로)
+6. K-pop e=1 풀 보강 (그대로)
+7. rate_limit 시간당 25 적정성 점검 (5/8 데이터 후)
 
 ✅ 5/1 **완료된 작업:**
 - 추천 시스템 검증 (장르 100%, 에너지 ±1, 클리셰 발견)
@@ -701,6 +704,57 @@ DNS TXT(`google-site-verification=eyT-5C_3Kqs45-vw4AAjLvA-WW23A4VmyNnHOrkwNi8`) 
 - 네이버 웹페이지 수집 요청 (1분)
 - Android 카톡 인앱에서 navigator.share 동작 검증 (H1' 확정용, 친구 폰 빌려서)
 - (선택) 5/3쯤 구글 Sitemaps 상태가 "성공"으로 바뀌었는지 확인
+
+### 13-12. iTunes 매칭 이슈 발견 (54곡 low_score) ⭐
+
+**전수 점검 결과 (1,378곡 itunes_preview_cache):**
+| status | rows | pct |
+|---|---|---|
+| matched | 1,017 | 73.8% |
+| matched_by_duration | 191 | 13.9% |
+| manual | 77 | 5.6% |
+| **low_score** | **54** | **3.9%** ❌ 미리듣기 차단 |
+| matched_by_llm | 39 | 2.8% |
+
+**근본 원인 ([itunes-preview/route.ts:70](src/app/api/itunes-preview/route.ts:70)):**
+```ts
+const url = `https://itunes.apple.com/search?term=...&country=kr`;
+```
+country=kr 고정. JP/US fallback 없음.
+
+**검증된 케이스 2건:**
+1. **死ぬのがいいわ (Fujii Kaze)** — KR store에 'Shinunoga E-Wa' 로마자로 등록 → 일본어 검색 시 score 50 차단
+   - JP store 검색하면 일본어 그대로 매칭 + preview 정상
+2. **New Babe (yawn)** — KR store에 'yawn & min' 콜라보로 등록 → 'yawn' 단독 검색 시 score 0 + 엉뚱한 곡(태연 'Something New') 매칭
+   - artist lookup으로 정확한 artistId(1769359210) 찾으면 매칭 가능
+
+**5/1 두 곡 수동 정정 SQL (사용자 Dashboard 실행):**
+```sql
+UPDATE itunes_preview_cache SET 
+  status='matched', preview_url='https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/2e/48/62/2e48623d-7bb1-40cf-9de5-961c08e80790/mzaf_17526466578974827007.plus.aac.p.m4a',
+  match_score=100, matched_track_name='死ぬのがいいわ', matched_artist_name='藤井 風',
+  matched_at=now(), search_country='jp'
+WHERE id='d6462dfd-9844-4d7a-a7a5-c60d2aa96875';
+
+UPDATE itunes_preview_cache SET 
+  status='matched', preview_url='https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/ae/54/cc/ae54cce3-0493-15e5-9fd5-ba2e3279068a/mzaf_8374006990355849644.plus.aac.p.m4a',
+  match_score=100, matched_track_name='New Babe', matched_artist_name='yawn & min',
+  matched_at=now(), search_country='kr'
+WHERE id='69c6527a-6b2a-41e7-8571-9e2814190290';
+```
+
+**다음 세션 권장 작업 (60~90분):**
+1. **route 코드 수정**: KR low_score → JP → US fallback 도입
+2. **batch 재처리 스크립트** (Node, scripts/refetch-itunes-low-score.mjs):
+   - low_score 54곡 + matched_by_duration 일부 의심 곡
+   - kr → jp → us 순회 + artistId lookup 변형 시도
+   - 매칭 시 status='matched_by_lookup' 신규 등급으로 박제
+   - 안 되는 곡은 status='unavailable'로 표시 (영구 차단 대신 "iTunes 등록 X" 명시)
+3. 향후 신곡 추가 시 즉시 다국 검색 적용
+
+**KPI 영향:**
+- 듣기 클릭률 42.9% (5/1) — 이론적으로 상한선 100%지만 4% 곡이 미리듣기 차단되면 실제 가능 상한 96%
+- 54곡 fix 완료 시 듣기 클릭률 ~2~3% 개선 예상
 
 ### 13-11. 다음 세션 시작 멘트 후보
 
