@@ -91,7 +91,7 @@ export default function ResultPage() {
   const showToast = (msg: React.ReactNode, onClick?: () => void) => {
     setToast(msg);
     setToastOnClick(() => onClick ?? null);
-    setTimeout(() => { setToast(""); setToastOnClick(null); }, 3000);
+    setTimeout(() => { setToast(""); setToastOnClick(null); }, 5000);
   };
 
   // 저장 후 id 반환 (이미 저장돼 있으면 캐시된 id 반환)
@@ -226,7 +226,7 @@ export default function ResultPage() {
       // 2) 클립보드 복사 시도 — fallback 단계
       try {
         await navigator.clipboard.writeText(url);
-        showToast("링크 복사됐어요! 카카오톡에 붙여넣기해서 공유하세요 ✦");
+        showToast("링크가 복사됐어요! 원하는 곳에 붙여넣어 공유해보세요 ✦");
         patchStatus("fallback");
       } catch {
         // 3) 클립보드도 안 되면 URL 직접 보여주기
@@ -961,10 +961,12 @@ export default function ResultPage() {
             }}
           >
             <div style={{ width: 36, height: 4, background: "rgba(255,255,255,0.25)", borderRadius: 2, margin: "0 auto 20px" }} />
-            <p style={{ fontSize: 15, color: "#fff", fontWeight: 600, marginBottom: 6 }}>공유 링크</p>
-            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 14 }}>
-              아래 링크를 길게 눌러 복사한 뒤 카카오톡에 보내세요
-            </p>
+            <p style={{ fontSize: 15, color: "#fff", fontWeight: 600, marginBottom: 6 }}>잠깐! 아래 단계로 공유해주세요</p>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 14, lineHeight: 1.8 }}>
+              <div>1️⃣  아래 [링크 복사하기] 버튼 누르기</div>
+              <div>2️⃣  메신저 열고 채팅창 들어가기</div>
+              <div>3️⃣  채팅창에 붙여넣기</div>
+            </div>
             <div style={{
               background: "rgba(255,255,255,0.08)",
               borderRadius: 10,
@@ -982,10 +984,10 @@ export default function ResultPage() {
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(shareUrl);
-                  showToast("링크 복사됐어요! 카카오톡에 붙여넣기해서 공유하세요 ✦");
+                  showToast("링크가 복사됐어요! 원하는 곳에 붙여넣어 공유해보세요 ✦");
                   setShareUrl(null);
                 } catch {
-                  showToast("위 링크를 길게 눌러 복사하세요");
+                  showToast("복사에 실패했어요. 위 링크를 꾹 눌러 직접 복사해주세요!");
                 }
               }}
               style={{
