@@ -19,9 +19,18 @@ export async function POST(req: NextRequest) {
     const finalStatus =
       typeof status === "string" && ALLOWED_STATUS.has(status) ? status : null;
 
+    // UA는 'clicked' insert 시점에만 박힘 (PATCH는 status만 갱신).
+    // 같은 세션이라 환경 안 바뀜 — 비대칭 의도적.
+    const ua = req.headers.get("user-agent")?.slice(0, 500) ?? null;
+
     const { data, error } = await supabaseAdmin
       .from("share_logs")
-      .insert({ entry_id, device_id: device_id ?? null, status: finalStatus })
+      .insert({
+        entry_id,
+        device_id: device_id ?? null,
+        status: finalStatus,
+        user_agent: ua,
+      })
       .select("id")
       .single();
 
