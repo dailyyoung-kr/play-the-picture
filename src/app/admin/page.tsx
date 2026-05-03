@@ -631,6 +631,36 @@ export default function AdminPage() {
   const tryPerShare  = shareCount > 0 ? (tryCount  / shareCount) : null;
   const inflowConvRate = viewCount > 0 ? (tryCount / viewCount) * 100 : null;
 
+  // ── viral 정확도 측정 (5/3 도입) ──
+  // share_views의 raw count는 자가 view + 동일 친구 다회 클릭 노이즈 포함.
+  // entry별 sharer device를 기준으로 "외부 unique 친구 도달"과 "자가 view 비중" 분리.
+  const sharerByEntry = new Map<string, string>();
+  for (const s of filteredShares) {
+    if (s.entry_id && s.device_id) sharerByEntry.set(s.entry_id, s.device_id);
+  }
+  let selfViewCount = 0;
+  let externalViewCount = 0;
+  const externalViewersByEntry = new Map<string, Set<string>>();
+  for (const v of filteredViews) {
+    if (!v.entry_id || !v.device_id) continue;
+    const sharer = sharerByEntry.get(v.entry_id);
+    if (sharer && v.device_id === sharer) {
+      selfViewCount++;
+    } else {
+      externalViewCount++;
+      const set = externalViewersByEntry.get(v.entry_id) ?? new Set<string>();
+      set.add(v.device_id);
+      externalViewersByEntry.set(v.entry_id, set);
+    }
+  }
+  // 공유 1건당 unique 친구 도달 — 진짜 viral coefficient에 가까운 측정
+  const uniqueFriendReach = Array.from(externalViewersByEntry.values())
+    .reduce((sum, viewers) => sum + viewers.size, 0);
+  const uniqueReachPerShare = shareCount > 0 ? (uniqueFriendReach / shareCount) : null;
+  // 자가 view 비중 — raw view 지표의 신뢰도 측정
+  const totalViewsForRatio = selfViewCount + externalViewCount;
+  const selfViewRatio = totalViewsForRatio > 0 ? (selfViewCount / totalViewsForRatio) * 100 : null;
+
   // K-factor (단순화): 성공 유저 1명당 만들어낸 "나도 해보기 클릭" 수
   // = 공유율 × 공유당 유입률
   const kFactor = successUsers > 0 ? (tryCount / successUsers) : null;
@@ -1213,12 +1243,28 @@ export default function AdminPage() {
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+          {/* 1행 — 진짜 viral 측정 (자가 view·동일 친구 다회 클릭 노이즈 제거) */}
           <ConvCard
-            label="공유 1건당 조회"
+            label="공유 1건당 unique 친구 도달"
+            value={uniqueReachPerShare != null ? uniqueReachPerShare.toFixed(2) : "—"}
+            sub={`${uniqueFriendReach}명 / ${shareCount}공유`}
+            accent={shareCount >= 5 && uniqueReachPerShare != null ? (uniqueReachPerShare >= 1.0 ? C.green : uniqueReachPerShare >= 0.5 ? C.yellow : C.red) : C.gray}
+            tooltip={shareCount < 5 ? "공유 5건 미만 — 판단 보류" : "진짜 viral coefficient. 자가 view + 동일 친구 다회 클릭 제외. ≥1.0 작동선"}
+          />
+          <ConvCard
+            label="자가 view 비중"
+            value={selfViewRatio != null ? `${selfViewRatio.toFixed(0)}%` : "—"}
+            sub={`${selfViewCount}자가 / ${totalViewsForRatio}전체`}
+            accent={totalViewsForRatio >= 5 && selfViewRatio != null ? (selfViewRatio < 10 ? C.green : selfViewRatio < 30 ? C.yellow : C.red) : C.gray}
+            tooltip={totalViewsForRatio < 5 ? "조회 5건 미만 — 판단 보류" : "raw 조회 지표의 신뢰도. 30%+ 면 raw 보정 필요. 사용자가 자기 결과 다시 본 비율"}
+          />
+          {/* 2행 — raw 지표 (자가 view 포함, 비교용) */}
+          <ConvCard
+            label="공유 1건당 raw 조회"
             value={viewPerShare != null ? viewPerShare.toFixed(1) : "—"}
-            sub={`${viewCount}조회 / ${shareCount}공유`}
+            sub={`${viewCount}조회 / ${shareCount}공유 · 자가 포함`}
             accent={shareCount >= 5 && viewPerShare != null ? (viewPerShare >= 2 ? C.green : viewPerShare >= 0.5 ? C.yellow : C.red) : C.gray}
-            tooltip={shareCount < 5 ? "공유 5건 미만 — 판단 보류" : "공유 1건이 만들어낸 페이지 조회 수"}
+            tooltip={shareCount < 5 ? "공유 5건 미만 — 판단 보류" : "share_views row 합계 / 공유 건수. 자가 view 포함된 raw count — unique 친구 도달과 비교 가치"}
           />
           <ConvCard
             label="공유 1건당 유입"

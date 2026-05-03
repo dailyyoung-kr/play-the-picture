@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     const [viewsRes, tryRes] = await Promise.all([
       supabaseAdmin
         .from("share_views")
-        .select("id, created_at, device_id")
+        .select("id, created_at, device_id, entry_id")
         .order("created_at", { ascending: false }),
       supabaseAdmin
         .from("try_click")
