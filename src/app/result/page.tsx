@@ -576,38 +576,8 @@ export default function ResultPage() {
             const imgRatio = img.naturalWidth / img.naturalHeight;
             const targetRatio = W / H;
 
-            // iOS Safari Webkit은 ctx.filter "blur(...)" 미지원/약지원 → multi-pass downsample로 직접 blur 구현
-            // 한 번에 큰 비율로 축소하면 픽셀화(격자 모자이크) 발생 → 중간 단계 거쳐 부드러운 blur
-            const downsampleBlur = (sourceImg: HTMLImageElement, finalSize: number): HTMLCanvasElement => {
-              // pass 1: 원본 → 중간 사이즈 (final × 4)
-              const midSize = finalSize * 4;
-              const mid = document.createElement("canvas");
-              mid.width = midSize;
-              mid.height = midSize;
-              const midCtx = mid.getContext("2d");
-              if (midCtx) {
-                midCtx.imageSmoothingEnabled = true;
-                midCtx.imageSmoothingQuality = "high";
-                midCtx.drawImage(sourceImg, 0, 0, midSize, midSize);
-              }
-              // pass 2: 중간 → 최종 사이즈
-              const small = document.createElement("canvas");
-              small.width = finalSize;
-              small.height = finalSize;
-              const sCtx = small.getContext("2d");
-              if (sCtx) {
-                sCtx.imageSmoothingEnabled = true;
-                sCtx.imageSmoothingQuality = "high";
-                sCtx.drawImage(mid, 0, 0, finalSize, finalSize);
-              }
-              return small;
-            };
-
-            // 강블러 cover — final 50 (multi-pass로 부드러움, 픽셀화 X) + brightness 0.55
-            const blurredStrong = downsampleBlur(img, 50);
-            ctx.filter = "brightness(0.55)";
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = "high";
+            // 레이어 1 — 강블러 cover (분위기 색감 깔기, result 패턴 동일)
+            ctx.filter = "blur(40px) brightness(0.55)";
             let coverDw: number, coverDh: number;
             if (imgRatio > targetRatio) {
               coverDh = H;
@@ -618,11 +588,10 @@ export default function ResultPage() {
             }
             const coverScaledW = coverDw * 1.5;
             const coverScaledH = coverDh * 1.5;
-            ctx.drawImage(blurredStrong, (W - coverScaledW) / 2, (H - coverScaledH) / 2, coverScaledW, coverScaledH);
+            ctx.drawImage(img, (W - coverScaledW) / 2, (H - coverScaledH) / 2, coverScaledW, coverScaledH);
 
-            // 약블러 contain — final 100 (multi-pass로 부드러움) + brightness 0.9
-            const blurredSoft = downsampleBlur(img, 100);
-            ctx.filter = "brightness(0.9)";
+            // 레이어 2 — 약블러 contain (album art 형태 보이게, 가운데 25% 위치)
+            ctx.filter = "blur(18px) brightness(0.9)";
             let containDw: number, containDh: number;
             if (imgRatio > targetRatio) {
               containDw = W;
@@ -633,9 +602,9 @@ export default function ResultPage() {
             }
             const containDx = (W - containDw) / 2;
             const containDy = (H - containDh) * 0.25;
-            ctx.drawImage(blurredSoft, containDx, containDy, containDw, containDh);
+            ctx.drawImage(img, containDx, containDy, containDw, containDh);
 
-            // 그라데이션 오버레이
+            // 그라데이션 오버레이 (result 패턴 동일: 0.05 → 0.4 → 0.78)
             ctx.filter = "none";
             const grad = ctx.createLinearGradient(0, 0, 0, H);
             grad.addColorStop(0, "rgba(0,0,0,0.05)");
