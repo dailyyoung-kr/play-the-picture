@@ -106,6 +106,19 @@ export default function ShareClient({ id }: { id: string }) {
       audio.play().then(() => {
         setPreviewState("playing");
         trackEvent("preview_play", { song: songLabel, page: "share" });
+        // 듣기 funnel 측정 — fire-and-forget
+        if (isAnalyticsEnabled()) {
+          fetch("/api/log-preview", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              device_id: getDeviceId(),
+              song: entry.song,
+              artist: entry.artist,
+              action: "played",
+            }),
+          }).catch(() => {});
+        }
       }).catch(() => {
         setPreviewState("done");
       });
@@ -331,6 +344,19 @@ export default function ShareClient({ id }: { id: string }) {
                   song: `${entry.song} - ${entry.artist}`,
                   page: "share",
                 });
+                // 듣기 funnel 측정 — 30초 완료
+                if (isAnalyticsEnabled()) {
+                  fetch("/api/log-preview", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      device_id: getDeviceId(),
+                      song: entry.song,
+                      artist: entry.artist,
+                      action: "completed",
+                    }),
+                  }).catch(() => {});
+                }
                 setPreviewState("ready");
                 setPreviewProgress(0);
               }}

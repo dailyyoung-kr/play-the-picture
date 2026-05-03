@@ -434,6 +434,20 @@ export default function ResultPage() {
       audio.play().then(() => {
         setPreviewState("playing");
         trackEvent("preview_play", { song: result?.song, page: "result" });
+        // 듣기 funnel 측정 — fire-and-forget (user activation 영향 0)
+        if (isAnalyticsEnabled() && result) {
+          const songParts = result.song.split(" - ");
+          fetch("/api/log-preview", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              device_id: getDeviceId(),
+              song: songParts[0] ?? result.song,
+              artist: songParts.slice(1).join(" - "),
+              action: "played",
+            }),
+          }).catch(() => {});
+        }
       }).catch(() => {
         // 재생 실패 시 fallback: 바로 본편 버튼으로
         setPreviewState("done");
@@ -624,6 +638,20 @@ export default function ResultPage() {
             preload="none"
             onEnded={() => {
               trackEvent("preview_complete", { song: result?.song, page: "result" });
+              // 듣기 funnel 측정 — 30초 완료
+              if (isAnalyticsEnabled() && result) {
+                const songParts = result.song.split(" - ");
+                fetch("/api/log-preview", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    device_id: getDeviceId(),
+                    song: songParts[0] ?? result.song,
+                    artist: songParts.slice(1).join(" - "),
+                    action: "completed",
+                  }),
+                }).catch(() => {});
+              }
               // 재생 완료 → 다시 듣기 가능하도록 ready로 복귀
               setPreviewState("ready");
               setPreviewProgress(0);
