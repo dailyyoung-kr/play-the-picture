@@ -323,7 +323,7 @@ export default function AdminPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [photoRes, prefRes, analyzeRes, entriesRes, shareRes, listenRes, viewRes, logRowsRes, saveRes, previewRes, itunesRes] = await Promise.all([
+    const [photoRes, prefRes, analyzeRes, entriesRes, shareRes, listenRes, viewRes, logRowsRes, saveRes, previewRes] = await Promise.all([
       supabase.from("photo_upload_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("preference_logs").select("id, created_at, genre, energy, device_id").order("created_at", { ascending: false }),
       supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, song, artist, device_id").order("created_at", { ascending: false }),
@@ -331,11 +331,10 @@ export default function AdminPage() {
       supabase.from("share_logs").select("id, created_at, device_id, entry_id").order("created_at", { ascending: false }),
       supabase.from("listen_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("result_view_logs").select("id, created_at, duration_seconds, exit_type, device_id").order("created_at", { ascending: false }),
-      // share_views / try_click — RLS 우회 위해 supabaseAdmin 경유 서버 API 사용
-      fetch("/api/admin/log-rows", { credentials: "same-origin" }).then(r => r.json()) as Promise<{ shareViews: LogRow[]; tryClicks: LogRow[] }>,
+      // share_views / try_click / itunes_preview_cache — RLS 우회 위해 supabaseAdmin 경유 서버 API 사용
+      fetch("/api/admin/log-rows", { credentials: "same-origin" }).then(r => r.json()) as Promise<{ shareViews: LogRow[]; tryClicks: LogRow[]; itunes: ItunesCacheRow[] }>,
       supabase.from("save_logs").select("id, created_at, entry_id, device_id").order("created_at", { ascending: false }),
       supabase.from("preview_logs").select("id, created_at, device_id, song, artist, action").order("created_at", { ascending: false }),
-      supabase.from("itunes_preview_cache").select("status"),
     ]);
 
     if (!photoRes.error) setPhotoLogs(photoRes.data ?? []);
@@ -350,12 +349,11 @@ export default function AdminPage() {
     else console.error("[admin] result_view_logs 로드 실패:", viewRes.error.message);
     setShareViews(logRowsRes.shareViews ?? []);
     setTryClicks(logRowsRes.tryClicks ?? []);
+    setItunesCache(logRowsRes.itunes ?? []);
     if (!saveRes.error) setSaveLogs(saveRes.data ?? []);
     else console.error("[admin] save_logs 로드 실패:", saveRes.error.message);
     if (!previewRes.error) setPreviewLogs((previewRes.data ?? []) as PreviewLog[]);
     else console.error("[admin] preview_logs 로드 실패:", previewRes.error.message);
-    if (!itunesRes.error) setItunesCache((itunesRes.data ?? []) as ItunesCacheRow[]);
-    else console.error("[admin] itunes_preview_cache 로드 실패:", itunesRes.error.message);
 
     setLastRefresh(new Date());
     setLoading(false);

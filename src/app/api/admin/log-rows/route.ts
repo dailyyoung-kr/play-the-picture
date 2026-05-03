@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    const [viewsRes, tryRes] = await Promise.all([
+    const [viewsRes, tryRes, itunesRes] = await Promise.all([
       supabaseAdmin
         .from("share_views")
         .select("id, created_at, device_id, entry_id")
@@ -22,14 +22,20 @@ export async function GET(req: NextRequest) {
         .from("try_click")
         .select("id, created_at, device_id")
         .order("created_at", { ascending: false }),
+      supabaseAdmin
+        .from("itunes_preview_cache")
+        .select("status")
+        .limit(5000),
     ]);
 
     if (viewsRes.error) console.error("[admin/log-rows] share_views:", viewsRes.error.message);
     if (tryRes.error) console.error("[admin/log-rows] try_click:", tryRes.error.message);
+    if (itunesRes.error) console.error("[admin/log-rows] itunes_preview_cache:", itunesRes.error.message);
 
     return NextResponse.json({
       shareViews: viewsRes.data ?? [],
       tryClicks: tryRes.data ?? [],
+      itunes: itunesRes.data ?? [],
     });
   } catch (e) {
     console.error("[admin/log-rows] 오류:", e);
