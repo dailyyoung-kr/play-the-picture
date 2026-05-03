@@ -576,8 +576,26 @@ export default function ResultPage() {
             const imgRatio = img.naturalWidth / img.naturalHeight;
             const targetRatio = W / H;
 
-            // 강블러 cover (분위기 색감)
-            ctx.filter = "blur(40px) brightness(0.55)";
+            // iOS Safari Webkit은 ctx.filter "blur(...)" 미지원/약지원 → downsample+upsample 트릭으로 직접 blur 구현
+            // small 사이즈 작을수록 blur 강함 (강블러: 50, 약블러: 110)
+            const downsampleBlur = (sourceImg: HTMLImageElement, smallSize: number): HTMLCanvasElement => {
+              const small = document.createElement("canvas");
+              small.width = smallSize;
+              small.height = smallSize;
+              const sCtx = small.getContext("2d");
+              if (sCtx) {
+                sCtx.imageSmoothingEnabled = true;
+                sCtx.imageSmoothingQuality = "high";
+                sCtx.drawImage(sourceImg, 0, 0, smallSize, smallSize);
+              }
+              return small;
+            };
+
+            // 강블러 cover — small 50 (blur 강함) + brightness 0.55 (iOS Safari OK)
+            const blurredStrong = downsampleBlur(img, 50);
+            ctx.filter = "brightness(0.55)";
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
             let coverDw: number, coverDh: number;
             if (imgRatio > targetRatio) {
               coverDh = H;
@@ -588,10 +606,11 @@ export default function ResultPage() {
             }
             const coverScaledW = coverDw * 1.5;
             const coverScaledH = coverDh * 1.5;
-            ctx.drawImage(img, (W - coverScaledW) / 2, (H - coverScaledH) / 2, coverScaledW, coverScaledH);
+            ctx.drawImage(blurredStrong, (W - coverScaledW) / 2, (H - coverScaledH) / 2, coverScaledW, coverScaledH);
 
-            // 약블러 contain (album art 형태)
-            ctx.filter = "blur(18px) brightness(0.9)";
+            // 약블러 contain — small 110 (blur 약함) + brightness 0.9
+            const blurredSoft = downsampleBlur(img, 110);
+            ctx.filter = "brightness(0.9)";
             let containDw: number, containDh: number;
             if (imgRatio > targetRatio) {
               containDw = W;
@@ -602,7 +621,7 @@ export default function ResultPage() {
             }
             const containDx = (W - containDw) / 2;
             const containDy = (H - containDh) * 0.25;
-            ctx.drawImage(img, containDx, containDy, containDw, containDh);
+            ctx.drawImage(blurredSoft, containDx, containDy, containDw, containDh);
 
             // 그라데이션 오버레이
             ctx.filter = "none";
