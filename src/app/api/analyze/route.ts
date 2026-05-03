@@ -7,15 +7,18 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// Rate limit 임계값 — 실유저 상위 케이스(최대 33회/일) 보호 + 어뷰저 차단
+// Rate limit 임계값 — 실유저 상위 케이스(최대 45회/일) 보호 + 어뷰저 차단
 // 2026-04-30: 시간당 15 → 20 완화. 4월 누적 6건 모두 광고 유입 정상 헤비유저(13~19분간 14~15회).
 // 2026-05-01: 시간당 20 → 25 완화. 5/1 컬렉터형 헤비유저(K-pop 19회 시도 후 차단) 발생.
 //             비용 BEP(CAC ₩500 / 회당 ₩35 = 14회) 대비 25는 viral 헤비유저 보호 우선,
 //             분당 5 + 일당 50 cap이 어뷰저(시간당 50+)는 그대로 차단.
+// 2026-05-03: 시간당 25 → 30, 일당 50 → 60 완화. 5/3 viral chain의 A(c70c4974, ios_safari 자연 유입,
+//             공유 3건 진짜 viral seeder)가 시간당 25 한도에 6번 fail. 사진 한 묶음으로 장르·선호 바꿔
+//             45회 분석한 자기 만족형 헤비 유저. 시간당 30은 viral 헤비 보호, 일당 60은 cap 헤드룸.
 const RATE_LIMITS = {
   perMinute: 5,   // 분당 5회: 인간 물리적 한계(분당 2회)의 2배 (봇 방어)
-  perHour: 25,    // 시간당 25회: viral 헤비유저 보호 (시간당 50+ 어뷰저는 분당 5/일당 50 cap이 차단)
-  perDay: 50,     // 일당 50회: 최대 33회 파워유저 보호 + 극단 어뷰저 차단
+  perHour: 30,    // 시간당 30회: viral 헤비유저 보호 (시간당 50+ 어뷰저는 분당 5/일당 60 cap이 차단)
+  perDay: 60,     // 일당 60회: 최대 45회 파워유저 + 헤드룸 + 극단 어뷰저 차단
 };
 
 export async function POST(req: NextRequest) {
@@ -27,7 +30,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "사진이 없어요", error_code: "no_photos" }, { status: 400 });
     }
 
-    // ── Device Rate Limit: 분당 5 / 시간당 20 / 일당 50 ──
+    // ── Device Rate Limit: 분당 5 / 시간당 30 / 일당 60 ──
     // /preference에서 이미 status="start" 로그 insert 후 호출되므로 본인 포함 count
     if (deviceId) {
       const now = Date.now();
@@ -87,7 +90,7 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json(
           {
-            error: `${waitMsg} 다시 시도 가능해요 (${unit} ${limit}회 한도) 🙏`,
+            error: `${waitMsg} 다시 시도 가능해요 (${unit} ${limit}회 한도)`,
             error_code: "device_rate_limit",
             retry_after_sec: retryAfterSec,
           },
