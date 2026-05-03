@@ -627,7 +627,7 @@ export default function ResultPage() {
               containDw = H * imgRatio;
             }
             const containDx = (W - containDw) / 2;
-            const containDy = (H - containDh) * 0.4;
+            const containDy = (H - containDh) * 0.25;
             ctx.drawImage(blurSoft, containDx, containDy, containDw, containDh);
 
             // 그라데이션 오버레이
