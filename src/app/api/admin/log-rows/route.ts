@@ -13,7 +13,28 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    const [viewsRes, tryRes, itunesRes] = await Promise.all([
+    // itunes_preview_cache 페이지네이션 — Supabase PostgREST default max-rows 1000 제한 우회.
+    // 1,384곡 (5/3 기준)이라 limit·range 명시해도 잘림. 1000개씩 page 단위로 모두 가져오기.
+    async function fetchAllItunesStatus(): Promise<{ status: string | null }[]> {
+      const all: { status: string | null }[] = [];
+      const pageSize = 1000;
+      for (let from = 0; from < 50000; from += pageSize) { // 안전 상한 50,000
+        const { data, error } = await supabaseAdmin
+          .from("itunes_preview_cache")
+          .select("status")
+          .range(from, from + pageSize - 1);
+        if (error) {
+          console.error("[admin/log-rows] itunes_preview_cache page:", error.message);
+          break;
+        }
+        if (!data || data.length === 0) break;
+        all.push(...(data as { status: string | null }[]));
+        if (data.length < pageSize) break;
+      }
+      return all;
+    }
+
+    const [viewsRes, tryRes, itunesData] = await Promise.all([
       supabaseAdmin
         .from("share_views")
         .select("id, created_at, device_id, entry_id")
@@ -22,20 +43,16 @@ export async function GET(req: NextRequest) {
         .from("try_click")
         .select("id, created_at, device_id")
         .order("created_at", { ascending: false }),
-      supabaseAdmin
-        .from("itunes_preview_cache")
-        .select("status")
-        .limit(5000),
+      fetchAllItunesStatus(),
     ]);
 
     if (viewsRes.error) console.error("[admin/log-rows] share_views:", viewsRes.error.message);
     if (tryRes.error) console.error("[admin/log-rows] try_click:", tryRes.error.message);
-    if (itunesRes.error) console.error("[admin/log-rows] itunes_preview_cache:", itunesRes.error.message);
 
     return NextResponse.json({
       shareViews: viewsRes.data ?? [],
       tryClicks: tryRes.data ?? [],
-      itunes: itunesRes.data ?? [],
+      itunes: itunesData,
     });
   } catch (e) {
     console.error("[admin/log-rows] 오류:", e);
