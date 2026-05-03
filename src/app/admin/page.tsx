@@ -11,6 +11,7 @@ type EntryRow = { id: string; date: string; song: string; artist: string; genre:
 type ListenLog = { id: string; created_at: string; device_id?: string | null };
 type ViewLog  = { id: string; created_at: string; duration_seconds: number | null; exit_type: string | null; device_id?: string | null };
 type LogRow = { id: string; created_at: string; device_id?: string | null; entry_id?: string | null };
+type StorySaveLog = { id: string; created_at: string; device_id: string | null; entry_id: string | null; status: string; user_agent: string | null };
 type SaveLog = { id: string; created_at: string; entry_id: string; device_id: string };
 type PreviewLog = { id: string; created_at: string; device_id: string; song: string | null; artist: string | null; action: "played" | "completed" };
 type ItunesCacheRow = { status: string | null };
@@ -307,6 +308,7 @@ export default function AdminPage() {
   const [saveLogs, setSaveLogs] = useState<SaveLog[]>([]);
   const [previewLogs, setPreviewLogs] = useState<PreviewLog[]>([]);
   const [itunesCache, setItunesCache] = useState<ItunesCacheRow[]>([]);
+  const [storySaveLogs, setStorySaveLogs] = useState<StorySaveLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [spotifyStatus, setSpotifyStatus] = useState<SpotifyStatus | null>(null);
@@ -332,7 +334,7 @@ export default function AdminPage() {
       supabase.from("listen_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("result_view_logs").select("id, created_at, duration_seconds, exit_type, device_id").order("created_at", { ascending: false }),
       // share_views / try_click / itunes_preview_cache — RLS 우회 위해 supabaseAdmin 경유 서버 API 사용
-      fetch("/api/admin/log-rows", { credentials: "same-origin" }).then(r => r.json()) as Promise<{ shareViews: LogRow[]; tryClicks: LogRow[]; itunes: ItunesCacheRow[] }>,
+      fetch("/api/admin/log-rows", { credentials: "same-origin" }).then(r => r.json()) as Promise<{ shareViews: LogRow[]; tryClicks: LogRow[]; itunes: ItunesCacheRow[]; storySaveLogs: StorySaveLog[] }>,
       supabase.from("save_logs").select("id, created_at, entry_id, device_id").order("created_at", { ascending: false }),
       supabase.from("preview_logs").select("id, created_at, device_id, song, artist, action").order("created_at", { ascending: false }),
     ]);
@@ -350,6 +352,7 @@ export default function AdminPage() {
     setShareViews(logRowsRes.shareViews ?? []);
     setTryClicks(logRowsRes.tryClicks ?? []);
     setItunesCache(logRowsRes.itunes ?? []);
+    setStorySaveLogs(logRowsRes.storySaveLogs ?? []);
     if (!saveRes.error) setSaveLogs(saveRes.data ?? []);
     else console.error("[admin] save_logs 로드 실패:", saveRes.error.message);
     if (!previewRes.error) setPreviewLogs((previewRes.data ?? []) as PreviewLog[]);
@@ -509,6 +512,7 @@ export default function AdminPage() {
   const filteredViews   = shareViews.filter(l => filterTs(l.created_at) && filterDevice(l));
   const filteredTry     = tryClicks.filter(l => filterTs(l.created_at) && filterDevice(l));
   const filteredResultViews = viewLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
+  const filteredStorySaves = storySaveLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
 
   // ── 퍼널 수치 ──
   const photoCount = filteredPhotos.length;
@@ -571,10 +575,14 @@ export default function AdminPage() {
   const successDevices = new Set(filteredAnalyze.filter(l => l.status === "success").map(l => l.device_id).filter((d): d is string => !!d));
   const saveDevices = new Set(filteredSaveLogs.map(l => l.device_id).filter((d): d is string => !!d));
   const shareDevices = new Set(filteredShares.map(l => l.device_id).filter((d): d is string => !!d));
+  // 스토리 저장 device (story_save_logs clicked 이상)
+  const storySaveDevices = new Set(filteredStorySaves.map(l => l.device_id).filter((d): d is string => !!d));
+  // 공유 갈래 = URL 공유 ∪ 스토리 저장 합집합 (둘 다 viral 행동)
+  const shareOrStoryDevices = new Set([...shareDevices, ...storySaveDevices]);
   // 갈래별 진입률 (성공 유저 기준)
   const listenBranchUsers = Array.from(successDevices).filter(d => listenSatisfiedDevices.has(d)).length;
   const saveBranchUsers   = Array.from(successDevices).filter(d => saveDevices.has(d)).length;
-  const shareBranchUsers  = Array.from(successDevices).filter(d => shareDevices.has(d)).length;
+  const shareBranchUsers  = Array.from(successDevices).filter(d => shareOrStoryDevices.has(d)).length;
   const listenBranchRate = pct(listenBranchUsers, successUsers);
   const saveBranchRate   = pct(saveBranchUsers, successUsers);
   const shareBranchRate  = pct(shareBranchUsers, successUsers);
@@ -719,6 +727,37 @@ export default function AdminPage() {
   // 자가 view 비중 — raw view 지표의 신뢰도 측정
   const totalViewsForRatio = selfViewCount + externalViewCount;
   const selfViewRatio = totalViewsForRatio > 0 ? (selfViewCount / totalViewsForRatio) * 100 : null;
+
+  // ── 스토리 저장 funnel (story_save_logs) ──
+  // funnel: clicked → generated → shared / cancelled / downloaded / failed
+  // 상태가 PATCH로 진행되어 row 1개가 최종 status까지 도달 (share_logs 패턴 동일)
+  const storyClickedCount   = filteredStorySaves.length; // 모든 row = clicked부터 시작
+  const storyGeneratedCount = filteredStorySaves.filter(l => ["generated", "shared", "cancelled", "downloaded"].includes(l.status)).length;
+  const storySharedCount    = filteredStorySaves.filter(l => l.status === "shared").length;
+  const storyDownloadedCount = filteredStorySaves.filter(l => l.status === "downloaded").length;
+  const storyCancelledCount = filteredStorySaves.filter(l => l.status === "cancelled").length;
+  const storyFailedCount    = filteredStorySaves.filter(l => l.status === "failed").length;
+  // 환경별 분류 (UA) — 인스타 인앱 vs 외부 비교 (광고 ROAS 시너지 신호)
+  const classifyStoryUA = (ua: string | null): string => {
+    if (!ua) return "null_ua";
+    if (/KAKAOTALK/i.test(ua)) return "kakao_inapp";
+    if (/Instagram/i.test(ua)) return "insta_inapp";
+    if (/FBAN|FBAV/i.test(ua)) return "fb_inapp";
+    if (/; wv\)/.test(ua)) return "android_webview";
+    if (/CriOS/.test(ua)) return "ios_chrome";
+    if (/iPhone|iPad/.test(ua)) return "ios_safari";
+    if (/Macintosh/.test(ua)) return "mac_desktop";
+    if (/Windows/.test(ua)) return "win_desktop";
+    if (/Android/.test(ua)) return "android_chrome";
+    return "other";
+  };
+  const storyEnvCounts: Record<string, number> = {};
+  for (const l of filteredStorySaves) {
+    const env = classifyStoryUA(l.user_agent);
+    storyEnvCounts[env] = (storyEnvCounts[env] ?? 0) + 1;
+  }
+  const storyInstaInappRate = storyClickedCount > 0 ? pct(storyEnvCounts["insta_inapp"] ?? 0, storyClickedCount) : "—";
+  const storyIosSafariRate  = storyClickedCount > 0 ? pct(storyEnvCounts["ios_safari"] ?? 0, storyClickedCount) : "—";
 
   // K-factor (단순화): 성공 유저 1명당 만들어낸 "나도 해보기 클릭" 수
   // = 공유율 × 공유당 유입률
@@ -1292,26 +1331,48 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* ↑ 공유 갈래 */}
+        {/* ↑ 공유 갈래 — URL 공유 + 스토리 저장 sub-funnel */}
         <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "14px 16px" }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 }}>
             <span style={{ fontSize: 16 }}>↑</span>
             <span style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", fontWeight: 600 }}>공유 갈래</span>
             <span style={{ marginLeft: "auto", fontSize: 16, fontWeight: 700, color: "#fff" }}>{shareBranchRate}</span>
           </div>
-          <p style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 12 }}>{shareBranchUsers}명 / {successUsers}명 진입</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>↑ 공유 건수</span>
-              <span style={{ fontWeight: 600, color: "#fff" }}>{shareCount}건</span>
+          <p style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 12 }}>{shareBranchUsers}명 / {successUsers}명 진입 (URL 공유 ∪ 스토리 저장)</p>
+          {/* sub 1: URL 공유 */}
+          <div style={{ borderLeft: "2px solid rgba(255,255,255,0.12)", paddingLeft: 10, marginBottom: 10 }}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 4, fontWeight: 600 }}>🔗 URL 공유</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>↑ 공유 건수</span>
+                <span style={{ fontWeight: 600, color: "#fff" }}>{shareCount}건</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>👁 unique 친구 도달</span>
+                <span style={{ fontWeight: 600, color: "#fff" }}>{uniqueReachPerShare != null ? uniqueReachPerShare.toFixed(2) : "—"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>→ 나도 해보기</span>
+                <span style={{ fontWeight: 600, color: "#fff" }}>{tryCount}건</span>
+              </div>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>👁 unique 친구 도달</span>
-              <span style={{ fontWeight: 600, color: "#fff" }}>{uniqueReachPerShare != null ? uniqueReachPerShare.toFixed(2) : "—"}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>→ 나도 해보기</span>
-              <span style={{ fontWeight: 600, color: "#fff" }}>{tryCount}건</span>
+          </div>
+          {/* sub 2: 스토리 저장 (NEW) */}
+          <div style={{ borderLeft: "2px solid rgba(255,255,255,0.12)", paddingLeft: 10 }}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 4, fontWeight: 600 }}>📷 스토리 저장</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>📷 클릭</span>
+                <span style={{ fontWeight: 600, color: "#fff" }}>{storyClickedCount}건</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>✓ 이미지 생성</span>
+                <span style={{ fontWeight: 600, color: "#fff" }}>{storyGeneratedCount}건{storyClickedCount > 0 ? ` (${pct(storyGeneratedCount, storyClickedCount)})` : ""}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>✦ Share completed</span>
+                <span style={{ fontWeight: 600, color: "#fff" }}>{storySharedCount}건{storyGeneratedCount > 0 ? ` (${pct(storySharedCount, storyGeneratedCount)})` : ""}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -1393,6 +1454,42 @@ export default function AdminPage() {
             accent={shareCount >= 5 && tryPerShare != null ? (tryPerShare >= 0.5 ? C.green : tryPerShare >= 0.2 ? C.yellow : C.red) : C.gray}
             tooltip={shareCount < 5 ? "공유 5건 미만 — 판단 보류" : "공유 1건이 만들어낸 나도해보기 클릭 수"}
           />
+        </div>
+      )}
+
+      {/* 📷 스토리 저장 환경별 — 광고 ROAS 시너지 신호 (인스타 인앱 비율 ↑ = Meta 알고리즘 학습 효과) */}
+      {storyClickedCount > 0 && (
+        <div style={{
+          background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "12px 16px", marginBottom: 20,
+        }}>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 8, fontWeight: 600 }}>
+            📷 스토리 저장 환경별 ({storyClickedCount}건)
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
+            <div>
+              <span style={{ color: "rgba(255,255,255,0.4)" }}>insta_inapp: </span>
+              <span style={{ fontWeight: 600, color: "#fff" }}>{storyInstaInappRate}</span>
+              <span style={{ color: "rgba(255,255,255,0.35)" }}> ({storyEnvCounts["insta_inapp"] ?? 0})</span>
+            </div>
+            <div>
+              <span style={{ color: "rgba(255,255,255,0.4)" }}>ios_safari: </span>
+              <span style={{ fontWeight: 600, color: "#fff" }}>{storyIosSafariRate}</span>
+              <span style={{ color: "rgba(255,255,255,0.35)" }}> ({storyEnvCounts["ios_safari"] ?? 0})</span>
+            </div>
+            {Object.entries(storyEnvCounts)
+              .filter(([env]) => env !== "insta_inapp" && env !== "ios_safari")
+              .sort((a, b) => b[1] - a[1])
+              .map(([env, count]) => (
+                <div key={env}>
+                  <span style={{ color: "rgba(255,255,255,0.4)" }}>{env}: </span>
+                  <span style={{ fontWeight: 600, color: "#fff" }}>{pct(count, storyClickedCount)}</span>
+                  <span style={{ color: "rgba(255,255,255,0.35)" }}> ({count})</span>
+                </div>
+              ))}
+          </div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 8 }}>
+            인스타 인앱 비율 ↑ = 광고 viral 사이클 작동 신호. 다운로드 fallback {storyDownloadedCount}건 / 취소 {storyCancelledCount}건 / 실패 {storyFailedCount}건
+          </div>
         </div>
       )}
 

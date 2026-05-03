@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
       return all;
     }
 
-    const [viewsRes, tryRes, itunesData] = await Promise.all([
+    const [viewsRes, tryRes, itunesData, storySaveRes] = await Promise.all([
       supabaseAdmin
         .from("share_views")
         .select("id, created_at, device_id, entry_id")
@@ -44,15 +44,21 @@ export async function GET(req: NextRequest) {
         .select("id, created_at, device_id")
         .order("created_at", { ascending: false }),
       fetchAllItunesStatus(),
+      supabaseAdmin
+        .from("story_save_logs")
+        .select("id, created_at, device_id, entry_id, status, user_agent")
+        .order("created_at", { ascending: false }),
     ]);
 
     if (viewsRes.error) console.error("[admin/log-rows] share_views:", viewsRes.error.message);
     if (tryRes.error) console.error("[admin/log-rows] try_click:", tryRes.error.message);
+    if (storySaveRes.error) console.error("[admin/log-rows] story_save_logs:", storySaveRes.error.message);
 
     return NextResponse.json({
       shareViews: viewsRes.data ?? [],
       tryClicks: tryRes.data ?? [],
       itunes: itunesData,
+      storySaveLogs: storySaveRes.data ?? [],
     });
   } catch (e) {
     console.error("[admin/log-rows] 오류:", e);
