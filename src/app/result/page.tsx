@@ -3,7 +3,41 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseWithDeviceId } from "@/lib/supabase";
-import { Archive, Music, Play, Pause, Bookmark, Camera, RotateCcw, Check } from "lucide-react";
+import { Archive, Music, Play, Pause, Bookmark, RotateCcw, Check } from "lucide-react";
+
+// Instagram 아이콘 — lucide-react가 브랜드 트레이드마크 이슈로 제거함, inline SVG로 대체
+const InstagramIcon = ({ size = 15, strokeWidth = 1.5 }: { size?: number; strokeWidth?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={strokeWidth}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+    <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+  </svg>
+);
+
+// 카카오톡 아이콘 — 카톡 말풍선 모양 outline
+const KakaoTalkIcon = ({ size = 15, strokeWidth = 1.5 }: { size?: number; strokeWidth?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={strokeWidth}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12 3C6.5 3 2 6.6 2 11c0 2.8 1.8 5.3 4.5 6.7L5.5 21l4.2-2.6c.7.1 1.5.2 2.3.2 5.5 0 10-3.6 10-8s-4.5-8-10-8z" />
+  </svg>
+);
 import { getDeviceId } from "@/lib/device";
 import { trackEvent } from "@/lib/gtag";
 import { pixelViewContent, pixelLead } from "@/lib/fpixel";
@@ -55,7 +89,10 @@ export default function ResultPage() {
   } | null>(null);
   const [loadingLinks, setLoadingLinks] = useState(false);
   const [modalIndex, setModalIndex] = useState<number | null>(null);
-  const cardRef = useRef<HTMLDivElement>(null);
+  const [savingStory, setSavingStory] = useState(false);
+  // Canvas API로 처리된 storyCard 배경 (lazy — handleStorySave 클릭 시점에만 생성)
+  const [storyBgBase64, setStoryBgBase64] = useState<string | null>(null);
+  const storyCardRef = useRef<HTMLDivElement>(null);
 
   // ── iTunes 30초 미리듣기 ──
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -151,7 +188,7 @@ export default function ResultPage() {
 
       setIsSaved(true);
       showToast(
-        <span>✦ 오늘의 기록이 저장됐어요 · <span style={{ color: "#C4687A" }}>모아보기 →</span></span>,
+        <span>아카이브에 보관됐어요 · <span style={{ color: "#C4687A" }}>모아보기 →</span></span>,
         () => router.push("/journal")
       );
     } catch (e) {
@@ -244,48 +281,179 @@ export default function ResultPage() {
   };
 
 
-  const handleSave = async () => {
-    if (!cardRef.current) return;
-    setSaving(true);
-    try {
-      const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(cardRef.current, {
-        backgroundColor: "#0d1218",
-        useCORS: true,
-        allowTaint: true,
-        scale: 2,
-        logging: false,
-        foreignObjectRendering: false,
-        imageTimeout: 15000,
-        onclone: (clonedDoc: Document) => {
-          const el = clonedDoc.querySelector("#result-card") as HTMLElement;
-          if (el) el.style.background = "linear-gradient(158deg, #0d1a10 0%, #1a0d18 100%)";
-        },
+  // 스토리용 이미지 저장 후 음악 스티커 안내 토스트
+  const showStorySavedToast = () => {
+    if (!result?.song) {
+      showToast("스토리용 이미지가 저장됐어요!");
+      return;
+    }
+    const songStr = result.song;
+    const dashIdx = songStr.indexOf(" - ");
+    const songName = dashIdx >= 0 ? songStr.slice(0, dashIdx).trim() : songStr.trim();
+    const artistName = dashIdx >= 0 ? songStr.slice(dashIdx + 3).trim() : "";
+    showToast(
+      <>
+        스토리용 이미지가 저장됐어요!
+        <br />
+        인스타 스토리에
+        <br />
+        <strong style={{ color: "#C4687A" }}>
+          [{songName}{artistName ? ` - ${artistName}` : ""}]
+        </strong>
+        <br />
+        음악 스티커도 함께 추가해보세요
+      </>
+    );
+  };
+
+  // ── 스토리용 이미지 저장 — 9:16 카드 캡처 → Web Share L2 (files) ──
+  // 1차: modern-screenshot (SVG foreignObject 기반 — 폰트·이모지·flex 정확)
+  // 2차 fallback: html2canvas (라이브러리 실패 시 안전망)
+  const handleStorySave = async () => {
+    if (!storyCardRef.current || !result) return;
+    setSavingStory(true);
+    trackEvent("story_save_click", { song: result.song });
+
+    // entries 저장 (이미 보관·공유로 생성됐으면 재사용) — entry_id 매핑용
+    const entryId = await saveEntry();
+
+    // story_save_logs 트래킹 — clicked POST 후 status PATCH 흐름 (share_logs 패턴 동일)
+    const logIdPromise: Promise<string | null> = isAnalyticsEnabled() && entryId
+      ? fetch("/api/log-story-save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ entry_id: entryId, device_id: getDeviceId(), status: "clicked" }),
+        })
+          .then((r) => r.json())
+          .then((d) => (typeof d?.id === "string" ? d.id : null))
+          .catch(() => null)
+      : Promise.resolve(null);
+
+    const patchStoryStatus = (status: "generated" | "shared" | "cancelled" | "downloaded" | "failed") => {
+      logIdPromise.then((id) => {
+        if (!id) return;
+        fetch(`/api/log-story-save/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
+        }).catch(() => {});
       });
+    };
 
-      const kst = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-    const today = kst.replace(/\.\s*/g, '-').replace(/-$/, '').trim();
-      const fileName = `play-the-picture-${today}.png`;
+    try {
+      // Lazy storyBg 생성 (캐시 없으면 proxy fetch + Canvas) — 첫 클릭만 ~1~2초 추가
+      if (!storyBgBase64 && result.albumArt) {
+        const bg = await prepareStoryBg(result.albumArt);
+        if (bg) {
+          setStoryBgBase64(bg);
+          // React render 반영 대기 (storyCard에 박힌 후 캡처)
+          await new Promise((r) => setTimeout(r, 100));
+        }
+      }
 
-      const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
-      if (isMobile) {
-        const dataUrl = canvas.toDataURL("image/png");
-        const newTab = window.open();
-        if (newTab) {
-          newTab.document.write(`<img src="${dataUrl}" style="max-width:100%" />`);
-          newTab.document.title = fileName;
+      let blob: Blob | null = null;
+
+      // 캡처 직전 — storyCard 안 모든 img를 강제 decode (이미지 누락 방지)
+      const imgs = Array.from(storyCardRef.current.querySelectorAll("img"));
+      await Promise.all(
+        imgs.map(async (img) => {
+          if (img.complete && img.naturalWidth > 0) return;
+          try {
+            await img.decode();
+          } catch {
+            /* decode 실패해도 진행 */
+          }
+        })
+      );
+      console.log("[story-save] 모든 img decode 완료, count:", imgs.length);
+
+      // 1차: html2canvas (Canvas로 사전 처리된 storyBgBase64는 단순 img라 정상 그림 + 폰트는 scale 2 보강)
+      try {
+        const html2canvas = (await import("html2canvas")).default;
+        const canvas = await html2canvas(storyCardRef.current, {
+          backgroundColor: "#0d1218",
+          useCORS: true,
+          allowTaint: true,
+          scale: 2, // 폰트 선명도 ↑ (결과 2160×3840)
+          logging: false,
+          width: 1080,
+          height: 1920,
+          imageTimeout: 15000,
+        });
+        blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+        console.log("[story-save] html2canvas 결과 blob:", blob?.size, "bytes");
+      } catch (h2cErr) {
+        console.warn("[story-save] html2canvas 실패, modern-screenshot로 fallback:", h2cErr);
+        // 2차 fallback: modern-screenshot
+        const { domToBlob } = await import("modern-screenshot");
+        blob = await domToBlob(storyCardRef.current, {
+          backgroundColor: "#0d1218",
+          width: 1080,
+          height: 1920,
+          scale: 2,
+          type: "image/png",
+          quality: 1,
+        });
+      }
+
+      if (!blob) {
+        patchStoryStatus("failed");
+        showToast("이미지 생성에 실패했어요. 다시 시도해주세요");
+        return;
+      }
+
+      patchStoryStatus("generated");
+
+      const file = new File([blob], `play-the-picture-story-${Date.now()}.png`, { type: "image/png" });
+
+      // Web Share API Level 2 — files 지원 환경에서 시트 띄움
+      const canShareFiles = typeof navigator !== "undefined"
+        && typeof navigator.canShare === "function"
+        && navigator.canShare({ files: [file] });
+
+      if (canShareFiles) {
+        try {
+          await navigator.share({ files: [file] });
+          trackEvent("story_share_completed");
+          patchStoryStatus("shared");
+          showStorySavedToast();
+        } catch (e) {
+          const name = e instanceof Error ? e.name : "";
+          const msg = e instanceof Error ? e.message : "";
+          if (name === "AbortError" || msg.includes("abort")) {
+            trackEvent("story_share_cancelled");
+            patchStoryStatus("cancelled");
+            // 사용자 취소 — 토스트 X
+          } else {
+            // share API 실패 → 다운로드 fallback
+            triggerStoryDownload(blob);
+            patchStoryStatus("downloaded");
+          }
         }
       } else {
-        const link = document.createElement("a");
-        link.download = fileName;
-        link.href = canvas.toDataURL("image/png");
-        link.click();
+        // canShare 미지원 → 다운로드 fallback (데스크탑·구형 브라우저)
+        triggerStoryDownload(blob);
+        patchStoryStatus("downloaded");
       }
     } catch (e) {
-      console.error("저장 오류:", e);
+      console.error("[story-save] 오류:", e);
+      patchStoryStatus("failed");
+      showToast("이미지 생성에 실패했어요. 다시 시도해주세요");
     } finally {
-      setSaving(false);
+      setSavingStory(false);
     }
+  };
+
+  const triggerStoryDownload = (blob: Blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `play-the-picture-story-${Date.now()}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showStorySavedToast();
   };
 
   const fetchMusicLinks = async (song: string, artist: string) => {
@@ -366,6 +534,104 @@ export default function ResultPage() {
     }
     if (photosRaw) setPhotos(JSON.parse(photosRaw));
   }, []);
+
+  // Lazy storyBg 생성: albumArt → proxy fetch → base64 → Canvas (blur+overlay) → JPEG dataURL
+  // handleStorySave 클릭 시점에만 호출 (페이지 진입 시 자동 실행 X)
+  const prepareStoryBg = async (albumArtUrl: string): Promise<string | null> => {
+    try {
+      console.log("[storyBg-lazy] proxy fetch 시작");
+      const r = await fetch(`/api/proxy-image?url=${encodeURIComponent(albumArtUrl)}`);
+      if (!r.ok) {
+        console.error("[storyBg-lazy] proxy 실패:", r.status);
+        return null;
+      }
+      const blob = await r.blob();
+      const albumArtBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      // Canvas 처리
+      return await new Promise<string | null>((resolve) => {
+        const img = new globalThis.Image();
+        img.onload = () => {
+          try {
+            const W = 1080;
+            const H = 1920;
+            const canvas = document.createElement("canvas");
+            canvas.width = W;
+            canvas.height = H;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+              resolve(null);
+              return;
+            }
+
+            // 어두운 fallback 배경
+            ctx.fillStyle = "#0d1218";
+            ctx.fillRect(0, 0, W, H);
+
+            const imgRatio = img.naturalWidth / img.naturalHeight;
+            const targetRatio = W / H;
+
+            // 강블러 cover (분위기 색감)
+            ctx.filter = "blur(40px) brightness(0.55)";
+            let coverDw: number, coverDh: number;
+            if (imgRatio > targetRatio) {
+              coverDh = H;
+              coverDw = coverDh * imgRatio;
+            } else {
+              coverDw = W;
+              coverDh = coverDw / imgRatio;
+            }
+            const coverScaledW = coverDw * 1.5;
+            const coverScaledH = coverDh * 1.5;
+            ctx.drawImage(img, (W - coverScaledW) / 2, (H - coverScaledH) / 2, coverScaledW, coverScaledH);
+
+            // 약블러 contain (album art 형태)
+            ctx.filter = "blur(18px) brightness(0.9)";
+            let containDw: number, containDh: number;
+            if (imgRatio > targetRatio) {
+              containDw = W;
+              containDh = W / imgRatio;
+            } else {
+              containDh = H;
+              containDw = H * imgRatio;
+            }
+            const containDx = (W - containDw) / 2;
+            const containDy = (H - containDh) * 0.25;
+            ctx.drawImage(img, containDx, containDy, containDw, containDh);
+
+            // 그라데이션 오버레이
+            ctx.filter = "none";
+            const grad = ctx.createLinearGradient(0, 0, 0, H);
+            grad.addColorStop(0, "rgba(0,0,0,0.05)");
+            grad.addColorStop(0.5, "rgba(0,0,0,0.4)");
+            grad.addColorStop(1, "rgba(0,0,0,0.78)");
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, W, H);
+
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+            console.log("[storyBg-lazy] Canvas 처리 완료, 길이:", dataUrl.length);
+            resolve(dataUrl);
+          } catch (e) {
+            console.error("[storyBg-lazy] Canvas 처리 실패:", e);
+            resolve(null);
+          }
+        };
+        img.onerror = (e) => {
+          console.error("[storyBg-lazy] album image load 실패:", e);
+          resolve(null);
+        };
+        img.src = albumArtBase64;
+      });
+    } catch (e) {
+      console.error("[storyBg-lazy] 전체 실패:", e);
+      return null;
+    }
+  };
 
   // 재생 중 rAF로 진행도 갱신 (부드러운 애니메이션) + 10초 경과 시 CTA 노출
   useEffect(() => {
@@ -523,8 +789,7 @@ export default function ResultPage() {
       className="min-h-screen flex flex-col"
       style={{ position: "relative", zIndex: 1, background: result.albumArt ? "transparent" : bgGradient }}
     >
-      {/* 캡처 영역 시작 */}
-      <div ref={cardRef} id="result-card">
+      <div>
 
       {/* 상단 앱 이름 + 서브 문구 */}
       <div className="text-center" style={{ paddingTop: 20, paddingBottom: 6 }}>
@@ -626,7 +891,6 @@ export default function ResultPage() {
 
       </div>
       </div>
-      {/* 캡처 영역 끝 */}
 
       <div className="px-5 pb-2">
 
@@ -737,7 +1001,7 @@ export default function ResultPage() {
           );
         })()}
 
-        {/* Secondary: 저장 + 공유 나란히 — A안 실험: CTA보다 위로 이동 (성장 지표 우선) */}
+        {/* Tier 3: 아카이브 저장 + 스토리용 이미지 (한 줄, 회색 secondary) */}
         <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
           <button
             onClick={handleSaveToSupabase}
@@ -759,32 +1023,57 @@ export default function ResultPage() {
               "저장 중..."
             ) : (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <Bookmark size={15} strokeWidth={1.5} /> 보관하기
+                <Bookmark size={15} strokeWidth={1.5} /> 아카이브 보관
               </span>
             )}
           </button>
           <button
-            className="font-medium"
-            onClick={handleShare}
-            disabled={sharing}
+            onClick={handleStorySave}
+            disabled={savingStory}
             style={{
               flex: 1,
               background: "rgba(255,255,255,0.14)",
               border: "1px solid rgba(255,255,255,0.28)",
               borderRadius: 24, padding: 14,
-              color: sharing ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.95)",
-              fontSize: 13, cursor: sharing ? "default" : "pointer",
+              color: savingStory ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.95)",
+              fontSize: 13, cursor: savingStory ? "default" : "pointer",
             }}
           >
-            {sharing ? (
-              "공유 준비 중..."
+            {savingStory ? (
+              "이미지 생성 중..."
             ) : (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <Camera size={15} strokeWidth={1.5} /> 결과 공유하기
+                <InstagramIcon size={15} strokeWidth={1.5} /> 스토리용 이미지
               </span>
             )}
           </button>
         </div>
+
+        {/* Tier 2: 결과 공유하기 (단독, 옅은 분홍 — 측정 가능 viral CTA 강조) */}
+        <button
+          className="font-medium"
+          onClick={handleShare}
+          disabled={sharing}
+          style={{
+            width: "100%",
+            background: "rgba(196,104,122,0.18)",
+            border: "1px solid rgba(196,104,122,0.5)",
+            borderRadius: 24,
+            padding: 14,
+            color: sharing ? "rgba(255,255,255,0.4)" : "#fff",
+            fontSize: 13,
+            cursor: sharing ? "default" : "pointer",
+            marginBottom: 8,
+          }}
+        >
+          {sharing ? (
+            "공유 준비 중..."
+          ) : (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <KakaoTalkIcon size={15} strokeWidth={1.5} /> 결과 공유하기
+            </span>
+          )}
+        </button>
 
         {/* 지금 바로 듣기 CTA — A안 실험: 저장/공유 아래로 이동 (외부 이탈 전 체류 유도) */}
         <button
@@ -1042,10 +1331,13 @@ export default function ResultPage() {
             border: "1px solid rgba(255,255,255,0.15)",
             color: "#fff",
             fontSize: 13,
-            padding: "10px 20px",
-            borderRadius: 24,
+            padding: "12px 16px",
+            borderRadius: 18,
             zIndex: 100,
-            whiteSpace: "nowrap",
+            maxWidth: "calc(100% - 16px)",
+            textAlign: "center",
+            lineHeight: 1.55,
+            wordBreak: "keep-all",
             cursor: toastOnClick ? "pointer" : "default",
           }}
         >
@@ -1159,6 +1451,249 @@ export default function ResultPage() {
         <style>{`@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }`}</style>
       </div>
     )}
+
+    {/* ───────────── 9:16 스토리용 hidden 카드 (1080×1920) ───────────── */}
+    {/* html2canvas 캡처 전용 — viewport 밖에 둠 (left: -9999px) */}
+    {/* result 페이지 디자인 그대로 차용 + 사진 사이즈만 확대 */}
+    <div
+      ref={storyCardRef}
+      style={{
+        position: "absolute",
+        left: "-9999px",
+        top: 0,
+        width: 1080,
+        height: 1920,
+        background: storyBgBase64 ? "transparent" : "linear-gradient(158deg, #0d1a10 0%, #1a0d18 100%)",
+        color: "#fff",
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
+        overflow: "hidden",
+      }}
+    >
+      {/* ── 배경: Canvas로 미리 blur·overlay 처리된 단일 이미지 (modern-screenshot의 CSS filter 미지원 회피) ── */}
+      {storyBgBase64 && (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={storyBgBase64}
+          alt=""
+          decoding="sync"
+          loading="eager"
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+          }}
+        />
+      )}
+
+      {/* 콘텐츠 영역 */}
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          width: "100%",
+          height: "100%",
+          padding: "70px 56px 70px",
+          display: "flex",
+          flexDirection: "column",
+          boxSizing: "border-box",
+        }}
+      >
+        {/* ── 상단 앱 이름 + 서브 문구 (result 패턴) ── */}
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <div
+            style={{
+              fontSize: 30,
+              letterSpacing: "0.2em",
+              color: "#C4687A",
+              fontWeight: 300,
+              marginBottom: 10,
+            }}
+          >
+            Play the Picture
+          </div>
+          <div style={{ fontSize: 26, color: "rgba(255,255,255,0.4)", letterSpacing: "0.08em" }}>
+            플더픽의 추천곡
+          </div>
+        </div>
+
+        {/* ── 사진 영역 — slot 모두 동일 정사각형, 사진은 가운데 1:1 cover (확대 X) ── */}
+        <div style={{ marginBottom: 28, display: "flex", justifyContent: "center", alignItems: "center" }}>
+          {result && (() => {
+            const count = Math.min(photos.length, 5);
+            if (count === 0) return null;
+
+            // 장수별 slot 사이즈 (1장·4장 2x2는 세로 영역 큼 → 다른 콘텐츠 잘림 방지로 축소)
+            const SIZE = count === 1 ? 760
+              : count === 2 ? 474
+              : count === 3 ? 309
+              : count === 4 ? 380
+              : 309; // 5장
+            const GAP = 20;
+            const BORDER_RADIUS = 32;
+
+            const slot: React.CSSProperties = {
+              width: SIZE,
+              height: SIZE,
+              borderRadius: BORDER_RADIUS,
+              overflow: "hidden",
+              flexShrink: 0,
+              border: "1px solid rgba(255,255,255,0.12)",
+            };
+            const imgStyle: React.CSSProperties = {
+              width: "100%",
+              height: "100%",
+              objectFit: "cover", // 가운데 1:1 추출, 사진 비율 유지
+              objectPosition: "center",
+              display: "block",
+            };
+
+            if (count === 1) {
+              return (
+                <div style={slot}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={photos[0]} alt="" style={imgStyle} />
+                </div>
+              );
+            }
+            if (count === 2 || count === 3) {
+              return (
+                <div style={{ display: "flex", gap: GAP }}>
+                  {Array.from({ length: count }, (_, i) => i).map((i) => (
+                    <div key={i} style={slot}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={photos[i]} alt="" style={imgStyle} />
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+            if (count === 4) {
+              return (
+                <div style={{ display: "grid", gridTemplateColumns: `repeat(2, ${SIZE}px)`, gridTemplateRows: `repeat(2, ${SIZE}px)`, gap: GAP }}>
+                  {[0, 1, 2, 3].map((i) => (
+                    <div key={i} style={slot}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={photos[i]} alt="" style={imgStyle} />
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+            // count === 5: 위2 + 아래3 (모두 동일 320×320)
+            return (
+              <div style={{ display: "flex", flexDirection: "column", gap: GAP, alignItems: "center" }}>
+                <div style={{ display: "flex", gap: GAP }}>
+                  {[0, 1].map((i) => (
+                    <div key={i} style={slot}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={photos[i]} alt="" style={imgStyle} />
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: GAP }}>
+                  {[2, 3, 4].map((i) => (
+                    <div key={i} style={slot}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={photos[i]} alt="" style={imgStyle} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+
+        {/* ── 캐릭터 박스 (오늘의 당신은) — result 패턴 그대로 ── */}
+        {(result?.vibeType ?? result?.vibe_type) && (
+          <div
+            style={{
+              background: "rgba(255,255,255,0.05)",
+              borderRadius: 36,
+              padding: "36px 40px",
+              textAlign: "center",
+              marginBottom: 36,
+            }}
+          >
+            <div style={{ fontSize: 28, color: "rgba(255,255,255,0.38)", marginBottom: 18, lineHeight: 1 }}>
+              오늘의 당신은
+            </div>
+            <div
+              style={{
+                fontSize: 46,
+                fontWeight: 500,
+                color: "#fff",
+                marginBottom: 18,
+                lineHeight: 1.15,
+              }}
+            >
+              {result?.vibeType ?? result?.vibe_type}
+            </div>
+            {(result?.vibeDescription ?? result?.vibe_description) && (
+              <div style={{ fontSize: 30, color: "rgba(255,255,255,0.5)", lineHeight: 1.4 }}>
+                {result?.vibeDescription ?? result?.vibe_description}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── 곡 정보 (result 패턴) ── */}
+        {result && (() => {
+          const songStr = result.song ?? "";
+          const dashIdx = songStr.indexOf(" - ");
+          const songName = dashIdx >= 0 ? songStr.slice(0, dashIdx).trim() : songStr.trim();
+          const artistName = dashIdx >= 0 ? songStr.slice(dashIdx + 3).trim() : "";
+          return (
+            <div style={{ textAlign: "center", marginBottom: 36 }}>
+              <div
+                style={{
+                  fontSize: 72,
+                  fontWeight: 600,
+                  color: "#fff",
+                  letterSpacing: "-0.02em",
+                  marginBottom: 14,
+                  lineHeight: 1.1,
+                }}
+              >
+                {songName}
+              </div>
+              {artistName && (
+                <div style={{ fontSize: 36, color: "rgba(255,255,255,0.55)" }}>
+                  {artistName}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* ── 추천 이유 박스 (result 패턴 — #f0d080 라벨) ── */}
+        {result?.reason && (
+          <div
+            style={{
+              background: "rgba(255,255,255,0.05)",
+              borderRadius: 32,
+              padding: "36px 40px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 28,
+                color: "#f0d080",
+                letterSpacing: "0.05em",
+                fontWeight: 500,
+                marginBottom: 18,
+              }}
+            >
+              플더픽이 추천한 이유
+            </div>
+            <div style={{ fontSize: 34, color: "rgba(255,255,255,0.78)", lineHeight: 1.7 }}>
+              {result.reason}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
     </div>
   );
 }
