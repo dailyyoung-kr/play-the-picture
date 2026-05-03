@@ -137,6 +137,49 @@ export default function IgStoriesTestPage() {
     }
   };
 
+  // ─── 검증 6: navigator.share({ files }) — Web Share Level 2 (갤러리 저장 가능성) ───
+  const tryShareFile = async () => {
+    if (!imgUrl) {
+      log("✗ 이미지 없음");
+      return;
+    }
+    log("→ navigator.share({ files }) 시도");
+    try {
+      // navigator 자체 지원 여부
+      if (typeof navigator === "undefined" || !navigator.share) {
+        log("✗ navigator.share 미지원");
+        return;
+      }
+      // dataURL → File
+      const res = await fetch(imgUrl);
+      const blob = await res.blob();
+      const file = new File([blob], "ptp-story-test.png", { type: "image/png" });
+
+      // canShare files 지원 여부
+      if (typeof navigator.canShare === "function") {
+        const ok = navigator.canShare({ files: [file] });
+        log(`canShare({files}) = ${ok}`);
+        if (!ok) {
+          log("✗ files share 차단됨 (인앱 또는 정책)");
+          return;
+        }
+      } else {
+        log("⚠ canShare 미지원 — share 강행");
+      }
+
+      await navigator.share({ files: [file] });
+      log("✓ share 성공 (사용자가 사진 저장 선택했는지 확인)");
+    } catch (e) {
+      const name = e instanceof Error ? e.name : "";
+      const msg = e instanceof Error ? e.message : String(e);
+      if (name === "AbortError" || msg.includes("abort")) {
+        log("⚠ 사용자 취소 (AbortError)");
+      } else {
+        log(`✗ ${name}: ${msg}`);
+      }
+    }
+  };
+
   // ─── 검증 5: 새 탭으로 이미지 표시 (모바일 long-press 저장) ───
   const tryNewTab = () => {
     if (!imgUrl) return;
@@ -216,6 +259,9 @@ export default function IgStoriesTestPage() {
         </button>
         <button onClick={tryNewTab} style={btnStyle("rgba(255,255,255,0.15)")}>
           5️⃣ 새 탭에 이미지 (long-press 저장용)
+        </button>
+        <button onClick={tryShareFile} style={btnStyle("#7d3a4d")}>
+          6️⃣ navigator.share files (Web Share L2) ⭐
         </button>
         <button onClick={() => setLogs([])} style={btnStyle("rgba(255,255,255,0.08)")}>
           로그 초기화
