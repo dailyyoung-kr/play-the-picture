@@ -576,7 +576,7 @@ export default function ResultPage() {
             const imgRatio = img.naturalWidth / img.naturalHeight;
             const targetRatio = W / H;
 
-            // 레이어 1 — 강블러 cover (분위기 색감 깔기, result 패턴 동일)
+            // 강블러 cover 단독 (약블러 contain 제거 — 화면 전체 일관 색감 + iOS Safari blur 호환 문제 부분 해소)
             ctx.filter = "blur(40px) brightness(0.55)";
             let coverDw: number, coverDh: number;
             if (imgRatio > targetRatio) {
@@ -589,20 +589,6 @@ export default function ResultPage() {
             const coverScaledW = coverDw * 1.5;
             const coverScaledH = coverDh * 1.5;
             ctx.drawImage(img, (W - coverScaledW) / 2, (H - coverScaledH) / 2, coverScaledW, coverScaledH);
-
-            // 레이어 2 — 약블러 contain (album art 형태 보이게, 가운데 25% 위치)
-            ctx.filter = "blur(18px) brightness(0.9)";
-            let containDw: number, containDh: number;
-            if (imgRatio > targetRatio) {
-              containDw = W;
-              containDh = W / imgRatio;
-            } else {
-              containDh = H;
-              containDw = H * imgRatio;
-            }
-            const containDx = (W - containDw) / 2;
-            const containDy = (H - containDh) * 0.25;
-            ctx.drawImage(img, containDx, containDy, containDw, containDh);
 
             // 그라데이션 오버레이 (result 패턴 동일: 0.05 → 0.4 → 0.78)
             ctx.filter = "none";
