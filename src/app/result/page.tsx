@@ -581,14 +581,14 @@ export default function ResultPage() {
             const targetRatio = W / H;
 
             // 레이어 1 — 강블러 cover (분위기 색감 깔기)
-            const STRONG_SMALL = 400;
+            const STRONG_SMALL = 800;
             const blurStrong = document.createElement("canvas");
             blurStrong.width = STRONG_SMALL;
             blurStrong.height = STRONG_SMALL;
             const bsCtx = blurStrong.getContext("2d");
             if (bsCtx) {
               bsCtx.drawImage(img, 0, 0, STRONG_SMALL, STRONG_SMALL);
-              stackblur.canvasRGB(blurStrong, 0, 0, STRONG_SMALL, STRONG_SMALL, 35); // radius 35
+              stackblur.canvasRGB(blurStrong, 0, 0, STRONG_SMALL, STRONG_SMALL, 50); // radius 50
             }
 
             ctx.imageSmoothingEnabled = true;
@@ -614,7 +614,7 @@ export default function ResultPage() {
             const bfCtx = blurSoft.getContext("2d");
             if (bfCtx) {
               bfCtx.drawImage(img, 0, 0, SOFT_SMALL, SOFT_SMALL);
-              stackblur.canvasRGB(blurSoft, 0, 0, SOFT_SMALL, SOFT_SMALL, 12); // radius 12
+              stackblur.canvasRGB(blurSoft, 0, 0, SOFT_SMALL, SOFT_SMALL, 20); // radius 20
             }
 
             ctx.filter = "brightness(0.9)";
