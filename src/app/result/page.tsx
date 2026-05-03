@@ -591,8 +591,8 @@ export default function ResultPage() {
               return small;
             };
 
-            // 강블러 cover — small 50 (blur 강함) + brightness 0.55 (iOS Safari OK)
-            const blurredStrong = downsampleBlur(img, 50);
+            // 강블러 cover — small 25 (blur 매우 강함) + brightness 0.55 (iOS Safari OK)
+            const blurredStrong = downsampleBlur(img, 25);
             ctx.filter = "brightness(0.55)";
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = "high";
@@ -608,8 +608,8 @@ export default function ResultPage() {
             const coverScaledH = coverDh * 1.5;
             ctx.drawImage(blurredStrong, (W - coverScaledW) / 2, (H - coverScaledH) / 2, coverScaledW, coverScaledH);
 
-            // 약블러 contain — small 110 (blur 약함) + brightness 0.9
-            const blurredSoft = downsampleBlur(img, 110);
+            // 약블러 contain — small 60 (blur 적당) + brightness 0.9
+            const blurredSoft = downsampleBlur(img, 60);
             ctx.filter = "brightness(0.9)";
             let containDw: number, containDh: number;
             if (imgRatio > targetRatio) {
