@@ -12,6 +12,8 @@ type ListenLog = { id: string; created_at: string; device_id?: string | null };
 type ViewLog  = { id: string; created_at: string; duration_seconds: number | null; exit_type: string | null; device_id?: string | null };
 type LogRow = { id: string; created_at: string; device_id?: string | null; entry_id?: string | null };
 type SaveLog = { id: string; created_at: string; entry_id: string; device_id: string };
+type PreviewLog = { id: string; created_at: string; device_id: string; song: string | null; artist: string | null; action: "played" | "completed" };
+type ItunesCacheRow = { status: string | null };
 
 // 내부 테스트 기기 목록 (콤마 구분). 대시보드에서 유저/테스트 데이터 구분용
 const INTERNAL_DEVICE_IDS = new Set(
@@ -303,6 +305,8 @@ export default function AdminPage() {
   const [shareViews, setShareViews] = useState<LogRow[]>([]);
   const [tryClicks, setTryClicks] = useState<LogRow[]>([]);
   const [saveLogs, setSaveLogs] = useState<SaveLog[]>([]);
+  const [previewLogs, setPreviewLogs] = useState<PreviewLog[]>([]);
+  const [itunesCache, setItunesCache] = useState<ItunesCacheRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [spotifyStatus, setSpotifyStatus] = useState<SpotifyStatus | null>(null);
@@ -319,7 +323,7 @@ export default function AdminPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [photoRes, prefRes, analyzeRes, entriesRes, shareRes, listenRes, viewRes, logRowsRes, saveRes] = await Promise.all([
+    const [photoRes, prefRes, analyzeRes, entriesRes, shareRes, listenRes, viewRes, logRowsRes, saveRes, previewRes, itunesRes] = await Promise.all([
       supabase.from("photo_upload_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("preference_logs").select("id, created_at, genre, energy, device_id").order("created_at", { ascending: false }),
       supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, song, artist, device_id").order("created_at", { ascending: false }),
@@ -330,6 +334,8 @@ export default function AdminPage() {
       // share_views / try_click — RLS 우회 위해 supabaseAdmin 경유 서버 API 사용
       fetch("/api/admin/log-rows", { credentials: "same-origin" }).then(r => r.json()) as Promise<{ shareViews: LogRow[]; tryClicks: LogRow[] }>,
       supabase.from("save_logs").select("id, created_at, entry_id, device_id").order("created_at", { ascending: false }),
+      supabase.from("preview_logs").select("id, created_at, device_id, song, artist, action").order("created_at", { ascending: false }),
+      supabase.from("itunes_preview_cache").select("status"),
     ]);
 
     if (!photoRes.error) setPhotoLogs(photoRes.data ?? []);
@@ -346,6 +352,10 @@ export default function AdminPage() {
     setTryClicks(logRowsRes.tryClicks ?? []);
     if (!saveRes.error) setSaveLogs(saveRes.data ?? []);
     else console.error("[admin] save_logs 로드 실패:", saveRes.error.message);
+    if (!previewRes.error) setPreviewLogs((previewRes.data ?? []) as PreviewLog[]);
+    else console.error("[admin] preview_logs 로드 실패:", previewRes.error.message);
+    if (!itunesRes.error) setItunesCache((itunesRes.data ?? []) as ItunesCacheRow[]);
+    else console.error("[admin] itunes_preview_cache 로드 실패:", itunesRes.error.message);
 
     setLastRefresh(new Date());
     setLoading(false);
@@ -530,6 +540,57 @@ export default function AdminPage() {
   const userSaveRate     = pct(saveUsers, successUsers);
   const userShareRate    = pct(filteredShares.length, successUsers); // share_logs는 device_id 없음 → 건수 기준
   const userListenRate   = pct(listenUsers, successUsers);
+
+  // ── 미리듣기 funnel (5/3 도입) ──
+  // preview_logs는 사용자 행동 단위. device 단위 distinct로 노이즈 제거 (같은 device 여러 곡 재생 시도 노이즈).
+  const filteredPreviews = previewLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
+  const playedDevices = new Set(filteredPreviews.filter(l => l.action === "played").map(l => l.device_id).filter((d): d is string => !!d));
+  const completedDevices = new Set(filteredPreviews.filter(l => l.action === "completed").map(l => l.device_id).filter((d): d is string => !!d));
+  const previewPlayedUsers = playedDevices.size;
+  const previewCompletedUsers = completedDevices.size;
+  // 미리듣기 재생률 = 재생 유저 / 분석 성공 유저
+  const previewPlayRate = pct(previewPlayedUsers, successUsers);
+  // 30초 완료율 = 완료 유저 / 재생 유저 (재생 안 한 유저는 분모에서 제외)
+  const previewCompleteRate = pct(previewCompletedUsers, previewPlayedUsers);
+
+  // 종합 듣기 만족도 = (미리듣기 OR 외부 앱 듣기 발생 유저) / 분석 성공 유저
+  // listen_click 단일 지표는 미리듣기 도입 후 의미 변질 → 합집합으로 진짜 듣기 의도 측정
+  const listenSatisfiedDevices = new Set<string>(playedDevices);
+  for (const l of filteredListens) if (l.device_id) listenSatisfiedDevices.add(l.device_id);
+  const listenSatisfiedUsers = listenSatisfiedDevices.size;
+  const overallListenRate = pct(listenSatisfiedUsers, successUsers);
+
+  // iTunes 매칭 성공률 — 곡 풀 인프라 측정 (low_score 54곡 fix 작업 baseline)
+  const itunesMatchedRows = itunesCache.filter(c =>
+    c.status === "matched" || c.status === "matched_by_duration" ||
+    c.status === "matched_by_llm" || c.status === "manual"
+  ).length;
+  const itunesTotalRows = itunesCache.length;
+  const itunesMatchRate = itunesTotalRows > 0 ? (itunesMatchedRows / itunesTotalRows) * 100 : null;
+
+  // ── 3갈래 분기 + 헤비 유저 / 이탈률 ──
+  // 분석 성공 유저가 듣기·저장·공유 셋 중 어디로 분기하는지
+  const successDevices = new Set(filteredAnalyze.filter(l => l.status === "success").map(l => l.device_id).filter((d): d is string => !!d));
+  const saveDevices = new Set(filteredSaveLogs.map(l => l.device_id).filter((d): d is string => !!d));
+  const shareDevices = new Set(filteredShares.map(l => l.device_id).filter((d): d is string => !!d));
+  // 갈래별 진입률 (성공 유저 기준)
+  const listenBranchUsers = Array.from(successDevices).filter(d => listenSatisfiedDevices.has(d)).length;
+  const saveBranchUsers   = Array.from(successDevices).filter(d => saveDevices.has(d)).length;
+  const shareBranchUsers  = Array.from(successDevices).filter(d => shareDevices.has(d)).length;
+  const listenBranchRate = pct(listenBranchUsers, successUsers);
+  const saveBranchRate   = pct(saveBranchUsers, successUsers);
+  const shareBranchRate  = pct(shareBranchUsers, successUsers);
+  // 헤비 유저 = 3가지 다 한 유저
+  const heavyUsers = Array.from(successDevices).filter(d =>
+    listenSatisfiedDevices.has(d) && saveDevices.has(d) && shareDevices.has(d)
+  ).length;
+  const heavyUserRate = pct(heavyUsers, successUsers);
+  // 이탈률 = 성공 유저 중 듣기·저장·공유 모두 안 한 비율
+  const anyActionUsers = Array.from(successDevices).filter(d =>
+    listenSatisfiedDevices.has(d) || saveDevices.has(d) || shareDevices.has(d)
+  ).length;
+  const dropoffUsers = successUsers - anyActionUsers;
+  const dropoffRate = pct(dropoffUsers, successUsers);
 
   // 유저당 평균 분석 횟수 — 성공 유저 기준 (성공 건수 ÷ 성공 유저 수)
   const avgAnalysesPerUser = successUsers > 0 ? (successCount / successUsers).toFixed(1) : "—";
@@ -1112,23 +1173,13 @@ export default function AdminPage() {
               : null,
           } : undefined}
         />
-        {/* 유입 전환율 */}
+        {/* 종합 듣기 만족도 — 미리듣기 ∪ 외부 앱 듣기 (5/3 도입, listen_click 단일 지표 대체) */}
         <ConvCard
-          label="유입 전환율"
-          value={(inflowConvRate ?? 0).toFixed(1) + "%"}
-          sub={`${tryCount}건 / ${viewCount}건`}
-          accent={viewCount >= 10 && inflowConvRate != null ? accentByRate(inflowConvRate.toFixed(1) + "%", 20, 10) : C.gray}
-          tooltip={viewCount < 10 ? "공유 조회 10건 미만 — 판단 보류" : "공유 페이지 조회 → 나도 해보기 클릭"}
-          avg7d={last7InflowRate != null ? {
-            value: last7InflowRate.toFixed(1) + "%",
-            delta: inflowConvRate != null
-              ? (() => {
-                  const diff = inflowConvRate - last7InflowRate;
-                  if (Math.abs(diff) < Math.max(last7InflowRate * 0.1, 1)) return "flat" as const;
-                  return diff > 0 ? "up" as const : "down" as const;
-                })()
-              : null,
-          } : undefined}
+          label="종합 듣기 만족도"
+          value={overallListenRate}
+          sub={`${listenSatisfiedUsers}명 / ${successUsers}명 · 미리듣기 ∪ 외부 앱`}
+          accent={successUsers >= 10 ? accentByRate(overallListenRate, 50, 30) : C.gray}
+          tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "미리듣기 또는 외부 앱 듣기 발생 유저 비율. 곡 매력도 + 추천 정확도 종합 측정. 30초 미리듣기 도입 후 listen_click 단일 지표가 변질되어 도입한 합집합 지표"}
         />
         {/* K-factor */}
         <ConvCard
@@ -1188,42 +1239,113 @@ export default function AdminPage() {
         )}
       </div>
 
-      {/* ── 섹션: 퍼널 흐름 ── */}
-      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>FUNNEL</p>
-      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 16, padding: "16px 14px", marginBottom: 20 }}>
+      {/* ── 섹션: 퍼널 흐름 (분석 성공까지) ── */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>FUNNEL — 분석까지</p>
+      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 16, padding: "16px 14px", marginBottom: 12 }}>
         <FunnelStep icon="📷" label="사진 업로드" count={photoCount} conv={pct(analyzeUsers, photoUsers)} userCount={photoUsers} />
         <FunnelStep icon="🎵" label="장르·에너지 선택" count={prefCount} conv={pct(analyzeUsers, analyzeUsers)} userCount={analyzeUsers} />
         <FunnelStep icon="✦" label="분석 시작" count={analyzeStartCount} conv={pct(successUsers, analyzeUsers)} userCount={analyzeUsers} />
-        <FunnelStep icon="✓" label="분석 성공" count={successCount} conv={pct(listenUsers, successUsers)} userCount={successUsers} />
-        <FunnelStep icon="▶" label="듣기 클릭" count={listenCount} conv={pct(saveUsers, listenUsers)} userCount={listenUsers} />
-        <FunnelStep icon="💾" label="결과 저장" count={saveCount} conv={pct(shareCount, saveUsers)} userCount={saveUsers} emphasis="strong" />
-        {shareCount > 0 ? (
-          <>
-            <FunnelStep icon="↑" label="공유하기" count={shareCount} conv={pct(viewCount, shareCount)} emphasis="strong" />
-            <FunnelStep icon="👁" label="공유 페이지 조회" count={viewCount} conv={pct(tryCount, viewCount)} />
-            <FunnelStep icon="→" label="나도 해보기 클릭" count={tryCount} isLast emphasis="strong" />
-          </>
-        ) : (
-          <div style={{
-            display: "flex", alignItems: "center", gap: 12,
-            padding: "11px 16px",
-            background: "rgba(255,255,255,0.03)",
-            borderRadius: 12,
-          }}>
-            <span style={{ fontSize: 15, width: 22, textAlign: "center", flexShrink: 0 }}>↑</span>
-            <span style={{ flex: 1, fontSize: 13, color: "rgba(255,255,255,0.4)" }}>공유 지표</span>
-            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.25)" }}>
-              공유 0 · 조회 0 · 나도해보기 0
-            </span>
+        <FunnelStep icon="✓" label="분석 성공" count={successCount} conv={pct(anyActionUsers, successUsers)} userCount={successUsers} isLast emphasis="strong" />
+      </div>
+
+      {/* ── 섹션: 분석 성공 후 3갈래 병렬 분기 ── */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>FUNNEL — 분석 후 분기 (3갈래 병렬)</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8, marginBottom: 12 }}>
+        {/* 🎵 듣기 갈래 */}
+        <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "14px 16px" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 16 }}>🎵</span>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", fontWeight: 600 }}>듣기 갈래</span>
+            <span style={{ marginLeft: "auto", fontSize: 16, fontWeight: 700, color: "#fff" }}>{listenBranchRate}</span>
           </div>
-        )}
+          <p style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 12 }}>{listenBranchUsers}명 / {successUsers}명 진입</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>🎧 미리듣기 재생률</span>
+              <span style={{ fontWeight: 600, color: "#fff" }}>{previewPlayRate}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>⏱ 30초 완료율</span>
+              <span style={{ fontWeight: 600, color: "#fff" }}>{previewCompleteRate}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>▶ 외부 앱 듣기율</span>
+              <span style={{ fontWeight: 600, color: "#fff" }}>{userListenRate}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 💾 저장 갈래 */}
+        <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "14px 16px" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 16 }}>💾</span>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", fontWeight: 600 }}>저장 갈래</span>
+            <span style={{ marginLeft: "auto", fontSize: 16, fontWeight: 700, color: "#fff" }}>{saveBranchRate}</span>
+          </div>
+          <p style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 12 }}>{saveBranchUsers}명 / {successUsers}명 진입</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>저장 건수</span>
+              <span style={{ fontWeight: 600, color: "#fff" }}>{saveCount}건</span>
+            </div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>
+              모아보기 재방문 = D1 retention<br/>(별도 측정 인프라 필요)
+            </div>
+          </div>
+        </div>
+
+        {/* ↑ 공유 갈래 */}
+        <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "14px 16px" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 16 }}>↑</span>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", fontWeight: 600 }}>공유 갈래</span>
+            <span style={{ marginLeft: "auto", fontSize: 16, fontWeight: 700, color: "#fff" }}>{shareBranchRate}</span>
+          </div>
+          <p style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 12 }}>{shareBranchUsers}명 / {successUsers}명 진입</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>↑ 공유 건수</span>
+              <span style={{ fontWeight: 600, color: "#fff" }}>{shareCount}건</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>👁 unique 친구 도달</span>
+              <span style={{ fontWeight: 600, color: "#fff" }}>{uniqueReachPerShare != null ? uniqueReachPerShare.toFixed(2) : "—"}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>→ 나도 해보기</span>
+              <span style={{ fontWeight: 600, color: "#fff" }}>{tryCount}건</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 헤비 유저 / 이탈률 */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+        <ConvCard
+          label="헤비 유저 (3가지 다)"
+          value={heavyUserRate}
+          sub={`${heavyUsers}명 / ${successUsers}명 · 듣기+저장+공유 모두`}
+          accent={successUsers >= 10 ? accentByRate(heavyUserRate, 5, 1) : C.gray}
+          tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "분석 성공 유저 중 듣기·저장·공유 모두 한 사용자 비율. viral 핵심 후보 (수퍼 팬)"}
+        />
+        <ConvCard
+          label="이탈률"
+          value={dropoffRate}
+          sub={`${dropoffUsers}명 / ${successUsers}명 · 어떤 행동도 X`}
+          accent={successUsers >= 10 ? (() => {
+            // 역방향 — 낮을수록 green
+            const num = parseFloat(dropoffRate);
+            if (isNaN(num)) return C.gray;
+            return num < 50 ? C.green : num < 70 ? C.yellow : C.red;
+          })() : C.gray}
+          tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "분석 성공 유저 중 듣기·저장·공유 모두 안 한 비율. 이탈 원인 진단 필요 (현재 ~62% 가설)"}
+        />
       </div>
 
       {/* ── 섹션: 전환율 (유저 기준) ── */}
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>CONVERSION</p>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 20 }}>
         <ConvCard label="분석 성공률" value={userSuccessRate} sub={`${successUsers}명 / ${analyzeUsers}명`} accent={convSuccessAccent} tooltip="분석 시작 유저 중 성공한 유저 비율" />
-        <ConvCard label="듣기 클릭률" value={userListenRate} sub={`${listenUsers}명 / ${successUsers}명`} accent={convListenAccent} tooltip="AI 추천 만족도 지표 (유저 기준). 외부 이탈 신호이기도 해서 참고용" />
         <ConvCard label="전체 저장률 (유저 기준)" value={userSaveRate} sub={`${saveUsers}명 / ${successUsers}명`} accent={convSaveAccent} tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 중 한 번이라도 저장한 유저 비율 (회차 무관). 1회차 저장율은 KEY METRICS 참고"} />
         <ConvCard label="전체 공유율 (유저 기준)" value={userShareRate} sub={`${filteredShares.length}건 / ${successUsers}명`} accent={convShareAccent} tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 대비 공유 건수 (회차 무관). KEY METRICS와 동일 정의"} />
       </div>
@@ -1275,6 +1397,39 @@ export default function AdminPage() {
           />
         </div>
       )}
+
+      {/* ── 섹션: 🎵 듣기 만족도 (5/3 도입) ── */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>🎵 LISTEN SATISFACTION</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+        <ConvCard
+          label="미리듣기 재생률"
+          value={previewPlayRate}
+          sub={`${previewPlayedUsers}명 / ${successUsers}명`}
+          accent={successUsers >= 10 ? accentByRate(previewPlayRate, 50, 30) : C.gray}
+          tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "분석 성공 유저 중 ▶ 재생 버튼 누른 비율. 곡 호기심 1단계 — 낮으면 미리듣기 UI 가시성 또는 곡 호감 약함"}
+        />
+        <ConvCard
+          label="30초 완료율"
+          value={previewCompleteRate}
+          sub={`${previewCompletedUsers}명 / ${previewPlayedUsers}명`}
+          accent={previewPlayedUsers >= 5 ? accentByRate(previewCompleteRate, 60, 40) : C.gray}
+          tooltip={previewPlayedUsers < 5 ? "재생 5건 미만 — 판단 보류" : "재생 시작한 유저 중 30초 끝까지 들은 비율. 곡 매력도 척도 — 낮으면 추천 정확도 또는 곡 풀 다양성 약함"}
+        />
+        <ConvCard
+          label="외부 앱 듣기율"
+          value={userListenRate}
+          sub={`${listenUsers}명 / ${successUsers}명`}
+          accent={successUsers >= 10 ? accentByRate(userListenRate, 40, 20) : C.gray}
+          tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "Spotify·YouTube 등 외부 앱 듣기 클릭 비율. 미리듣기 30초로 만족 시 낮을 수 있음 (참고용, 단일 지표 X)"}
+        />
+        <ConvCard
+          label="iTunes 매칭률"
+          value={itunesMatchRate != null ? itunesMatchRate.toFixed(1) + "%" : "—"}
+          sub={`${itunesMatchedRows}곡 / ${itunesTotalRows}곡 · 곡 풀 인프라`}
+          accent={itunesTotalRows >= 100 && itunesMatchRate != null ? (itunesMatchRate >= 95 ? C.green : itunesMatchRate >= 90 ? C.yellow : C.red) : C.gray}
+          tooltip={itunesTotalRows < 100 ? "곡 100개 미만 — 판단 보류" : "iTunes API 매칭 성공한 곡 비율 (matched/duration/llm/manual 합산). low_score 곡은 미리듣기 차단 — fix 작업 baseline"}
+        />
+      </div>
 
       {/* ── 섹션: QUALITY (회차별 + 재뽑기 텀) ── */}
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>QUALITY</p>
