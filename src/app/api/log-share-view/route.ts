@@ -14,9 +14,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "entry_id 필요" }, { status: 400 });
     }
 
+    const ua = req.headers.get("user-agent")?.slice(0, 500) ?? null;
+
     const { error } = await supabaseAdmin
       .from("share_views")
-      .insert({ entry_id, device_id: device_id ?? null });
+      .insert({ entry_id, device_id: device_id ?? null, user_agent: ua });
 
     if (error) {
       console.error("[log-share-view] insert 실패:", error.code, error.message);
