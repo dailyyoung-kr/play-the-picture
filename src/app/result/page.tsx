@@ -576,23 +576,35 @@ export default function ResultPage() {
             const imgRatio = img.naturalWidth / img.naturalHeight;
             const targetRatio = W / H;
 
-            // iOS Safari Webkit은 ctx.filter "blur(...)" 미지원/약지원 → downsample+upsample 트릭으로 직접 blur 구현
-            // small 사이즈 작을수록 blur 강함 (강블러: 50, 약블러: 110)
-            const downsampleBlur = (sourceImg: HTMLImageElement, smallSize: number): HTMLCanvasElement => {
+            // iOS Safari Webkit은 ctx.filter "blur(...)" 미지원/약지원 → multi-pass downsample로 직접 blur 구현
+            // 한 번에 큰 비율로 축소하면 픽셀화(격자 모자이크) 발생 → 중간 단계 거쳐 부드러운 blur
+            const downsampleBlur = (sourceImg: HTMLImageElement, finalSize: number): HTMLCanvasElement => {
+              // pass 1: 원본 → 중간 사이즈 (final × 4)
+              const midSize = finalSize * 4;
+              const mid = document.createElement("canvas");
+              mid.width = midSize;
+              mid.height = midSize;
+              const midCtx = mid.getContext("2d");
+              if (midCtx) {
+                midCtx.imageSmoothingEnabled = true;
+                midCtx.imageSmoothingQuality = "high";
+                midCtx.drawImage(sourceImg, 0, 0, midSize, midSize);
+              }
+              // pass 2: 중간 → 최종 사이즈
               const small = document.createElement("canvas");
-              small.width = smallSize;
-              small.height = smallSize;
+              small.width = finalSize;
+              small.height = finalSize;
               const sCtx = small.getContext("2d");
               if (sCtx) {
                 sCtx.imageSmoothingEnabled = true;
                 sCtx.imageSmoothingQuality = "high";
-                sCtx.drawImage(sourceImg, 0, 0, smallSize, smallSize);
+                sCtx.drawImage(mid, 0, 0, finalSize, finalSize);
               }
               return small;
             };
 
-            // 강블러 cover — small 25 (blur 매우 강함) + brightness 0.55 (iOS Safari OK)
-            const blurredStrong = downsampleBlur(img, 25);
+            // 강블러 cover — final 50 (multi-pass로 부드러움, 픽셀화 X) + brightness 0.55
+            const blurredStrong = downsampleBlur(img, 50);
             ctx.filter = "brightness(0.55)";
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = "high";
@@ -608,8 +620,8 @@ export default function ResultPage() {
             const coverScaledH = coverDh * 1.5;
             ctx.drawImage(blurredStrong, (W - coverScaledW) / 2, (H - coverScaledH) / 2, coverScaledW, coverScaledH);
 
-            // 약블러 contain — small 60 (blur 적당) + brightness 0.9
-            const blurredSoft = downsampleBlur(img, 60);
+            // 약블러 contain — final 100 (multi-pass로 부드러움) + brightness 0.9
+            const blurredSoft = downsampleBlur(img, 100);
             ctx.filter = "brightness(0.9)";
             let containDw: number, containDh: number;
             if (imgRatio > targetRatio) {
