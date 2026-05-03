@@ -553,6 +553,10 @@ export default function ResultPage() {
         reader.readAsDataURL(blob);
       });
 
+      // StackBlur — pure JS pixel blur (iOS Safari 100% 호환, ctx.filter blur 의존 X)
+      // 동적 import로 번들 lazy 로드 — img.onload 안에서 await 못 쓰니 미리 로드해 closure로 사용
+      const stackblur = await import("stackblur-canvas");
+
       // Canvas 처리
       return await new Promise<string | null>((resolve) => {
         const img = new globalThis.Image();
@@ -576,8 +580,20 @@ export default function ResultPage() {
             const imgRatio = img.naturalWidth / img.naturalHeight;
             const targetRatio = W / H;
 
-            // 레이어 1 — 강블러 cover (분위기 색감 깔기, result 패턴 동일)
-            ctx.filter = "blur(40px) brightness(0.55)";
+            // 레이어 1 — 강블러 cover (분위기 색감 깔기)
+            const STRONG_SMALL = 400;
+            const blurStrong = document.createElement("canvas");
+            blurStrong.width = STRONG_SMALL;
+            blurStrong.height = STRONG_SMALL;
+            const bsCtx = blurStrong.getContext("2d");
+            if (bsCtx) {
+              bsCtx.drawImage(img, 0, 0, STRONG_SMALL, STRONG_SMALL);
+              stackblur.canvasRGB(blurStrong, 0, 0, STRONG_SMALL, STRONG_SMALL, 35); // radius 35
+            }
+
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            ctx.filter = "brightness(0.55)";
             let coverDw: number, coverDh: number;
             if (imgRatio > targetRatio) {
               coverDh = H;
@@ -588,10 +604,20 @@ export default function ResultPage() {
             }
             const coverScaledW = coverDw * 1.5;
             const coverScaledH = coverDh * 1.5;
-            ctx.drawImage(img, (W - coverScaledW) / 2, (H - coverScaledH) / 2, coverScaledW, coverScaledH);
+            ctx.drawImage(blurStrong, (W - coverScaledW) / 2, (H - coverScaledH) / 2, coverScaledW, coverScaledH);
 
             // 레이어 2 — 약블러 contain (album art 형태 보이게, 가운데 25% 위치)
-            ctx.filter = "blur(18px) brightness(0.9)";
+            const SOFT_SMALL = 540;
+            const blurSoft = document.createElement("canvas");
+            blurSoft.width = SOFT_SMALL;
+            blurSoft.height = SOFT_SMALL;
+            const bfCtx = blurSoft.getContext("2d");
+            if (bfCtx) {
+              bfCtx.drawImage(img, 0, 0, SOFT_SMALL, SOFT_SMALL);
+              stackblur.canvasRGB(blurSoft, 0, 0, SOFT_SMALL, SOFT_SMALL, 12); // radius 12
+            }
+
+            ctx.filter = "brightness(0.9)";
             let containDw: number, containDh: number;
             if (imgRatio > targetRatio) {
               containDw = W;
@@ -602,9 +628,9 @@ export default function ResultPage() {
             }
             const containDx = (W - containDw) / 2;
             const containDy = (H - containDh) * 0.25;
-            ctx.drawImage(img, containDx, containDy, containDw, containDh);
+            ctx.drawImage(blurSoft, containDx, containDy, containDw, containDh);
 
-            // 그라데이션 오버레이 (result 패턴 동일: 0.05 → 0.4 → 0.78)
+            // 그라데이션 오버레이
             ctx.filter = "none";
             const grad = ctx.createLinearGradient(0, 0, 0, H);
             grad.addColorStop(0, "rgba(0,0,0,0.05)");
