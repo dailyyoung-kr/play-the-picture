@@ -5,12 +5,16 @@ const BASE_URL = "https://playthepicture.com";
 // SNS 크롤러는 /share/ 허용 (OG 미리보기 위해)
 // 일반 검색엔진은 /share/ 차단 유지 (사용자 entry 데이터 검색 색인 방지)
 const SNS_CRAWLERS = [
-  "facebookexternalhit",  // Facebook, Instagram, WhatsApp
+  "facebookexternalhit",  // Facebook, Instagram (구버전), WhatsApp
+  "meta-externalagent",   // Meta 2024+ 통합 크롤러 (Threads·인스타 OG·Meta AI)
+  "facebookcatalog",      // Facebook Catalog
   "Twitterbot",           // Twitter / X
   "LinkedInBot",          // LinkedIn
   "Slackbot",             // Slack
+  "Slackbot-LinkExpanding", // Slack 미리보기 전용
   "Discordbot",           // Discord
   "TelegramBot",          // Telegram
+  "WhatsApp",             // WhatsApp 자체 UA
 ];
 
 export default function robots(): MetadataRoute.Robots {
