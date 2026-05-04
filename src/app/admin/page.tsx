@@ -1495,7 +1495,10 @@ export default function AdminPage() {
               ))}
           </div>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 8 }}>
-            <span style={{ color: "#C4687A" }}>android_instagram_inapp</span>은 share completed 도달 불가(webview 차단) — inapp_shown으로만 끝남. 다운로드 fallback {storyDownloadedCount}건 / 취소 {storyCancelledCount}건 / 실패 {storyFailedCount}건
+            <span style={{ color: "#C4687A" }}>android_instagram_inapp</span>는 share completed 도달 불가(webview 차단) — inapp_shown으로만 끝남.
+          </div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>
+            외부 환경 fallback: 다운로드 {storyDownloadedCount}건 / 취소 {storyCancelledCount}건 / 실패 {storyFailedCount}건
           </div>
         </div>
       )}
