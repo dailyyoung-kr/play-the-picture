@@ -438,7 +438,7 @@ export default function ResultPage() {
         setInAppImageUrl(url);
         patchStoryStatus("inapp_shown");
         trackEvent("story_inapp_modal_shown", { song: result?.song });
-        showToast("📸 화면을 캡처해 저장하세요", undefined, { duration: 3000, position: "top" });
+        showToast("📸 화면을 캡처해 저장하세요", undefined, { duration: 4000, position: "top" });
         return;
       }
 
@@ -1364,7 +1364,7 @@ export default function ResultPage() {
           onClick={toastOnClick ?? undefined}
           style={{
             position: "fixed",
-            ...(toastPosition === "top" ? { top: 80 } : { bottom: 100 }),
+            ...(toastPosition === "top" ? { top: 130 } : { bottom: 100 }),
             left: "50%",
             transform: "translateX(-50%)",
             background: "rgba(30,30,30,0.95)",
