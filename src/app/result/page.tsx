@@ -438,7 +438,10 @@ export default function ResultPage() {
         setInAppImageUrl(url);
         patchStoryStatus("inapp_shown");
         trackEvent("story_inapp_modal_shown", { song: result?.song });
-        showToast("📸 화면을 캡처해 저장하세요", undefined, { duration: 4000, position: "top" });
+        // modal render 후 toast 발화 (React batch 우회 + 모달과 같은 tick에 setState 충돌 회피)
+        setTimeout(() => {
+          showToast("📸 화면을 캡처해 저장하세요", undefined, { duration: 4000, position: "top" });
+        }, 150);
         return;
       }
 
@@ -1373,7 +1376,7 @@ export default function ResultPage() {
             fontSize: 13,
             padding: "12px 16px",
             borderRadius: 18,
-            zIndex: 250,
+            zIndex: 9999,
             maxWidth: "calc(100% - 16px)",
             textAlign: "center",
             lineHeight: 1.55,
