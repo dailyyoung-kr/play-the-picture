@@ -325,18 +325,16 @@ export default function AdminPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [photoRes, prefRes, analyzeRes, entriesRes, shareRes, listenRes, viewRes, logRowsRes, saveRes, previewRes] = await Promise.all([
+    const [photoRes, prefRes, analyzeRes, entriesRes, listenRes, viewRes, logRowsRes, saveRes] = await Promise.all([
       supabase.from("photo_upload_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("preference_logs").select("id, created_at, genre, energy, device_id").order("created_at", { ascending: false }),
       supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, song, artist, device_id").order("created_at", { ascending: false }),
       supabase.from("entries").select("id, date, song, artist, genre, device_id").order("id", { ascending: false }),
-      supabase.from("share_logs").select("id, created_at, device_id, entry_id").order("created_at", { ascending: false }),
       supabase.from("listen_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("result_view_logs").select("id, created_at, duration_seconds, exit_type, device_id").order("created_at", { ascending: false }),
-      // share_views / try_click / itunes_preview_cache — RLS 우회 위해 supabaseAdmin 경유 서버 API 사용
-      fetch("/api/admin/log-rows", { credentials: "same-origin" }).then(r => r.json()) as Promise<{ shareViews: LogRow[]; tryClicks: LogRow[]; itunes: ItunesCacheRow[]; storySaveLogs: StorySaveLog[] }>,
+      // RLS 켜진 테이블 — supabaseAdmin 경유 서버 API 사용 (share_views, try_click, itunes, story_save_logs, share_logs, preview_logs)
+      fetch("/api/admin/log-rows", { credentials: "same-origin" }).then(r => r.json()) as Promise<{ shareViews: LogRow[]; tryClicks: LogRow[]; itunes: ItunesCacheRow[]; storySaveLogs: StorySaveLog[]; shareLogs: LogRow[]; previewLogs: PreviewLog[] }>,
       supabase.from("save_logs").select("id, created_at, entry_id, device_id").order("created_at", { ascending: false }),
-      supabase.from("preview_logs").select("id, created_at, device_id, song, artist, action").order("created_at", { ascending: false }),
     ]);
 
     if (!photoRes.error) setPhotoLogs(photoRes.data ?? []);
@@ -344,8 +342,6 @@ export default function AdminPage() {
     if (!analyzeRes.error) setAnalyzeLogs(analyzeRes.data ?? []);
     if (entriesRes.error) showToast("entries 로드 실패");
     else setEntries(entriesRes.data ?? []);
-    if (!shareRes.error) setShareLogs(shareRes.data ?? []);
-    else console.error("[admin] share_logs SELECT 실패:", shareRes.error.message);
     if (!listenRes.error) setListenLogs(listenRes.data ?? []);
     if (!viewRes.error) setViewLogs(viewRes.data ?? []);
     else console.error("[admin] result_view_logs 로드 실패:", viewRes.error.message);
@@ -353,10 +349,10 @@ export default function AdminPage() {
     setTryClicks(logRowsRes.tryClicks ?? []);
     setItunesCache(logRowsRes.itunes ?? []);
     setStorySaveLogs(logRowsRes.storySaveLogs ?? []);
+    setShareLogs(logRowsRes.shareLogs ?? []);
+    setPreviewLogs(logRowsRes.previewLogs ?? []);
     if (!saveRes.error) setSaveLogs(saveRes.data ?? []);
     else console.error("[admin] save_logs 로드 실패:", saveRes.error.message);
-    if (!previewRes.error) setPreviewLogs((previewRes.data ?? []) as PreviewLog[]);
-    else console.error("[admin] preview_logs 로드 실패:", previewRes.error.message);
 
     setLastRefresh(new Date());
     setLoading(false);

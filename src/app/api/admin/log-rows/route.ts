@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
       return all;
     }
 
-    const [viewsRes, tryRes, itunesData, storySaveRes] = await Promise.all([
+    const [viewsRes, tryRes, itunesData, storySaveRes, shareRes, previewRes] = await Promise.all([
       supabaseAdmin
         .from("share_views")
         .select("id, created_at, device_id, entry_id")
@@ -48,20 +48,32 @@ export async function GET(req: NextRequest) {
         .from("story_save_logs")
         .select("id, created_at, device_id, entry_id, status, user_agent")
         .order("created_at", { ascending: false }),
+      supabaseAdmin
+        .from("share_logs")
+        .select("id, created_at, device_id, entry_id")
+        .order("created_at", { ascending: false }),
+      supabaseAdmin
+        .from("preview_logs")
+        .select("id, created_at, device_id, song, artist, action")
+        .order("created_at", { ascending: false }),
     ]);
 
     if (viewsRes.error) console.error("[admin/log-rows] share_views:", viewsRes.error.message);
     if (tryRes.error) console.error("[admin/log-rows] try_click:", tryRes.error.message);
     if (storySaveRes.error) console.error("[admin/log-rows] story_save_logs:", storySaveRes.error.message);
+    if (shareRes.error) console.error("[admin/log-rows] share_logs:", shareRes.error.message);
+    if (previewRes.error) console.error("[admin/log-rows] preview_logs:", previewRes.error.message);
 
     return NextResponse.json({
       shareViews: viewsRes.data ?? [],
       tryClicks: tryRes.data ?? [],
       itunes: itunesData,
       storySaveLogs: storySaveRes.data ?? [],
+      shareLogs: shareRes.data ?? [],
+      previewLogs: previewRes.data ?? [],
     });
   } catch (e) {
     console.error("[admin/log-rows] 오류:", e);
-    return NextResponse.json({ shareViews: [], tryClicks: [] }, { status: 500 });
+    return NextResponse.json({ shareViews: [], tryClicks: [], itunes: [], storySaveLogs: [], shareLogs: [], previewLogs: [] }, { status: 500 });
   }
 }
