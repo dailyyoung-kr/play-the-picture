@@ -79,6 +79,7 @@ export default function ResultPage() {
   const [savedEntryId, setSavedEntryId] = useState<string | null>(null);
   const [toast, setToast] = useState<React.ReactNode>("");
   const [toastOnClick, setToastOnClick] = useState<(() => void) | null>(null);
+  const [toastPosition, setToastPosition] = useState<"top" | "bottom">("bottom");
   const [showListenSheet, setShowListenSheet] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [musicLinks, setMusicLinks] = useState<{
@@ -128,10 +129,19 @@ export default function ResultPage() {
     );
   };
 
-  const showToast = (msg: React.ReactNode, onClick?: () => void) => {
+  const showToast = (
+    msg: React.ReactNode,
+    onClick?: () => void,
+    opts?: { duration?: number; position?: "top" | "bottom" }
+  ) => {
     setToast(msg);
     setToastOnClick(() => onClick ?? null);
-    setTimeout(() => { setToast(""); setToastOnClick(null); }, 5000);
+    setToastPosition(opts?.position ?? "bottom");
+    setTimeout(() => {
+      setToast("");
+      setToastOnClick(null);
+      setToastPosition("bottom");
+    }, opts?.duration ?? 5000);
   };
 
   // 저장 후 id 반환 (이미 저장돼 있으면 캐시된 id 반환)
@@ -422,11 +432,13 @@ export default function ResultPage() {
 
       // 안드로이드 인스타 인앱: navigator.share + <a download> 모두 차단됨
       // → 모달에 이미지 띄워서 사용자가 폰 스크린샷으로 저장
+      // 안내는 토스트로 (3초, 위쪽) — 사라진 후 깨끗한 캡처 가능
       if (isAndroidInstagramInApp()) {
         const url = URL.createObjectURL(blob);
         setInAppImageUrl(url);
         patchStoryStatus("inapp_shown");
         trackEvent("story_inapp_modal_shown", { song: result?.song });
+        showToast("📸 화면을 캡처해 저장하세요", undefined, { duration: 3000, position: "top" });
         return;
       }
 
@@ -1346,13 +1358,13 @@ export default function ResultPage() {
         </div>
       )}
 
-      {/* 토스트 메시지 */}
+      {/* 토스트 메시지 — position: top일 때 모달 위에 떠야 하므로 z-index 250 (모달 200보다 높음) */}
       {toast && (
         <div
           onClick={toastOnClick ?? undefined}
           style={{
             position: "fixed",
-            bottom: 100,
+            ...(toastPosition === "top" ? { top: 80 } : { bottom: 100 }),
             left: "50%",
             transform: "translateX(-50%)",
             background: "rgba(30,30,30,0.95)",
@@ -1361,7 +1373,7 @@ export default function ResultPage() {
             fontSize: 13,
             padding: "12px 16px",
             borderRadius: 18,
-            zIndex: 100,
+            zIndex: 250,
             maxWidth: "calc(100% - 16px)",
             textAlign: "center",
             lineHeight: 1.55,
@@ -1508,26 +1520,6 @@ export default function ResultPage() {
           ✕
         </button>
 
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            marginBottom: 12,
-            background: "rgba(0,0,0,0.6)",
-            border: "1px solid rgba(255,255,255,0.15)",
-            borderRadius: 20,
-            padding: "8px 16px",
-            textAlign: "center",
-            color: "rgba(255,255,255,0.95)",
-            fontSize: 13,
-            fontWeight: 500,
-            lineHeight: 1.3,
-            wordBreak: "keep-all",
-            maxWidth: 280,
-          }}
-        >
-          📸 화면을 캡처해 저장하세요
-        </div>
-
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={inAppImageUrl}
@@ -1535,7 +1527,7 @@ export default function ResultPage() {
           onClick={(e) => e.stopPropagation()}
           style={{
             width: "100%",
-            maxHeight: "85vh",
+            maxHeight: "92vh",
             objectFit: "contain",
             borderRadius: 0,
           }}
