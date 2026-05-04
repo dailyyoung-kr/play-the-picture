@@ -176,8 +176,11 @@ export async function newRecommend(
   console.log(`[PERF] 분석 시작 — 사진 ${photos.length}장`);
 
   // ── STEP 0: 최근 7일 추천 이력 조회 (반복 방지) ──
+  // 곡 단위 차단 (excludedIds) + 아티스트 단위 cap (cappedArtists, 7일 2회 이상 받은 아티스트)
+  // 5/4 데이터 측정: 96.6%가 1회로 정상, 단 헤비 유저 일부에 4-5회 편애 케이스 발생 → cap 도입
 
   let excludedIds: string[] = [];
+  let cappedArtists: Set<string> = new Set();
   if (deviceId) {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data: recData } = await supabase
@@ -186,7 +189,28 @@ export async function newRecommend(
       .eq("device_id", deviceId)
       .gte("created_at", sevenDaysAgo);
     excludedIds = (recData ?? []).map((r: { song_id: string }) => r.song_id).filter(Boolean);
-    console.log(`[new] 최근 7일 추천 제외: ${excludedIds.length}곡`);
+
+    // song_id → artist 매핑으로 7일 2회+ 받은 아티스트 추출
+    const uniqueSongIds = [...new Set(excludedIds)];
+    if (uniqueSongIds.length > 0) {
+      const { data: songsData } = await supabase
+        .from("songs")
+        .select("id, artist")
+        .in("id", uniqueSongIds);
+      const songToArtist = new Map<string, string>();
+      for (const s of (songsData ?? []) as { id: string; artist: string | null }[]) {
+        if (s.artist) songToArtist.set(s.id, s.artist);
+      }
+      const artistCounts = new Map<string, number>();
+      for (const songId of excludedIds) {
+        const artist = songToArtist.get(songId);
+        if (artist) artistCounts.set(artist, (artistCounts.get(artist) ?? 0) + 1);
+      }
+      cappedArtists = new Set(
+        [...artistCounts.entries()].filter(([, c]) => c >= 2).map(([a]) => a)
+      );
+    }
+    console.log(`[new] 최근 7일 추천 제외: ${excludedIds.length}곡 / 아티스트 cap (2회+): ${cappedArtists.size}명`);
   }
 
   // ── STEP 1: Supabase에서 후보곡 필터링 ──
@@ -246,14 +270,14 @@ export async function newRecommend(
     return NextResponse.json({ error: "해당 조건의 곡이 없어요. 다른 장르나 분위기를 선택해주세요.", error_code: "no_candidates" }, { status: 404 });
   }
 
-  // 반복 추천 방지: 최근 7일 이력 제외 (메모리 필터)
-  let filteredCandidates = excludedSet.size > 0
-    ? candidates.filter(s => !excludedSet.has(s.id))
-    : candidates;
+  // 반복 추천 방지: 최근 7일 이력 제외 + 7일 2회+ 받은 아티스트 cap (메모리 필터)
+  let filteredCandidates = candidates.filter(s =>
+    !excludedSet.has(s.id) && !cappedArtists.has(s.artist)
+  );
 
-  // 4차 폴백: 제외 후 5곡 미만이면 전체 후보 복원
-  if (filteredCandidates.length < 5 && excludedSet.size > 0) {
-    console.log(`[FALLBACK] 이력 무시 발동: ${filteredCandidates.length}곡 가용 (genre=${genre}, energy=${energy}, excluded=${excludedSet.size})`);
+  // 4차 폴백: 제외 후 5곡 미만이면 모든 필터 무시하고 후보 복원
+  if (filteredCandidates.length < 5 && (excludedSet.size > 0 || cappedArtists.size > 0)) {
+    console.log(`[FALLBACK] 이력·아티스트 cap 무시 발동: ${filteredCandidates.length}곡 가용 (genre=${genre}, energy=${energy}, excluded=${excludedSet.size}, capped_artists=${cappedArtists.size})`);
     filteredCandidates = candidates;
   }
 
