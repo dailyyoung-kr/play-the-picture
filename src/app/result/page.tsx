@@ -1487,7 +1487,7 @@ export default function ResultPage() {
           background: "rgba(0,0,0,0.92)",
           zIndex: 200,
           display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          padding: "8px",
+          padding: "60px 8px 16px 8px",
           animation: "fadeIn 0.2s ease",
         }}
         onClick={closeInAppImageModal}
@@ -1514,7 +1514,7 @@ export default function ResultPage() {
           onClick={(e) => e.stopPropagation()}
           style={{
             maxWidth: "100%",
-            maxHeight: "92vh",
+            maxHeight: "82vh",
             objectFit: "contain",
             borderRadius: 8,
           }}
@@ -1523,10 +1523,15 @@ export default function ResultPage() {
         <div
           onClick={(e) => e.stopPropagation()}
           style={{
-            marginTop: 6,
+            marginTop: 12,
+            background: "rgba(0,0,0,0.6)",
+            border: "1px solid rgba(255,255,255,0.15)",
+            borderRadius: 20,
+            padding: "8px 16px",
             textAlign: "center",
-            color: "rgba(255,255,255,0.55)",
-            fontSize: 12,
+            color: "rgba(255,255,255,0.95)",
+            fontSize: 13,
+            fontWeight: 500,
             lineHeight: 1.3,
             wordBreak: "keep-all",
             maxWidth: 280,
