@@ -79,7 +79,6 @@ export default function ResultPage() {
   const [savedEntryId, setSavedEntryId] = useState<string | null>(null);
   const [toast, setToast] = useState<React.ReactNode>("");
   const [toastOnClick, setToastOnClick] = useState<(() => void) | null>(null);
-  const [toastPosition, setToastPosition] = useState<"top" | "bottom">("bottom");
   const [showListenSheet, setShowListenSheet] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [musicLinks, setMusicLinks] = useState<{
@@ -129,19 +128,10 @@ export default function ResultPage() {
     );
   };
 
-  const showToast = (
-    msg: React.ReactNode,
-    onClick?: () => void,
-    opts?: { duration?: number; position?: "top" | "bottom" }
-  ) => {
+  const showToast = (msg: React.ReactNode, onClick?: () => void) => {
     setToast(msg);
     setToastOnClick(() => onClick ?? null);
-    setToastPosition(opts?.position ?? "bottom");
-    setTimeout(() => {
-      setToast("");
-      setToastOnClick(null);
-      setToastPosition("bottom");
-    }, opts?.duration ?? 5000);
+    setTimeout(() => { setToast(""); setToastOnClick(null); }, 5000);
   };
 
   // 저장 후 id 반환 (이미 저장돼 있으면 캐시된 id 반환)
@@ -1357,13 +1347,13 @@ export default function ResultPage() {
         </div>
       )}
 
-      {/* 토스트 메시지 — position: top일 때 모달 위에 떠야 하므로 z-index 250 (모달 200보다 높음) */}
+      {/* 토스트 메시지 */}
       {toast && (
         <div
           onClick={toastOnClick ?? undefined}
           style={{
             position: "fixed",
-            ...(toastPosition === "top" ? { top: 130 } : { bottom: 100 }),
+            bottom: 100,
             left: "50%",
             transform: "translateX(-50%)",
             background: "rgba(30,30,30,0.95)",
@@ -1372,7 +1362,7 @@ export default function ResultPage() {
             fontSize: 13,
             padding: "12px 16px",
             borderRadius: 18,
-            zIndex: 9999,
+            zIndex: 100,
             maxWidth: "calc(100% - 16px)",
             textAlign: "center",
             lineHeight: 1.55,
