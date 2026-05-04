@@ -266,7 +266,7 @@ export default function ResultPage() {
       // 2) 클립보드 복사 시도 — fallback 단계
       try {
         await navigator.clipboard.writeText(url);
-        showToast("링크가 복사됐어요! 원하는 곳에 붙여넣어 공유해보세요 ✦");
+        showToast("링크가 복사됐어요! 원하는 곳에 붙여넣어 공유해보세요");
         patchStatus("fallback");
       } catch {
         // 3) 클립보드도 안 되면 URL 직접 보여주기
@@ -1329,7 +1329,7 @@ export default function ResultPage() {
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(shareUrl);
-                  showToast("링크가 복사됐어요! 원하는 곳에 붙여넣어 공유해보세요 ✦");
+                  showToast("링크가 복사됐어요! 원하는 곳에 붙여넣어 공유해보세요");
                   setShareUrl(null);
                 } catch {
                   showToast("복사에 실패했어요. 위 링크를 꾹 눌러 직접 복사해주세요!");
