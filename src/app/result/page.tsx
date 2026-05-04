@@ -1487,7 +1487,7 @@ export default function ResultPage() {
           background: "rgba(0,0,0,0.92)",
           zIndex: 200,
           display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          padding: "60px 8px 16px 8px",
+          padding: "16px 8px",
           animation: "fadeIn 0.2s ease",
         }}
         onClick={closeInAppImageModal}
@@ -1507,23 +1507,10 @@ export default function ResultPage() {
           ✕
         </button>
 
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={inAppImageUrl}
-          alt="스토리용 이미지"
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            maxWidth: "100%",
-            maxHeight: "82vh",
-            objectFit: "contain",
-            borderRadius: 8,
-          }}
-        />
-
         <div
           onClick={(e) => e.stopPropagation()}
           style={{
-            marginTop: 12,
+            marginBottom: 12,
             background: "rgba(0,0,0,0.6)",
             border: "1px solid rgba(255,255,255,0.15)",
             borderRadius: 20,
@@ -1539,6 +1526,19 @@ export default function ResultPage() {
         >
           📸 화면을 캡처해 저장하세요
         </div>
+
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={inAppImageUrl}
+          alt="스토리용 이미지"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            maxWidth: "100%",
+            maxHeight: "85vh",
+            objectFit: "contain",
+            borderRadius: 8,
+          }}
+        />
       </div>
     )}
 
