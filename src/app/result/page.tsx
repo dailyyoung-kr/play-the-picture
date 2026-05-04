@@ -1487,7 +1487,7 @@ export default function ResultPage() {
           background: "rgba(0,0,0,0.92)",
           zIndex: 200,
           display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          padding: "16px 8px",
+          padding: "16px 0",
           animation: "fadeIn 0.2s ease",
         }}
         onClick={closeInAppImageModal}
@@ -1533,10 +1533,10 @@ export default function ResultPage() {
           alt="스토리용 이미지"
           onClick={(e) => e.stopPropagation()}
           style={{
-            maxWidth: "100%",
+            width: "100%",
             maxHeight: "85vh",
             objectFit: "contain",
-            borderRadius: 8,
+            borderRadius: 0,
           }}
         />
       </div>
