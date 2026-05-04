@@ -438,10 +438,6 @@ export default function ResultPage() {
         setInAppImageUrl(url);
         patchStoryStatus("inapp_shown");
         trackEvent("story_inapp_modal_shown", { song: result?.song });
-        // modal render 후 toast 발화 (React batch 우회 + 모달과 같은 tick에 setState 충돌 회피)
-        setTimeout(() => {
-          showToast("📸 화면을 캡처해 저장하세요", undefined, { duration: 4000, position: "top" });
-        }, 150);
         return;
       }
 
@@ -1523,6 +1519,26 @@ export default function ResultPage() {
           ✕
         </button>
 
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            marginBottom: 12,
+            background: "rgba(0,0,0,0.6)",
+            border: "1px solid rgba(255,255,255,0.15)",
+            borderRadius: 20,
+            padding: "8px 16px",
+            textAlign: "center",
+            color: "rgba(255,255,255,0.95)",
+            fontSize: 13,
+            fontWeight: 500,
+            lineHeight: 1.3,
+            wordBreak: "keep-all",
+            maxWidth: 280,
+          }}
+        >
+          📸 화면을 캡처해 저장하세요
+        </div>
+
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={inAppImageUrl}
@@ -1530,7 +1546,7 @@ export default function ResultPage() {
           onClick={(e) => e.stopPropagation()}
           style={{
             width: "100%",
-            maxHeight: "92vh",
+            maxHeight: "85vh",
             objectFit: "contain",
             borderRadius: 0,
           }}
