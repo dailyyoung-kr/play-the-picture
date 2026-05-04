@@ -737,7 +737,12 @@ export default function AdminPage() {
   const classifyStoryUA = (ua: string | null): string => {
     if (!ua) return "null_ua";
     if (/KAKAOTALK/i.test(ua)) return "kakao_inapp";
-    if (/Instagram/i.test(ua)) return "insta_inapp";
+    // Instagram 인앱은 OS 분리 — 안드로이드는 navigator.share/download 차단되어 viral 동선 X
+    if (/Instagram/i.test(ua)) {
+      if (/Android/.test(ua)) return "android_instagram_inapp";
+      if (/iPhone|iPad/.test(ua)) return "ios_instagram_inapp";
+      return "instagram_inapp_other";
+    }
     if (/FBAN|FBAV/i.test(ua)) return "fb_inapp";
     if (/; wv\)/.test(ua)) return "android_webview";
     if (/CriOS/.test(ua)) return "ios_chrome";
@@ -752,8 +757,9 @@ export default function AdminPage() {
     const env = classifyStoryUA(l.user_agent);
     storyEnvCounts[env] = (storyEnvCounts[env] ?? 0) + 1;
   }
-  const storyInstaInappRate = storyClickedCount > 0 ? pct(storyEnvCounts["insta_inapp"] ?? 0, storyClickedCount) : "—";
-  const storyIosSafariRate  = storyClickedCount > 0 ? pct(storyEnvCounts["ios_safari"] ?? 0, storyClickedCount) : "—";
+  const storyAndroidInstaRate = storyClickedCount > 0 ? pct(storyEnvCounts["android_instagram_inapp"] ?? 0, storyClickedCount) : "—";
+  const storyIosInstaRate     = storyClickedCount > 0 ? pct(storyEnvCounts["ios_instagram_inapp"] ?? 0, storyClickedCount) : "—";
+  const storyIosSafariRate    = storyClickedCount > 0 ? pct(storyEnvCounts["ios_safari"] ?? 0, storyClickedCount) : "—";
 
   // K-factor (단순화): 성공 유저 1명당 만들어낸 "나도 해보기 클릭" 수
   // = 공유율 × 공유당 유입률
@@ -1463,9 +1469,14 @@ export default function AdminPage() {
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
             <div>
-              <span style={{ color: "rgba(255,255,255,0.4)" }}>insta_inapp: </span>
-              <span style={{ fontWeight: 600, color: "#fff" }}>{storyInstaInappRate}</span>
-              <span style={{ color: "rgba(255,255,255,0.35)" }}> ({storyEnvCounts["insta_inapp"] ?? 0})</span>
+              <span style={{ color: "rgba(255,255,255,0.4)" }}>android_instagram_inapp: </span>
+              <span style={{ fontWeight: 600, color: "#C4687A" }}>{storyAndroidInstaRate}</span>
+              <span style={{ color: "rgba(255,255,255,0.35)" }}> ({storyEnvCounts["android_instagram_inapp"] ?? 0})</span>
+            </div>
+            <div>
+              <span style={{ color: "rgba(255,255,255,0.4)" }}>ios_instagram_inapp: </span>
+              <span style={{ fontWeight: 600, color: "#fff" }}>{storyIosInstaRate}</span>
+              <span style={{ color: "rgba(255,255,255,0.35)" }}> ({storyEnvCounts["ios_instagram_inapp"] ?? 0})</span>
             </div>
             <div>
               <span style={{ color: "rgba(255,255,255,0.4)" }}>ios_safari: </span>
@@ -1473,7 +1484,7 @@ export default function AdminPage() {
               <span style={{ color: "rgba(255,255,255,0.35)" }}> ({storyEnvCounts["ios_safari"] ?? 0})</span>
             </div>
             {Object.entries(storyEnvCounts)
-              .filter(([env]) => env !== "insta_inapp" && env !== "ios_safari")
+              .filter(([env]) => env !== "android_instagram_inapp" && env !== "ios_instagram_inapp" && env !== "ios_safari")
               .sort((a, b) => b[1] - a[1])
               .map(([env, count]) => (
                 <div key={env}>
@@ -1484,7 +1495,7 @@ export default function AdminPage() {
               ))}
           </div>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 8 }}>
-            인스타 인앱 비율 ↑ = 광고 viral 사이클 작동 신호. 다운로드 fallback {storyDownloadedCount}건 / 취소 {storyCancelledCount}건 / 실패 {storyFailedCount}건
+            <span style={{ color: "#C4687A" }}>android_instagram_inapp</span>은 share completed 도달 불가(webview 차단) — inapp_shown으로만 끝남. 다운로드 fallback {storyDownloadedCount}건 / 취소 {storyCancelledCount}건 / 실패 {storyFailedCount}건
           </div>
         </div>
       )}
