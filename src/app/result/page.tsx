@@ -345,7 +345,7 @@ export default function ResultPage() {
           .catch(() => null)
       : Promise.resolve(null);
 
-    const patchStoryStatus = (status: "generated" | "shared" | "cancelled" | "downloaded" | "failed") => {
+    const patchStoryStatus = (status: "generated" | "shared" | "cancelled" | "downloaded" | "failed" | "inapp_shown") => {
       logIdPromise.then((id) => {
         if (!id) return;
         fetch(`/api/log-story-save/${id}`, {
@@ -420,11 +420,12 @@ export default function ResultPage() {
 
       patchStoryStatus("generated");
 
-      // 안드로이드 인스타 인앱: navigator.share + <a download> 둘 다 차단됨
-      // → 모달에 이미지 띄워서 long-press로 갤러리 저장 유도
+      // 안드로이드 인스타 인앱: navigator.share + <a download> 모두 차단됨
+      // → 모달에 이미지 띄워서 사용자가 폰 스크린샷으로 저장
       if (isAndroidInstagramInApp()) {
         const url = URL.createObjectURL(blob);
         setInAppImageUrl(url);
+        patchStoryStatus("inapp_shown");
         trackEvent("story_inapp_modal_shown", { song: result?.song });
         return;
       }
