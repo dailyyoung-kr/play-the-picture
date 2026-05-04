@@ -144,6 +144,66 @@ DROP POLICY "anyone can select share_logs" ON share_logs;
 
 ---
 
+## 7-B. 안드로이드 인스타 인앱(IABMV) 스토리 저장 진단 + fix ⚠️
+
+### 7-B-1. 발견 — 친구 안드로이드 인스타 인앱 테스트에서 사고
+
+`Samsung SM-S911N` (갤럭시 S23) + 인스타 인앱 webview에서:
+- "스토리용 이미지" 클릭 → "페이지를 읽어들일 수 없습니다" 에러
+- "결과 공유하기" 클릭 → fallback 클립보드 복사 (시트 안 뜸)
+
+### 7-B-2. user_agent 기반 funnel 추적 결과
+
+`story_save_logs.user_agent` 분류해 5/3-5/4 데이터 종합:
+
+| 환경 | devices | rows | shared | downloaded | generated만 (이탈) | **share 성공률** |
+|---|---|---|---|---|---|---|
+| iOS 인스타 인앱 | 7 | 11 | 8 | 0 | 1 | **73%** |
+| iOS 외부 | 1 | 7 | 7 | 0 | 0 | **100%** |
+| 안드로이드 외부 | 4 | 5 | 2 | 0 | 0 | **40%** |
+| **안드로이드 인스타 인앱** | **6** | **9** | **0** | **5** | **4** | **0%** |
+
+→ 안드로이드 인스타 인앱 6명 모두 share 0건, **viral 도달 view_count 합계 0건** (9 entry 모두 viewer 0).
+
+### 7-B-3. 원인 — 알려진 안드로이드 인스타 인앱 webview 제약 (인터넷 조사 검증)
+
+- `navigator.share` API 자체가 webview에서 차단 ([react-native-webview #1262](https://github.com/react-native-webview/react-native-webview/issues/1262))
+- `<a download>` blob URL → 외부 navigation 시도로 인식 → 차단
+- `intent://` URI, `target="_system"`, `window.open()` 모두 실패 ([luizcieslak/am-i-inapp-browser](https://github.com/luizcieslak/am-i-inapp-browser))
+- Chrome deep link만 일부 작동 (~64% 커버리지)
+- **유일한 신뢰 가능 동작**: long-press 컨텍스트 메뉴 (webview 내부 처리, 외부 navigation 아님)
+
+### 7-B-4. 광고 ROAS 가설 (§3-2) 부분 무력화
+
+> "광고 100% 인스타 → 인스타 viral 자연 동선" — 안드로이드 인스타 인앱 사용자(인스타 인앱 user의 ~46%)가 viral 동선 100% 차단 상태.
+
+### 7-B-5. fix — 옵션 D 채택
+
+UA `Android` && `Instagram` 동시 감지 시:
+- navigator.share / triggerStoryDownload 호출 자체 skip
+- blob → `URL.createObjectURL` → 모달에 `<img>` 표시
+- 안내 메시지: "💾 사진을 길게 눌러 갤러리에 저장할 수 있어요"
+- ✕ 버튼 또는 backdrop 클릭으로 닫기 (revokeObjectURL)
+
+**iOS·외부 브라우저·카톡 인앱·기타 환경 영향 0** — 분기 조건이 강한 AND라 오탐 위험 사실상 0.
+
+### 7-B-6. 의도적으로 안 한 것
+
+- **결과 공유하기는 손 안 댐** — 사용자 결정. 클립보드 fallback이 인앱에서도 작동하므로 우선순위 ↓
+- **"Chrome에서 열기" 보조 안내 제거** — 안드로이드 기본 브라우저 다양 (삼성 인터넷 등). long-press 단일 액션으로 단순화
+- **`/share/[id]/ShareClient.tsx` 미적용** — 친구가 share 페이지 진입 후 다시 스토리 저장 시도하는 케이스. 추후 데이터 보고 결정
+- **DDL 변경 없음** — 새 status 'inapp_shown' 추가 보류. 추적은 trackEvent("story_inapp_modal_shown") + UA 분류로 진행. 데이터 누적 후 정식 status 도입 검토
+
+### 7-B-7. 측정 방법
+
+- Vercel Analytics: `story_inapp_modal_shown` event 카운트
+- admin funnel: `story_save_logs.user_agent ILIKE '%Android%Instagram%'` + status `generated` = 모달 분기 진입
+- viral 회복 측정: 같은 device의 후속 entry view_count 변화
+
+[src/app/result/page.tsx:411](src/app/result/page.tsx) — handleStorySave 분기, helper 함수, 모달 컴포넌트 추가.
+
+---
+
 ## 8. 다음 우선순위 (변동 없음)
 
 [5/3 part2 핸드오프 §12](./SESSION_HANDOFF_2026-05-03_part2.md) 그대로 유지:
