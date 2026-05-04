@@ -703,17 +703,22 @@ export default function AdminPage() {
   }
   let selfViewCount = 0;
   let externalViewCount = 0;
+  let unmatchedViewCount = 0; // sharer 매핑 없는 viewer (옛 share·share_logs 누락 등) — viral 측정에서 제외
   const externalViewersByEntry = new Map<string, Set<string>>();
   for (const v of filteredViews) {
     if (!v.entry_id || !v.device_id) continue;
     const sharer = sharerByEntry.get(v.entry_id);
     if (sharer && v.device_id === sharer) {
       selfViewCount++;
-    } else {
+    } else if (sharer) {
+      // sharer 매핑 있고 본인이 아님 = 진짜 외부 친구 도달
       externalViewCount++;
       const set = externalViewersByEntry.get(v.entry_id) ?? new Set<string>();
       set.add(v.device_id);
       externalViewersByEntry.set(v.entry_id, set);
+    } else {
+      // sharer 매핑 없음 (옛 share·INSERT 누락 등) — viral chain 측정에서 분리
+      unmatchedViewCount++;
     }
   }
   // 공유 1건당 unique 친구 도달 — 진짜 viral coefficient에 가까운 측정

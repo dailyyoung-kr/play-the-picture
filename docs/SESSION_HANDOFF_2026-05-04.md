@@ -527,6 +527,62 @@ Vercel preview URL로 검증 시도 → 페북 디버거 여전히 403.
 
 ---
 
+## 7-I. admin viral 측정 정확도 fix — sharer 매핑 없는 viewer 분리
+
+### 7-I-1. 발견 — admin "공유 1건당 unique 친구 도달" inflated
+
+5/4 데이터 분석 중 발견:
+- admin 표시: `unique 친구 도달 3.33` (10명 외부 / 3 share)
+- DB 직접 매칭: 5/4 share에서 **실제 외부 viewer는 2명만**
+- 차이 8명 = sharer 매핑 없는 viewer (옛 share 도달, share_logs INSERT 누락 등)
+
+### 7-I-2. 원인 — admin 코드의 분기
+
+[admin/page.tsx:707-717](src/app/admin/page.tsx) 기존 로직:
+```ts
+if (sharer && v.device_id === sharer) selfViewCount++;
+else externalViewCount++;  // ★ sharer 매핑 없어도 external로 카운트
+```
+
+→ sharer 없는 viewer (예: 옛 entry 도달자)도 "외부 친구"로 분류 → viral 측정 inflated.
+
+### 7-I-3. fix — 옵션 A (단순 수정)
+
+```ts
+if (sharer && v.device_id === sharer) selfViewCount++;
+else if (sharer) externalViewCount++;  // sharer 매핑 있고 본인 아님 = 진짜 외부
+else unmatchedViewCount++;             // sharer 없음 — viral 측정에서 제외
+```
+
+### 7-I-4. 측정값 변화 예시 (5/4 데이터)
+
+| 항목 | Before | After |
+|---|---|---|
+| selfViewCount | 2 | 2 |
+| externalViewCount | 10 | **2** |
+| unmatchedViewCount | (없음) | **8** |
+| 공유 1건당 unique 친구 도달 | 3.33 (inflated) | **0.67** (정확) |
+| 자가 view 비중 | 17% (2/12) | **50%** (2/4) |
+
+### 7-I-5. 의도적으로 안 한 것 (옵션 B 보류)
+
+- unmatched 카운트를 admin UI에 표시 안 함 (단순 시작)
+- 변수만 추가해서 추후 옵션 B (둘 다 표시) 도입 시 reuse 가능
+
+### 7-I-6. 시사점 — 이전 viral 측정 수치 재해석 필요
+
+**과거 viral 메트릭이 모두 inflated 가능성**:
+- 4/26 ~ 5/3 viral coefficient 측정값에 옛 entry 재방문이 포함됐을 것
+- 정확한 sharer→viewer chain은 더 약함
+- §7-G의 OG 미스크래핑 영향 분석(4일 누적 손실 ~24 viewers)도 이전 inflated 기준 → 진짜 손실은 더 적을 가능성
+
+### 7-I-7. 회귀 위험·심리적 영향
+
+- 코드 변경 ~5줄, 회귀 위험 0
+- **viral 메트릭 갑자기 ↓ 표시** — "viral 떨어진 줄" 오해 가능 → 박제로 명시
+
+---
+
 ## 8. 다음 우선순위 (변동 없음)
 
 [5/3 part2 핸드오프 §12](./SESSION_HANDOFF_2026-05-03_part2.md) 그대로 유지:
