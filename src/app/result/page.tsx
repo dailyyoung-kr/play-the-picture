@@ -93,6 +93,9 @@ export default function ResultPage() {
   // Canvas API로 처리된 storyCard 배경 (lazy — handleStorySave 클릭 시점에만 생성)
   const [storyBgBase64, setStoryBgBase64] = useState<string | null>(null);
   const storyCardRef = useRef<HTMLDivElement>(null);
+  // 안드로이드 인스타 인앱 webview용 — navigator.share/<a download> 모두 차단되므로
+  // blob을 모달에 <img>로 표시 → 사용자가 long-press로 갤러리 저장
+  const [inAppImageUrl, setInAppImageUrl] = useState<string | null>(null);
 
   // ── iTunes 30초 미리듣기 ──
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -306,6 +309,19 @@ export default function ResultPage() {
     );
   };
 
+  // 안드로이드 인스타 인앱(IABMV) webview 감지 — navigator.share + <a download> 모두 차단됨
+  // → 별도 분기로 blob을 모달에 표시 → long-press로 갤러리 저장 유도
+  const isAndroidInstagramInApp = (): boolean => {
+    if (typeof navigator === "undefined") return false;
+    const ua = navigator.userAgent;
+    return /Android/.test(ua) && /Instagram/.test(ua);
+  };
+
+  const closeInAppImageModal = () => {
+    if (inAppImageUrl) URL.revokeObjectURL(inAppImageUrl);
+    setInAppImageUrl(null);
+  };
+
   // ── 스토리용 이미지 저장 — 9:16 카드 캡처 → Web Share L2 (files) ──
   // 1차: modern-screenshot (SVG foreignObject 기반 — 폰트·이모지·flex 정확)
   // 2차 fallback: html2canvas (라이브러리 실패 시 안전망)
@@ -403,6 +419,15 @@ export default function ResultPage() {
       }
 
       patchStoryStatus("generated");
+
+      // 안드로이드 인스타 인앱: navigator.share + <a download> 둘 다 차단됨
+      // → 모달에 이미지 띄워서 long-press로 갤러리 저장 유도
+      if (isAndroidInstagramInApp()) {
+        const url = URL.createObjectURL(blob);
+        setInAppImageUrl(url);
+        trackEvent("story_inapp_modal_shown", { song: result?.song });
+        return;
+      }
 
       const file = new File([blob], `play-the-picture-story-${Date.now()}.png`, { type: "image/png" });
 
@@ -1451,6 +1476,65 @@ export default function ResultPage() {
         )}
 
         <style>{`@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }`}</style>
+      </div>
+    )}
+
+    {/* 안드로이드 인스타 인앱 전용 — 스토리용 이미지 long-press 저장 모달 */}
+    {inAppImageUrl && (
+      <div
+        style={{
+          position: "fixed", inset: 0,
+          background: "rgba(0,0,0,0.92)",
+          zIndex: 200,
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          padding: "20px",
+          animation: "fadeIn 0.2s ease",
+        }}
+        onClick={closeInAppImageModal}
+      >
+        <button
+          onClick={closeInAppImageModal}
+          style={{
+            position: "absolute", top: 20, right: 20,
+            background: "rgba(255,255,255,0.15)",
+            border: "none", borderRadius: "50%",
+            width: 40, height: 40,
+            fontSize: 20, color: "#fff",
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 201,
+          }}
+        >
+          ✕
+        </button>
+
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={inAppImageUrl}
+          alt="스토리용 이미지"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            maxWidth: "100%",
+            maxHeight: "70vh",
+            objectFit: "contain",
+            borderRadius: 12,
+            userSelect: "none",
+          }}
+        />
+
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            marginTop: 24,
+            textAlign: "center",
+            color: "rgba(255,255,255,0.95)",
+            fontSize: 16,
+            lineHeight: 1.6,
+            wordBreak: "keep-all",
+            maxWidth: 320,
+          }}
+        >
+          💾 사진을 길게 눌러<br />갤러리에 저장할 수 있어요
+        </div>
       </div>
     )}
 
