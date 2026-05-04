@@ -714,6 +714,137 @@ if (cT === nT) {
 
 ---
 
+## 7-K. iOS 인스타 인앱 OG 미스크래핑 — **진짜 원인 발견 + §7-H 정정**
+
+### 7-K-1. §7-H 가설 정정
+
+이전 §7-H 박제는 **부정확했음**:
+- 가설 1 (페북 24시간 robots.txt 캐시): **부정확** (실제 cache 갱신은 수 분~수 시간)
+- "디버거 메시지 misleading" 추정: **부정확** (메시지는 정확)
+- 권장 5/5 14시 자동 갱신 대기: **불완전 fix** (이번 §7-K 진짜 fix 적용 후 자동 갱신 대기)
+
+### 7-K-2. 진짜 원인 — og:image URL이 `/api/` 경로
+
+**진짜 메커니즘**:
+```
+페북 봇이 share URL fetch (200 OK)
+  ↓
+HTML head에서 og:image URL 추출
+  → "https://playthepicture.com/api/og?id={entryId}"
+  ↓
+페북이 og:image URL을 robots.txt에 대조
+  → SNS 봇 블록 Disallow에 "/api/" 포함 → og:image URL이 /api/og로 시작 = 차단
+  ↓
+페북이 og:image URL fetch 자체 안 함 (robots.txt block)
+  → og:image 무효화 → OG 카드 미노출
+  ↓
+페북 디버거 표시: "응답 코드 403, robots.txt block, allowlist facebookexternalhit"
+```
+
+→ 디버거 메시지는 **share URL이 아니라 OG validation 전체 결과**에 대한 것. 정확했음.
+
+### 7-K-3. 결정적 증거 3개 (직접 데이터)
+
+**증거 1 — 4/26 baseline (사용자 확인)**:
+- robots.ts 추가 commit `38e2464` = **5/1 18:42 KST** (그 이전 robots.txt 없음 = 모든 봇 모든 경로 허용)
+- 4/26 시점 인스타·카톡 모두 OG 카드 정상 (스크린샷 확인됨)
+
+**증거 2 — Vercel logs 1차 (10:14-10:27 UTC, fix 이전)**:
+- facebookexternalhit `/share/[id]` 17건 fetch (200 OK)
+- facebookexternalhit `/api/og` **0건**
+- → 페북이 share 페이지는 받았지만 og:image URL fetch 자체 시도 안 함
+
+**증거 3 — Vercel logs 2차 (10:37:38 UTC, fix 후)**:
+- facebookexternalhit `/api/og` **3건 200 응답** ✅
+- robots.txt `/api/og` Allow 적용 후 페북 봇이 즉시 fetch 시작
+- → fix 작동 직접 검증
+
+### 7-K-4. 적용한 fix (commit 7fb10c4)
+
+[src/app/robots.ts](src/app/robots.ts) — SNS 봇 11개에 `/api/og` 명시 Allow:
+
+```ts
+...SNS_CRAWLERS.map((ua) => ({
+  userAgent: ua,
+  allow: ["/", "/api/og"],  // ★ /api/og 명시
+  disallow: snsDisallow,    // /api/ Disallow 그대로 (다른 endpoint 차단 유지)
+})),
+```
+
+- robots.txt 표준상 specific Allow가 specific Disallow보다 우선 (path 길이 또는 명시성 기준)
+- `/api/admin/`, `/api/log-*` 등 다른 endpoint는 차단 유지 (보안)
+
+### 7-K-5. 페북 cache 다층 구조 박제
+
+```
+페북 인프라 cache:
+├─ robots.txt cache (도메인 단위, 24시간 max)
+│   └─ 디버거 "다시 스크랩"으로 즉시 갱신 가능 (UI cache)
+├─ Validation worker cache (worker별 독립, propagation 시간 다름)
+│   └─ robots.txt 새 버전 받기까지 수 분~수 시간
+├─ Share URL response cache (URL별, 며칠~몇 주)
+│   └─ 디버거 "다시 스크랩"으로 갱신 trigger 가능
+└─ 디버거 UI cache (즉시 갱신)
+```
+
+**5/4 시나리오**:
+- robots.txt 새 버전 push (commit 7fb10c4) → 약 30분 후 일부 페북 worker가 새 robots.txt 받음
+- 10:37:38 UTC: 페북 봇이 `/api/og` 정상 fetch (Vercel logs 직접 증명)
+- 단 디버거 UI는 옛 share URL response cache 표시 → 사용자 보기엔 여전히 403
+- 전 worker propagation 완료 시 디버거에도 정상 결과 표시 (수 시간 ~ 24시간)
+
+### 7-K-6. 검증 도구 — Vercel Logs Export 활용
+
+향후 SNS 봇 fetch 흐름 디버깅 시 가장 정확한 도구:
+
+1. Vercel Dashboard → Logs 탭
+2. 시간 범위 선택 (Last 1h ~ 24h)
+3. CSV export
+4. 분석:
+   ```bash
+   awk -F',' 'tolower($8) ~ /facebookexternalhit|meta-external/ \
+     {print $1, "|", $3, "|", $6}' export.csv
+   ```
+5. share URL fetch는 정상인데 og:image (`/api/og`) fetch 0건 = robots.txt 차단
+
+### 7-K-7. 향후 SNS 봇 디버깅 가이드 (§7-H §7-H-8 보강)
+
+새 SNS 미리보기 이슈 발생 시 추가 체크리스트:
+
+1. ~기존 §7-H-8 8단계~
+2. **og:image URL이 robots.txt에서 차단되는 경로인지 확인**:
+   - og:image가 `/api/og?...` 같은 dynamic endpoint면 SNS 봇 Allow 명시 필요
+   - 정적 이미지 (`/og-image.png`)면 무관
+3. **Vercel Logs export로 SNS 봇 fetch 패턴 검증**:
+   - share URL은 fetch하는데 og:image는 0건 = robots.txt 차단 시그니처
+4. **페북 디버거 메시지 신뢰**:
+   - "robots.txt block"은 og:image fetch 차단 의미일 수 있음 (share URL 아님)
+   - 디버거 응답 코드는 OG validation 전체 결과
+
+### 7-K-8. 5/4 OG 디버깅 종합 fix history
+
+| commit | 변경 | 효과 |
+|---|---|---|
+| `51bf1f2` | robots.txt — SNS 봇 6개 `/share/` Allow | 부분 fix (필수 but 불충분) |
+| `7a2b9f0` | robots.txt — Meta 신규 UA 5개 추가 | 정확한 UA 매칭 |
+| `80fbe88` | next.config.ts — htmlLimitedBots 추가 | streaming metadata 회피 |
+| `7fb10c4` | **robots.txt — SNS 봇 `/api/og` Allow** | **진짜 fix (og:image fetch 허용)** |
+
+**검증 일정**:
+- 5/4 ~19:30 KST: fix push
+- 5/4 19:37 UTC: 페북 봇이 `/api/og` 정상 fetch 시작 (Vercel logs 증명)
+- **5/5 ~14:00 KST**: 페북 cache 전 worker propagation 완료 추정 → 디버거 200 + og 정상 + 인스타 DM OG 카드 노출
+
+### 7-K-9. 핵심 박제 — 이번 디버깅의 메타 교훈
+
+1. **페북 디버거 메시지를 의심하지 말 것** — 정확한 진단인 경우가 더 많음
+2. **Vercel Logs Export = 가장 결정적인 디버깅 도구** — 실제 봇 행동 직접 측정
+3. **OG image URL이 dynamic endpoint(`/api/og`)면 SNS 봇 robots.txt에 명시 필수**
+4. **24시간 cache 가설보다 "데이터 직접 측정"이 정공법** — 추측 디버깅 노이즈 줄임
+5. **fix 적용과 페북 측 propagation은 별개** — 우리 fix 즉시 적용 + 페북 cache 자동 갱신 대기
+
+---
+
 ## 8. 다음 우선순위 (변동 없음)
 
 [5/3 part2 핸드오프 §12](./SESSION_HANDOFF_2026-05-03_part2.md) 그대로 유지:
