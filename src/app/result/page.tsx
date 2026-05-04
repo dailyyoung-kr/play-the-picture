@@ -1512,32 +1512,27 @@ export default function ResultPage() {
           src={inAppImageUrl}
           alt="스토리용 이미지"
           onClick={(e) => e.stopPropagation()}
-          // long-press 컨텍스트 메뉴(이미지 저장) 명시 허용 — 안드로이드 인스타 webview는 기본 차단 성향
           style={{
             maxWidth: "100%",
-            maxHeight: "70vh",
+            maxHeight: "75vh",
             objectFit: "contain",
             borderRadius: 12,
-            userSelect: "auto",
-            WebkitUserSelect: "auto",
-            WebkitTouchCallout: "default",
-            pointerEvents: "auto",
           }}
         />
 
         <div
           onClick={(e) => e.stopPropagation()}
           style={{
-            marginTop: 24,
+            marginTop: 20,
             textAlign: "center",
             color: "rgba(255,255,255,0.95)",
             fontSize: 16,
-            lineHeight: 1.6,
+            lineHeight: 1.5,
             wordBreak: "keep-all",
             maxWidth: 320,
           }}
         >
-          💾 사진을 길게 눌러<br />갤러리에 저장할 수 있어요
+          📸 화면을 캡처해 저장하세요
         </div>
       </div>
     )}
