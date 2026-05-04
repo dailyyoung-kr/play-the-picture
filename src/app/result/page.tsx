@@ -1559,15 +1559,40 @@ export default function ResultPage() {
                 </div>
               );
             }
-            if (count === 2 || count === 3) {
+            if (count === 2) {
               return (
                 <div style={{ display: "flex", gap: GAP }}>
-                  {Array.from({ length: count }, (_, i) => i).map((i) => (
+                  {[0, 1].map((i) => (
                     <div key={i} style={slot}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={photos[i]} alt="" style={imgStyle} />
                     </div>
                   ))}
+                </div>
+              );
+            }
+            if (count === 3) {
+              // 좌 1장 (큼) + 우 2장 (세로 스택). 좌 높이 = 우×2 + GAP — 빈 공간 없이 꽉 참
+              const SMALL = SIZE; // 309
+              const LARGE = SMALL * 2 + GAP; // 638
+              const smallSlot: React.CSSProperties = { ...slot, width: SMALL, height: SMALL };
+              const largeSlot: React.CSSProperties = { ...slot, width: LARGE, height: LARGE };
+              return (
+                <div style={{ display: "flex", gap: GAP }}>
+                  <div style={largeSlot}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={photos[0]} alt="" style={imgStyle} />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: GAP }}>
+                    <div style={smallSlot}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={photos[1]} alt="" style={imgStyle} />
+                    </div>
+                    <div style={smallSlot}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={photos[2]} alt="" style={imgStyle} />
+                    </div>
+                  </div>
                 </div>
               );
             }
