@@ -26,11 +26,19 @@ export default function robots(): MetadataRoute.Robots {
     "/preference",
     "/journal",
   ];
+  // SNS 봇은 /share/ 허용 + /api/og 허용 (og:image 동적 생성 endpoint)
+  // 5/4 Vercel logs 분석: 페북이 share 페이지는 200으로 fetch했지만 og:image (/api/og) 는
+  // /api/ Disallow로 차단 → 페북 디버거 "robots.txt block" + OG 카드 미노출
   const snsDisallow = generalDisallow.filter((p) => p !== "/share/");
 
   return {
     rules: [
-      ...SNS_CRAWLERS.map((ua) => ({ userAgent: ua, allow: "/", disallow: snsDisallow })),
+      // SNS 봇: /share/ + /api/og 허용. /api/ 그 외 (admin·log 등)만 차단
+      ...SNS_CRAWLERS.map((ua) => ({
+        userAgent: ua,
+        allow: ["/", "/api/og"],
+        disallow: snsDisallow,
+      })),
       { userAgent: "*", allow: "/", disallow: generalDisallow },
       { userAgent: "Yeti", allow: "/", disallow: generalDisallow },
     ],
