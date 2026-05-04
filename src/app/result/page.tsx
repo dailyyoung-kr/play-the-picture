@@ -1512,12 +1512,16 @@ export default function ResultPage() {
           src={inAppImageUrl}
           alt="스토리용 이미지"
           onClick={(e) => e.stopPropagation()}
+          // long-press 컨텍스트 메뉴(이미지 저장) 명시 허용 — 안드로이드 인스타 webview는 기본 차단 성향
           style={{
             maxWidth: "100%",
             maxHeight: "70vh",
             objectFit: "contain",
             borderRadius: 12,
-            userSelect: "none",
+            userSelect: "auto",
+            WebkitUserSelect: "auto",
+            WebkitTouchCallout: "default",
+            pointerEvents: "auto",
           }}
         />
 
