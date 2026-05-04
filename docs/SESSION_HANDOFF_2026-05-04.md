@@ -407,6 +407,126 @@ if (/Instagram/i.test(ua)) {
 
 ---
 
+## 7-H. iOS 인스타 인앱 결과 공유하기 OG 미스크래핑 — 디버깅 종합
+
+### 7-H-1. 발견 — iOS 인스타 인앱 → DM에 OG 카드 안 뜸
+
+iOS 인스타 인앱에서 결과 공유하기 → navigator.share → 인스타 친구 선택 → DM 전송 시 **OG 카드 없이 raw URL만 표시**.
+
+대조: 같은 URL을 카톡에 paste 시 OG 카드 정상.
+
+### 7-H-2. 4개 가설 → 점진적 진단 → 진짜 원인 발견
+
+**가설 1 (기각): 인스타 DM 자체 정책상 OG 표시 안 함**
+- 사용자 과거 메시지 스크린샷에서 인스타 DM에 OG 카드 정상 표시된 기록 다수
+- → 인스타 DM은 OG 카드 표시 가능. 정책 문제 X
+
+**가설 2 (기각): OG 빌드 timeout**
+- 측정: fresh entry 첫 빌드 4.5초, warm 함수 2.67~4.22초
+- 사진 수에 비례 (1장 2.67초, 4장 4.22초)
+- 페북 크롤러 timeout ~3-5초 추정 → timeout 가능성
+- 단 페북 디버거 응답 코드는 403 (robots.txt block) — timeout이면 다른 메시지
+- → timeout이 직접 원인은 X (단 background pre-build 가치는 있음)
+
+**가설 3 (부분 원인): robots.txt에 `/share/` Disallow**
+- `src/app/robots.ts` (commit `38e2464`)에서 `/share/` 차단
+- 페북 디버거 메시지 "Please allowlist facebookexternalhit on your sites robots.txt"
+- → fix 1차: SNS 크롤러 6개 (facebookexternalhit, Twitterbot, LinkedInBot, Slackbot, Discordbot, TelegramBot) 명시 Allow
+- → fix 2차: Meta 신규 UA 추가 (meta-externalagent, facebookcatalog, Slackbot-LinkExpanding, WhatsApp)
+
+**가설 4 (진짜 원인): Next.js App Router streaming metadata**
+- Next.js 15.2+ App Router는 동적 페이지 메타를 streaming으로 전달
+- 단순 fetch 봇은 streaming 처리 못함 → 메타 못 가져감
+- Next.js 기본 화이트리스트(`htmlLimitedBots`)에 Twitterbot·Slackbot만 포함
+- **facebookexternalhit, meta-externalagent 누락** → blocking metadata 안 받음
+- GitHub: [vercel/next.js#44470](https://github.com/vercel/next.js/issues/44470) (App Router OG 미스크래핑)
+- → fix 3차: `next.config.ts`에 `htmlLimitedBots` 정규식 추가
+
+### 7-H-3. 적용한 fix (commit 51bf1f2, 7a2b9f0, 80fbe88)
+
+**robots.ts** ([src/app/robots.ts](src/app/robots.ts)):
+```ts
+const SNS_CRAWLERS = [
+  "facebookexternalhit",  // Facebook, Instagram (구버전), WhatsApp
+  "meta-externalagent",   // Meta 2024+ 통합 (Threads·인스타 OG·Meta AI)
+  "facebookcatalog", "Twitterbot", "LinkedInBot",
+  "Slackbot", "Slackbot-LinkExpanding", "Discordbot",
+  "TelegramBot", "WhatsApp",
+];
+// SNS 봇은 /share/ 허용, 일반 검색엔진(Google·Naver Yeti)은 차단 유지
+```
+
+**next.config.ts**:
+```ts
+htmlLimitedBots: /facebookexternalhit|meta-externalagent|facebookcatalog|LinkedInBot|Slackbot-LinkExpanding|Discordbot|TelegramBot|WhatsApp/,
+```
+
+### 7-H-4. 검증 결과 — 우리 측 fix 100% 작동 확인
+
+curl 직접 테스트 (facebookexternalhit + Range header):
+- HTTP 200 ✅
+- og:title/description/image/type/url 모두 첫 1KB head에 박힘 ✅
+- meta-externalagent UA도 200 ✅
+
+### 7-H-5. Preview deploy 검증 — Vercel `X-Robots-Tag: noindex` 정책 발견
+
+Vercel preview URL로 검증 시도 → 페북 디버거 여전히 403.
+
+**원인 발견**: `x-robots-tag: noindex` 응답 헤더 — **Vercel이 모든 preview deployment에 자동 추가**. robots.txt와 별개의 응답 헤더 단위 robots 지시. 페북 봇이 noindex 보고 OG 처리 거부.
+
+검증:
+| 환경 | X-Robots-Tag | 페북 처리 |
+|---|---|---|
+| Preview (Vercel 자동 noindex) | `noindex` | 거부 (정상) |
+| Prod (`playthepicture.com`) | **없음** | 정상 처리 가능 |
+
+→ **preview는 SNS OG 검증에 부적합** (Vercel 정책으로 영원히 안 됨). prod custom domain만 검증 가능.
+
+또 — Vercel preview 검증하려면 Vercel Authentication도 일시 disable 필요 (Standard Protection은 preview 인증 강제).
+
+### 7-H-6. Prod 미해결 — 페북 24시간 robots.txt 캐시 (확신 50-60%)
+
+5/4 KST 14시 fix 배포 후 7시간 경과 시점에도 페북 디버거 prod URL 403:
+- 우리 측 응답 정상 (200, og 메타 head, X-Robots-Tag 없음)
+- 페북 메시지 "robots.txt block" — robots.txt 캐시 추정
+- [Meta 공식](https://developers.facebook.com/docs/sharing/best-practices/): "The crawler caches robots.txt for up to 24 hours."
+- **5/5 KST 14:00 자동 갱신 예약**
+
+**다른 가설 (확률 낮음)**:
+- Range header + Next.js dynamic route (vercel/next.js#44470 잔여 영향): 25-30%
+- Vercel WAF가 페북 IP 차단: 10-15%
+- 인스타 자체 정책: 5%
+
+### 7-H-7. 검증 일정 + Plan B
+
+**5/5 KST 14:00 이후 prod 재검증**:
+1. 페이스북 디버거에 prod entry URL → 응답 코드 확인
+2. **200 + og 정상** → 가설 1 확정, 인스타 DM 새 entry paste로 viral 동선 검증
+3. **여전히 403** → Plan B 진행
+
+**Plan B 후보 (5/5 결과 보고 결정)**:
+- A. `share/[id]/page.tsx`에 `export const dynamic = 'force-static'` 시도 (메타 빌드 타임 박힘)
+- B. `middleware.ts`로 페북 봇 감지 후 정적 HTML 응답 (generateMetadata 우회)
+- C. OG 이미지 따로 정적 호스팅
+- D. share URL 형식 변경 (페북 캐시 무효화 — 다만 기존 viral 데이터 단절)
+
+### 7-H-8. 핵심 박제 — 향후 SNS 미리보기 디버깅 체크리스트
+
+새 SNS 미리보기 이슈 발생 시 순서대로 확인:
+
+1. **다른 메신저 비교** (카톡·디스코드) → 다른 메신저 정상이면 SNS별 정책, 아니면 우리 측
+2. **curl로 봇 UA + Range header 직접 fetch** → 응답 코드, og 메타 head 위치
+3. **페북 디버거 Sharing Debugger** → 메시지·응답 코드. 단 misleading 가능성 항상 의심
+4. **`htmlLimitedBots` 설정 확인** (next.config.ts) → 새 SNS 봇 UA 추가 필요 여부
+5. **`robots.txt` SNS 봇 명시 Allow** → 검색엔진 차단과 분리
+6. **응답 헤더 X-Robots-Tag 확인** → preview vs prod 차이
+7. **Vercel preview 검증 시 Authentication·noindex 영향 인지** → prod 검증이 더 정확
+8. **페북 24시간 robots.txt 캐시** → 변경 후 즉시 검증 어려움, 24시간 대기
+
+[next.config.ts](next.config.ts), [src/app/robots.ts](src/app/robots.ts) 영구 박제 — 새 SNS 봇 추가 시 위 두 파일 동시 수정 권장.
+
+---
+
 ## 8. 다음 우선순위 (변동 없음)
 
 [5/3 part2 핸드오프 §12](./SESSION_HANDOFF_2026-05-03_part2.md) 그대로 유지:
