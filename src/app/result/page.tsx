@@ -1487,7 +1487,7 @@ export default function ResultPage() {
           background: "rgba(0,0,0,0.92)",
           zIndex: 200,
           display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          padding: "20px",
+          padding: "8px",
           animation: "fadeIn 0.2s ease",
         }}
         onClick={closeInAppImageModal}
@@ -1495,11 +1495,11 @@ export default function ResultPage() {
         <button
           onClick={closeInAppImageModal}
           style={{
-            position: "absolute", top: 20, right: 20,
+            position: "absolute", top: 12, right: 12,
             background: "rgba(255,255,255,0.15)",
             border: "none", borderRadius: "50%",
-            width: 40, height: 40,
-            fontSize: 20, color: "#fff",
+            width: 36, height: 36,
+            fontSize: 18, color: "#fff",
             cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
             zIndex: 201,
           }}
@@ -1514,22 +1514,22 @@ export default function ResultPage() {
           onClick={(e) => e.stopPropagation()}
           style={{
             maxWidth: "100%",
-            maxHeight: "75vh",
+            maxHeight: "92vh",
             objectFit: "contain",
-            borderRadius: 12,
+            borderRadius: 8,
           }}
         />
 
         <div
           onClick={(e) => e.stopPropagation()}
           style={{
-            marginTop: 20,
+            marginTop: 6,
             textAlign: "center",
-            color: "rgba(255,255,255,0.95)",
-            fontSize: 16,
-            lineHeight: 1.5,
+            color: "rgba(255,255,255,0.55)",
+            fontSize: 12,
+            lineHeight: 1.3,
             wordBreak: "keep-all",
-            maxWidth: 320,
+            maxWidth: 280,
           }}
         >
           📸 화면을 캡처해 저장하세요
