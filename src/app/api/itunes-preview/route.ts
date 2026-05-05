@@ -24,6 +24,14 @@ function makeTrackKey(title: string, artist: string): string {
   return `${normalize(title)}|${normalize(artist)}`;
 }
 
+// K-POP 한글/영어 cross-script 감지 헬퍼
+function hasKorean(s: string): boolean {
+  return /[가-힯]/.test(s);
+}
+function isASCIILatin(s: string): boolean {
+  return /^[\x00-\x7F]+$/.test(s) && /[a-zA-Z]/.test(s);
+}
+
 // 매칭 점수: 아티스트·트랙 이름 일치 여부
 function scoreMatch(
   targetTitle: string,
@@ -46,9 +54,16 @@ function scoreMatch(
   if (cT === nT) score += 50;
   else if (cT.includes(nT) || nT.includes(cT)) score += 30;
 
-  // 아티스트명 완전 일치 > 포함
+  // 아티스트명 완전 일치 > 포함 > K-POP 한글/영어 cross-script
   if (cA === nA) score += 50;
   else if (cA.includes(nA) || nA.includes(cA)) score += 30;
+  else if (
+    cT === nT &&
+    ((hasKorean(targetArtist) && isASCIILatin(candArtist)) ||
+      (isASCIILatin(targetArtist) && hasKorean(candArtist)))
+  ) {
+    score += 30;
+  }
 
   if (isInst) score -= 15;
 
