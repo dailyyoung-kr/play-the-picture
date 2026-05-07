@@ -17,7 +17,7 @@ const ALLOWED_STATUS = new Set([
 
 export async function POST(req: NextRequest) {
   try {
-    const { entry_id, device_id, status } = await req.json();
+    const { entry_id, device_id, status, platform, os } = await req.json();
 
     const finalStatus =
       typeof status === "string" && ALLOWED_STATUS.has(status) ? status : null;
@@ -36,6 +36,9 @@ export async function POST(req: NextRequest) {
         device_id: device_id ?? null,
         status: finalStatus,
         user_agent: ua,
+        // 네이티브 앱 환경 트래킹 (web에서 호출 시 안 박으면 default 'web'/'unknown')
+        ...(platform ? { platform } : {}),
+        ...(os ? { os } : {}),
       })
       .select("id")
       .single();
