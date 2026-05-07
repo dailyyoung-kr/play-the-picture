@@ -8,7 +8,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-    const { entry_id, song } = await req.json();
+    const { entry_id, song, platform, os } = await req.json();
     const device_id = req.headers.get("x-device-id") ?? null;
 
     const { error } = await supabaseAdmin
@@ -17,6 +17,8 @@ export async function POST(req: NextRequest) {
         entry_id: entry_id ?? null,
         song: song ?? null,
         device_id,
+        ...(platform ? { platform } : {}),
+        ...(os ? { os } : {}),
       });
 
     if (error) {
