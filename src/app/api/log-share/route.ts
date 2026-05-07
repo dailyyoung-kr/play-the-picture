@@ -10,7 +10,7 @@ const ALLOWED_STATUS = new Set(["clicked", "completed", "cancelled", "fallback"]
 
 export async function POST(req: NextRequest) {
   try {
-    const { entry_id, device_id, status } = await req.json();
+    const { entry_id, device_id, status, platform, os } = await req.json();
 
     if (!entry_id) {
       return NextResponse.json({ error: "entry_id 필요" }, { status: 400 });
@@ -30,6 +30,8 @@ export async function POST(req: NextRequest) {
         device_id: device_id ?? null,
         status: finalStatus,
         user_agent: ua,
+        ...(platform ? { platform } : {}),
+        ...(os ? { os } : {}),
       })
       .select("id")
       .single();

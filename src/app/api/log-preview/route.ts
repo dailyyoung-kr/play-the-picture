@@ -21,7 +21,7 @@ const ALLOWED_ACTION = new Set(["played", "completed"]);
  */
 export async function POST(req: NextRequest) {
   try {
-    const { device_id, song, artist, action } = await req.json();
+    const { device_id, song, artist, action, platform, os } = await req.json();
 
     if (!device_id || typeof device_id !== "string") {
       return NextResponse.json({ error: "device_id 필요" }, { status: 400 });
@@ -37,6 +37,8 @@ export async function POST(req: NextRequest) {
         song: typeof song === "string" ? song.slice(0, 200) : null,
         artist: typeof artist === "string" ? artist.slice(0, 200) : null,
         action,
+        ...(platform ? { platform } : {}),
+        ...(os ? { os } : {}),
       });
 
     if (error) {
