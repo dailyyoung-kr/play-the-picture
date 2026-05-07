@@ -102,6 +102,11 @@ export default function ResultPage() {
   const [previewState, setPreviewState] = useState<"idle" | "ready" | "playing" | "done">("idle");
   const [previewProgress, setPreviewProgress] = useState(0); // 0~1
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // drag-to-scrub state — 진행바 드래그 시 시각적 위치는 dragProgress 우선, audio seek은 드래그 끝에서
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragProgress, setDragProgress] = useState(0);
+  const wasPlayingBeforeDragRef = useRef(false);
+  const seekBarRef = useRef<HTMLDivElement>(null);
 
   // ── 체류 시간 트래킹 ──
   const enterTimeRef   = useRef<number>(Date.now());
@@ -993,29 +998,86 @@ export default function ResultPage() {
                 }}>
                   30초 들어보기
                 </div>
-                <div style={{ position: "relative", height: 14, display: "flex", alignItems: "center" }}>
-                  <div style={{
-                    position: "absolute", left: 0, right: 0, top: "50%",
-                    transform: "translateY(-50%)",
-                    height: 3, borderRadius: 2,
-                    background: "rgba(255,255,255,0.15)",
-                  }} />
-                  <div style={{
-                    position: "absolute", left: 0, top: "50%",
-                    transform: "translateY(-50%)",
-                    width: `${previewProgress * 100}%`,
-                    height: 3, borderRadius: 2,
-                    background: "#C4687A",
-                  }} />
-                  <div style={{
-                    position: "absolute", top: "50%",
-                    left: `${previewProgress * 100}%`,
-                    transform: "translate(-50%, -50%)",
-                    width: 10, height: 10, borderRadius: "50%",
-                    background: "#fff",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
-                  }} />
-                </div>
+                {(() => {
+                  const visualProgress = isDragging ? dragProgress : previewProgress;
+                  const calcProgress = (clientX: number): number => {
+                    const rect = seekBarRef.current?.getBoundingClientRect();
+                    if (!rect || rect.width === 0) return 0;
+                    return Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+                  };
+                  return (
+                    <div
+                      ref={seekBarRef}
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                        const audio = audioRef.current;
+                        wasPlayingBeforeDragRef.current = previewState === "playing";
+                        if (audio && previewState === "playing") {
+                          audio.pause();
+                          setPreviewState("ready");
+                        }
+                        const p = calcProgress(e.clientX);
+                        setDragProgress(p);
+                        setIsDragging(true);
+                      }}
+                      onPointerMove={(e) => {
+                        if (!isDragging) return;
+                        e.stopPropagation();
+                        setDragProgress(calcProgress(e.clientX));
+                      }}
+                      onPointerUp={(e) => {
+                        if (!isDragging) return;
+                        e.stopPropagation();
+                        e.currentTarget.releasePointerCapture(e.pointerId);
+                        const final = calcProgress(e.clientX);
+                        const audio = audioRef.current;
+                        if (audio) {
+                          audio.currentTime = final * 30; // PREVIEW_DURATION
+                        }
+                        setPreviewProgress(final);
+                        setIsDragging(false);
+                        if (wasPlayingBeforeDragRef.current && audio) {
+                          audio.play().then(() => setPreviewState("playing")).catch(() => {});
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        position: "relative",
+                        height: 24, // hit area 확대 (시각은 14, touch는 24)
+                        display: "flex",
+                        alignItems: "center",
+                        cursor: "pointer",
+                        touchAction: "none", // pointer events가 default scroll 가로채지 못하게
+                      }}
+                    >
+                      <div style={{
+                        position: "absolute", left: 0, right: 0, top: "50%",
+                        transform: "translateY(-50%)",
+                        height: 3, borderRadius: 2,
+                        background: "rgba(255,255,255,0.15)",
+                      }} />
+                      <div style={{
+                        position: "absolute", left: 0, top: "50%",
+                        transform: "translateY(-50%)",
+                        width: `${visualProgress * 100}%`,
+                        height: 3, borderRadius: 2,
+                        background: "#C4687A",
+                      }} />
+                      <div style={{
+                        position: "absolute", top: "50%",
+                        left: `${visualProgress * 100}%`,
+                        transform: "translate(-50%, -50%)",
+                        width: isDragging ? 14 : 10,
+                        height: isDragging ? 14 : 10,
+                        borderRadius: "50%",
+                        background: "#fff",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                        transition: isDragging ? "none" : "width 0.15s, height 0.15s",
+                      }} />
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* 시간 표시 */}
