@@ -74,7 +74,7 @@ export default function PrivacyPage() {
             marginBottom: 32,
           }}
         >
-          플더픽(이하 &quot;서비스&quot;)은 「개인정보 보호법」에 따라
+          플더픽(Play the Picture, 이하 &quot;서비스&quot;)은 「개인정보 보호법」에 따라
           정보주체의 개인정보를 보호하고 권익을 신속하게 처리하기 위해
           본 개인정보 처리방침을 수립·공개합니다.
         </p>
