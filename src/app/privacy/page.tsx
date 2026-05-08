@@ -6,8 +6,7 @@ export const metadata: Metadata = {
   description: "플더픽의 개인정보 처리방침",
 };
 
-// 한국 PIPA 2025.4.21 작성지침 + 2026.3 개정 법령 반영
-// App Store 5.1.1 / 5.1.2 Privacy 가이드라인 충족
+// 한국 PIPA 2025.4.21 작성지침 + 2026.3 개정 + App Store 5.1.1/5.1.2 준수
 // 시행일: 2026-05-08
 
 export default function PrivacyPage() {
@@ -75,333 +74,102 @@ export default function PrivacyPage() {
             marginBottom: 32,
           }}
         >
-          플더픽(이하 &quot;서비스&quot;)은 「개인정보 보호법」 제30조에 따라 정보주체의 개인정보를
-          보호하고 이와 관련한 고충을 신속하고 원활하게 처리할 수 있도록 하기 위하여
-          다음과 같이 개인정보 처리방침을 수립·공개합니다.
+          플더픽(이하 &quot;서비스&quot;)은 「개인정보 보호법」에 따라
+          정보주체의 개인정보를 보호하고 권익을 신속하게 처리하기 위해
+          본 개인정보 처리방침을 수립·공개합니다.
         </p>
 
-        <Section title="제1조. 처리하는 개인정보 항목">
-          <p>서비스는 다음의 개인정보 항목을 처리하고 있습니다.</p>
+        <Section title="1. 수집하는 개인정보">
           <List
             items={[
-              "사진 데이터: 사용자가 업로드한 사진 (분석 처리 후 즉시 메모리에서 삭제. 단, 사용자가 '보관' 또는 '공유 링크 생성'을 선택한 경우 사용자의 명시적 동의 하에 데이터베이스에 저장됨)",
-              "기기 식별자: device_id (UUID 형태의 익명 식별자, 광고 추적 목적 X)",
-              "이용 로그: 분석 요청 기록, 음악 추천 결과, 듣기/공유 클릭 이벤트, 오류 로그",
-              "유입 경로: UTM 파라미터 (광고 캠페인 추적용 utm_source, utm_medium, utm_campaign)",
-              "선호 정보: 사용자가 선택한 장르·분위기 (선택 사항)",
-              "보관 기록: 사용자가 '보관' 버튼으로 명시적으로 저장한 분석 결과 (사진 포함)",
-              "통계 데이터: Google Analytics 및 Meta Pixel을 통한 페이지 뷰·이벤트 정보 (개인 식별 정보 X)",
+              "사진: 분석에만 사용되며 서버에 저장되지 않습니다 (사용자가 '보관' 또는 '공유 링크 생성'을 선택한 경우에만 저장)",
+              "익명 기기 식별자: 사용자 구분을 위한 임의 ID (개인을 직접 식별하지 않음)",
+              "서비스 이용 기록: 분석 요청, 추천 결과, 클릭 이벤트 등",
+              "선호 정보: 장르·분위기 등 사용자가 선택한 항목",
             ]}
           />
           <p style={{ marginTop: 12, fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
-            ※ 이름, 이메일, 전화번호, 주민등록번호 등 직접 식별 가능한 개인정보는
-            수집하지 않습니다.
+            ※ 이름·이메일·전화번호 등 개인을 식별할 수 있는 정보는 수집하지 않습니다.
           </p>
         </Section>
 
-        <Section title="제2조. 개인정보의 수집 및 이용 목적">
+        <Section title="2. 이용 목적">
           <List
             items={[
-              "AI 사진 분석: 업로드된 사진의 분위기를 AI가 분석하여 어울리는 음악을 추천",
-              "서비스 개선: 추천 정확도 향상, 오류 분석, 사용 패턴 통계",
-              "공유 기능: 사용자가 명시적으로 공유 링크를 생성한 경우 해당 결과 페이지 제공",
-              "마케팅 효율 측정: UTM 추적을 통한 광고 채널별 유입 분석",
-              "부정 사용 방지: 단시간 과도한 요청 차단 (Rate Limit)",
+              "AI 기반 음악 추천 서비스 제공",
+              "서비스 품질 개선 및 통계 분석",
+              "공유 링크 생성 (사용자가 직접 요청한 경우)",
             ]}
           />
         </Section>
 
-        <Section title="제3조. 개인정보의 보유 및 이용 기간">
+        <Section title="3. 보유 기간">
           <List
             items={[
-              "사진 데이터 (분석용): 분석 처리 직후 메모리에서 즉시 삭제. 서버 영구 저장 X",
-              "보관 기록 (사용자 명시 저장): 사용자가 직접 삭제하기 전까지 보관 (앱 내 '기록 삭제' 기능 제공)",
-              "공유 링크 (사용자 명시 생성): 사용자가 직접 삭제하기 전까지 보관",
-              "device_id: 앱 또는 브라우저 데이터 삭제 시까지 (서버에는 익명 식별자로만 보관)",
-              "이용 로그: 서비스 운영·통계 분석 목적으로 보관. 분기별 검토 후 불필요한 데이터 삭제",
-              "Google Analytics 데이터: Google 정책에 따라 14개월 보관 후 자동 삭제",
-              "Meta Pixel 데이터: Meta 정책에 따라 보관 (Meta 개인정보 보호정책 참조)",
+              "사진: 분석 직후 삭제 (보관·공유 시에만 저장, 사용자가 직접 삭제 가능)",
+              "익명 기기 식별자·이용 기록: 서비스 운영 기간 동안 보관",
+              "삭제 요청 시: 즉시 영구 삭제",
             ]}
           />
         </Section>
 
-        <Section title="제4조. 개인정보의 파기 절차 및 방법">
+        <Section title="4. 제3자 제공 및 위탁">
           <p>
-            보관 기간이 경과하거나 처리 목적이 달성된 개인정보는 다음과 같이 파기합니다.
-            사용자는 앱 내 &quot;기록 삭제&quot; 기능을 통해 즉시 본인의 보관 기록을 삭제할 수 있습니다.
+            서비스는 개인정보를 제3자에게 제공하지 않습니다. 다만, 서비스 운영을 위해
+            아래 영역에서 외부 사업자의 도움을 받습니다.
           </p>
           <List
             items={[
-              "전자적 파일 형태: 복구 및 재생이 불가능한 방법으로 영구 삭제",
-              "데이터베이스 레코드: hard delete 방식으로 즉시 삭제 (soft delete 미사용)",
+              "AI 분석: Anthropic (사진은 7일 이내 자동 삭제, 모델 학습에 사용되지 않음)",
+              "클라우드 인프라: Vercel, Supabase (국제 보안 인증 보유)",
+              "음악 정보 검색: Spotify, Google",
+              "서비스 통계: Google Analytics, Meta",
             ]}
           />
         </Section>
 
-        <Section title="제5조. 개인정보의 제3자 제공">
+        <Section title="5. 정보주체의 권리">
+          <p>언제든지 다음 권리를 행사할 수 있습니다.</p>
+          <List
+            items={[
+              "수집된 정보의 열람·정정·삭제 요청",
+              "처리 정지 요청",
+              "앱 내 '기록 삭제' 기능으로 즉시 삭제",
+            ]}
+          />
+          <p style={{ marginTop: 12, fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
+            요청은 아래 보호책임자 연락처로 보내주시면 지체 없이 조치합니다.
+          </p>
+        </Section>
+
+        <Section title="6. 안전성 확보 조치">
           <p>
-            서비스는 정보주체의 개인정보를 원칙적으로 제3자에게 제공하지
-            않습니다. 다만, 다음의 경우는 예외로 합니다.
+            전송·저장 데이터 암호화, 접근 권한 분리, 보안 인증을 받은 서버 이용 등
+            관련 법령에서 정한 안전성 확보 조치를 적용합니다.
           </p>
-          <List
-            items={[
-              "정보주체로부터 별도의 동의를 받은 경우",
-              "법령에 특별한 규정이 있거나 수사기관의 정당한 요청이 있는 경우",
-            ]}
-          />
         </Section>
 
-        <Section title="제6조. 개인정보 처리업무의 위탁">
+        <Section title="7. 자동 수집 정보의 거부">
           <p>
-            서비스는 안정적인 운영을 위해 다음과 같이 개인정보 처리업무를
-            위탁하고 있습니다. 위탁 시에는 「개인정보 보호법」 제26조에 따라
-            업무 위탁에 관한 계약을 체결하고 있습니다.
+            서비스는 익명 기기 식별자와 일부 통계 쿠키를 사용합니다. 다음 방법으로
+            거부할 수 있습니다.
           </p>
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              marginTop: 12,
-              fontSize: 12,
-            }}
-          >
-            <thead>
-              <tr style={{ background: "rgba(255,255,255,0.05)" }}>
-                <th
-                  style={{
-                    padding: "10px 12px",
-                    textAlign: "left",
-                    borderBottom: "1px solid rgba(255,255,255,0.1)",
-                    color: "rgba(255,255,255,0.7)",
-                    fontWeight: 500,
-                  }}
-                >
-                  수탁업체
-                </th>
-                <th
-                  style={{
-                    padding: "10px 12px",
-                    textAlign: "left",
-                    borderBottom: "1px solid rgba(255,255,255,0.1)",
-                    color: "rgba(255,255,255,0.7)",
-                    fontWeight: 500,
-                  }}
-                >
-                  위탁 업무
-                </th>
-              </tr>
-            </thead>
-            <tbody style={{ color: "rgba(255,255,255,0.7)" }}>
-              <tr>
-                <td
-                  style={{
-                    padding: "10px 12px",
-                    borderBottom: "1px solid rgba(255,255,255,0.05)",
-                  }}
-                >
-                  Anthropic, Inc. (미국)
-                </td>
-                <td
-                  style={{
-                    padding: "10px 12px",
-                    borderBottom: "1px solid rgba(255,255,255,0.05)",
-                  }}
-                >
-                  AI 사진 분석 (Claude API)
-                </td>
-              </tr>
-              <tr>
-                <td
-                  style={{
-                    padding: "10px 12px",
-                    borderBottom: "1px solid rgba(255,255,255,0.05)",
-                  }}
-                >
-                  Vercel Inc. (미국)
-                </td>
-                <td
-                  style={{
-                    padding: "10px 12px",
-                    borderBottom: "1px solid rgba(255,255,255,0.05)",
-                  }}
-                >
-                  웹 호스팅 및 서버리스 인프라
-                </td>
-              </tr>
-              <tr>
-                <td
-                  style={{
-                    padding: "10px 12px",
-                    borderBottom: "1px solid rgba(255,255,255,0.05)",
-                  }}
-                >
-                  Supabase Inc. (미국)
-                </td>
-                <td
-                  style={{
-                    padding: "10px 12px",
-                    borderBottom: "1px solid rgba(255,255,255,0.05)",
-                  }}
-                >
-                  데이터베이스 및 저장소
-                </td>
-              </tr>
-              <tr>
-                <td
-                  style={{
-                    padding: "10px 12px",
-                    borderBottom: "1px solid rgba(255,255,255,0.05)",
-                  }}
-                >
-                  Google LLC (미국)
-                </td>
-                <td
-                  style={{
-                    padding: "10px 12px",
-                    borderBottom: "1px solid rgba(255,255,255,0.05)",
-                  }}
-                >
-                  Google Analytics (서비스 사용 통계), YouTube Music API (음악 메타데이터 검색)
-                </td>
-              </tr>
-              <tr>
-                <td
-                  style={{
-                    padding: "10px 12px",
-                    borderBottom: "1px solid rgba(255,255,255,0.05)",
-                  }}
-                >
-                  Meta Platforms, Inc. (미국)
-                </td>
-                <td
-                  style={{
-                    padding: "10px 12px",
-                    borderBottom: "1px solid rgba(255,255,255,0.05)",
-                  }}
-                >
-                  Meta Pixel (광고 효과 측정 및 마케팅 분석)
-                </td>
-              </tr>
-              <tr>
-                <td
-                  style={{
-                    padding: "10px 12px",
-                    borderBottom: "1px solid rgba(255,255,255,0.05)",
-                  }}
-                >
-                  Spotify AB (스웨덴)
-                </td>
-                <td
-                  style={{
-                    padding: "10px 12px",
-                    borderBottom: "1px solid rgba(255,255,255,0.05)",
-                  }}
-                >
-                  Spotify API (음악 메타데이터 및 미리듣기 링크)
-                </td>
-              </tr>
-              <tr>
-                <td style={{ padding: "10px 12px" }}>NAVER Corporation (대한민국)</td>
-                <td style={{ padding: "10px 12px" }}>
-                  사이트 검증 (NAVER Search Console)
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <p
-            style={{
-              marginTop: 12,
-              fontSize: 12,
-              color: "rgba(255,255,255,0.55)",
-              lineHeight: 1.7,
-            }}
-          >
-            ※ Anthropic 정책 (2025.09.14 업데이트 기준): API로 전송된 사진 데이터는
-            모델 학습에 사용되지 않으며 7일 이내 자동 삭제됩니다.
-            <br />
-            ※ Vercel, Supabase, Anthropic은 SOC 2 Type II 인증을 받은 보안 인프라를
-            제공합니다.
-          </p>
-        </Section>
-
-        <Section title="제7조. 정보주체의 권리·의무 및 행사 방법">
-          <p>정보주체는 언제든지 다음과 같은 권리를 행사할 수 있습니다.</p>
           <List
             items={[
-              "개인정보 열람 요구",
-              "오류 등이 있을 경우 정정 요구",
-              "삭제 요구 (앱 내 '기록 삭제' 기능 또는 보호책임자 이메일)",
-              "처리 정지 요구",
-              "Google Analytics 옵트아웃: tools.google.com/dlpage/gaoptout 에서 가능",
-              "Meta Pixel 옵트아웃: 페이스북 광고 설정에서 가능",
-            ]}
-          />
-          <p style={{ marginTop: 12 }}>
-            권리 행사는 서비스에 대해 서면, 이메일 등을 통하여 하실 수 있으며
-            서비스는 이에 대해 지체 없이 조치하겠습니다.
-          </p>
-        </Section>
-
-        <Section title="제8조. 개인정보의 안전성 확보 조치">
-          <List
-            items={[
-              "개인정보 암호화: 전송 구간(HTTPS/TLS 1.2+) 및 저장 데이터 암호화",
-              "접근 통제: 권한 분리 및 최소 권한 원칙 적용 (Supabase Row Level Security 활용)",
-              "접속기록 보관: 서버 로그 및 접속 이력 정기 검토",
-              "악성프로그램 방지: 보안 업데이트 정기 적용",
-              "물리적 보안: SOC 2 Type II 인증을 받은 클라우드 데이터센터 이용",
+              "앱 데이터·브라우저 데이터 삭제로 식별자 초기화",
+              "브라우저 설정에서 쿠키 차단",
             ]}
           />
         </Section>
 
-        <Section title="제9조. 개인정보 자동 수집 장치의 설치·운영 및 거부">
+        <Section title="8. 만 14세 미만 아동">
           <p>
-            서비스는 다음과 같은 자동 수집 장치를 사용합니다.
-          </p>
-          <List
-            items={[
-              "device_id: UUID 형태의 익명 식별자로, 사용자별 추천 이력 관리 및 부정 사용 방지에 사용됩니다.",
-              "Google Analytics 4: 페이지 뷰, 이벤트, 세션 정보를 수집하여 서비스 개선에 활용합니다. IP 주소는 익명화 처리됩니다.",
-              "Meta Pixel: 광고 캠페인 효과 측정을 위해 페이지 뷰, 전환 이벤트를 수집합니다.",
-              "광고 식별자(IDFA, AAID) 사용 안 함: 모바일 앱에서 광고 추적 식별자를 수집하지 않습니다.",
-            ]}
-          />
-          <p style={{ marginTop: 12 }}>
-            사용자는 다음 방법으로 자동 수집을 거부할 수 있습니다.
-          </p>
-          <List
-            items={[
-              "device_id: 앱 데이터 또는 브라우저 데이터 삭제 시 함께 삭제됨",
-              "Google Analytics: tools.google.com/dlpage/gaoptout 브라우저 확장 설치",
-              "Meta Pixel: 페이스북 계정의 광고 설정에서 비활성화",
-              "쿠키: 브라우저 설정에서 쿠키 차단 가능 (단, 일부 기능 제한될 수 있음)",
-            ]}
-          />
-        </Section>
-
-        <Section title="제10조. 만 14세 미만 아동의 개인정보 처리">
-          <p>
-            서비스는 만 14세 미만 아동을 대상으로 하지 않으며, 만 14세 이상
-            사용자의 이용을 권장합니다.
-          </p>
-          <p style={{ marginTop: 8 }}>
-            만 14세 미만 아동의 개인정보가 수집된 사실을 인지한 경우, 지체 없이
-            해당 정보를 삭제하며, 법정대리인의 요청이 있는 경우에도 즉시 삭제
-            조치합니다.
-          </p>
-          <p
-            style={{
-              marginTop: 8,
-              fontSize: 12,
-              color: "rgba(255,255,255,0.55)",
-            }}
-          >
-            ※ 서비스는 별도의 회원가입을 요구하지 않으며, 서비스 이용 시 직접
-            식별 가능한 개인정보(이름, 연락처 등)를 수집하지 않습니다.
+            본 서비스는 만 14세 이상의 사용자를 대상으로 합니다. 만 14세 미만
+            아동의 개인정보가 수집된 사실을 인지하는 즉시 해당 정보를 삭제합니다.
           </p>
         </Section>
 
-        <Section title="제11조. 개인정보 보호책임자">
+        <Section title="9. 개인정보 보호책임자">
           <div
             style={{
               background: "rgba(255,255,255,0.05)",
@@ -425,36 +193,26 @@ export default function PrivacyPage() {
               </a>
             </p>
           </div>
-          <p style={{ marginTop: 12, fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
-            개인정보 보호 관련 문의·불만 처리·피해구제 등은 위 연락처로
-            문의해주시기 바랍니다.
-          </p>
         </Section>
 
-        <Section title="제12조. 권익침해 구제 방법">
-          <p>
-            정보주체는 개인정보 침해로 인한 구제를 받기 위하여 아래 기관에
-            분쟁해결이나 상담 등을 신청할 수 있습니다.
-          </p>
+        <Section title="10. 권익 침해 구제">
+          <p>아래 기관에 분쟁조정·상담을 신청할 수 있습니다.</p>
           <List
             items={[
-              "개인정보분쟁조정위원회: 1833-6972 (privacy.kr)",
-              "개인정보침해신고센터: 118 (privacy.go.kr)",
-              "대검찰청 사이버범죄수사단: 1301 (spo.go.kr)",
-              "경찰청 사이버수사국: 182 (cyberbureau.police.go.kr)",
+              "개인정보분쟁조정위원회 (1833-6972)",
+              "개인정보침해신고센터 (118)",
+              "경찰청 사이버수사국 (182)",
             ]}
           />
         </Section>
 
-        <Section title="제13조. 개인정보 처리방침의 변경">
-          <p>
-            본 개인정보 처리방침은 시행일로부터 적용되며, 법령 및 방침에 따른
-            변경 내용의 추가, 삭제 및 정정이 있을 경우에는 변경사항의 시행 7일
-            전부터 본 페이지를 통해 고지할 것입니다.
+        <Section title="11. 처리방침 변경">
+          <p style={{ fontSize: 13 }}>
+            법령·서비스 변경에 따라 처리방침이 변경될 수 있으며, 변경 시 본 페이지를
+            통해 사전 고지합니다.
           </p>
           <p style={{ marginTop: 12, fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
-            · 공고일자: 2026년 5월 8일
-            <br />· 시행일자: 2026년 5월 8일
+            · 시행일자: 2026년 5월 8일
           </p>
         </Section>
       </div>
@@ -471,13 +229,13 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section style={{ marginBottom: 32 }}>
+    <section style={{ marginBottom: 28 }}>
       <h2
         style={{
           fontSize: 15,
           fontWeight: 600,
           color: "#C4687A",
-          marginBottom: 12,
+          marginBottom: 10,
           letterSpacing: -0.3,
         }}
       >
