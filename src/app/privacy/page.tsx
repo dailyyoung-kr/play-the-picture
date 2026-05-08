@@ -122,7 +122,7 @@ export default function PrivacyPage() {
             items={[
               "AI 분석: Anthropic (사진은 7일 이내 자동 삭제, 모델 학습에 사용되지 않음)",
               "클라우드 인프라: Vercel, Supabase (국제 보안 인증 보유)",
-              "음악 정보 검색: Spotify, Google",
+              "음악 정보 검색: Spotify, YouTube",
               "서비스 통계: Google Analytics, Meta",
             ]}
           />
