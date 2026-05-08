@@ -84,15 +84,17 @@ export default function PrivacyPage() {
           <p>서비스는 다음의 개인정보 항목을 처리하고 있습니다.</p>
           <List
             items={[
-              "사진 데이터: 사용자가 업로드한 사진 (분석 즉시 삭제, 저장하지 않음)",
+              "사진 데이터: 사용자가 업로드한 사진 (분석 처리 후 즉시 메모리에서 삭제. 단, 사용자가 '보관' 또는 '공유 링크 생성'을 선택한 경우 사용자의 명시적 동의 하에 데이터베이스에 저장됨)",
               "기기 식별자: device_id (UUID 형태의 익명 식별자, 광고 추적 목적 X)",
               "이용 로그: 분석 요청 기록, 음악 추천 결과, 듣기/공유 클릭 이벤트, 오류 로그",
+              "유입 경로: UTM 파라미터 (광고 캠페인 추적용 utm_source, utm_medium, utm_campaign)",
               "선호 정보: 사용자가 선택한 장르·분위기 (선택 사항)",
-              "보관 기록: 사용자가 &apos;보관&apos; 버튼으로 명시적으로 저장한 분석 결과",
+              "보관 기록: 사용자가 '보관' 버튼으로 명시적으로 저장한 분석 결과 (사진 포함)",
+              "통계 데이터: Google Analytics 및 Meta Pixel을 통한 페이지 뷰·이벤트 정보 (개인 식별 정보 X)",
             ]}
           />
           <p style={{ marginTop: 12, fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
-            ※ 이름, 이메일, 전화번호, 주민등록번호 등 식별 가능한 개인정보는
+            ※ 이름, 이메일, 전화번호, 주민등록번호 등 직접 식별 가능한 개인정보는
             수집하지 않습니다.
           </p>
         </Section>
@@ -103,6 +105,7 @@ export default function PrivacyPage() {
               "AI 사진 분석: 업로드된 사진의 분위기를 AI가 분석하여 어울리는 음악을 추천",
               "서비스 개선: 추천 정확도 향상, 오류 분석, 사용 패턴 통계",
               "공유 기능: 사용자가 명시적으로 공유 링크를 생성한 경우 해당 결과 페이지 제공",
+              "마케팅 효율 측정: UTM 추적을 통한 광고 채널별 유입 분석",
               "부정 사용 방지: 단시간 과도한 요청 차단 (Rate Limit)",
             ]}
           />
@@ -111,24 +114,26 @@ export default function PrivacyPage() {
         <Section title="제3조. 개인정보의 보유 및 이용 기간">
           <List
             items={[
-              "사진 데이터: 분석 직후 즉시 삭제 (서버에 저장하지 않음)",
-              "이용 로그: 6개월간 보관 후 자동 삭제",
+              "사진 데이터 (분석용): 분석 처리 직후 메모리에서 즉시 삭제. 서버 영구 저장 X",
+              "보관 기록 (사용자 명시 저장): 사용자가 직접 삭제하기 전까지 보관 (앱 내 '기록 삭제' 기능 제공)",
+              "공유 링크 (사용자 명시 생성): 사용자가 직접 삭제하기 전까지 보관",
               "device_id: 앱 또는 브라우저 데이터 삭제 시까지 (서버에는 익명 식별자로만 보관)",
-              "보관 기록: 사용자가 직접 삭제하기 전까지 보관 (앱 내 &apos;기록 삭제&apos; 기능 제공)",
-              "공유 링크: 사용자가 직접 삭제하기 전까지 보관",
+              "이용 로그: 서비스 운영·통계 분석 목적으로 보관. 분기별 검토 후 불필요한 데이터 삭제",
+              "Google Analytics 데이터: Google 정책에 따라 14개월 보관 후 자동 삭제",
+              "Meta Pixel 데이터: Meta 정책에 따라 보관 (Meta 개인정보 보호정책 참조)",
             ]}
           />
         </Section>
 
         <Section title="제4조. 개인정보의 파기 절차 및 방법">
           <p>
-            보유 기간이 경과한 개인정보는 자동으로 파기됩니다. 사용자가
-            앱 내 &quot;기록 삭제&quot; 기능을 통해 즉시 삭제할 수도 있습니다.
+            보관 기간이 경과하거나 처리 목적이 달성된 개인정보는 다음과 같이 파기합니다.
+            사용자는 앱 내 &quot;기록 삭제&quot; 기능을 통해 즉시 본인의 보관 기록을 삭제할 수 있습니다.
           </p>
           <List
             items={[
               "전자적 파일 형태: 복구 및 재생이 불가능한 방법으로 영구 삭제",
-              "데이터베이스 레코드: 즉시 삭제 (soft delete가 아닌 hard delete)",
+              "데이터베이스 레코드: hard delete 방식으로 즉시 삭제 (soft delete 미사용)",
             ]}
           />
         </Section>
@@ -238,15 +243,67 @@ export default function PrivacyPage() {
                     borderBottom: "1px solid rgba(255,255,255,0.05)",
                   }}
                 >
-                  데이터베이스 및 인증
+                  데이터베이스 및 저장소
                 </td>
               </tr>
               <tr>
-                <td style={{ padding: "10px 12px" }}>
-                  Spotify AB / Google LLC
+                <td
+                  style={{
+                    padding: "10px 12px",
+                    borderBottom: "1px solid rgba(255,255,255,0.05)",
+                  }}
+                >
+                  Google LLC (미국)
                 </td>
+                <td
+                  style={{
+                    padding: "10px 12px",
+                    borderBottom: "1px solid rgba(255,255,255,0.05)",
+                  }}
+                >
+                  Google Analytics (서비스 사용 통계), YouTube Music API (음악 메타데이터 검색)
+                </td>
+              </tr>
+              <tr>
+                <td
+                  style={{
+                    padding: "10px 12px",
+                    borderBottom: "1px solid rgba(255,255,255,0.05)",
+                  }}
+                >
+                  Meta Platforms, Inc. (미국)
+                </td>
+                <td
+                  style={{
+                    padding: "10px 12px",
+                    borderBottom: "1px solid rgba(255,255,255,0.05)",
+                  }}
+                >
+                  Meta Pixel (광고 효과 측정 및 마케팅 분석)
+                </td>
+              </tr>
+              <tr>
+                <td
+                  style={{
+                    padding: "10px 12px",
+                    borderBottom: "1px solid rgba(255,255,255,0.05)",
+                  }}
+                >
+                  Spotify AB (스웨덴)
+                </td>
+                <td
+                  style={{
+                    padding: "10px 12px",
+                    borderBottom: "1px solid rgba(255,255,255,0.05)",
+                  }}
+                >
+                  Spotify API (음악 메타데이터 및 미리듣기 링크)
+                </td>
+              </tr>
+              <tr>
+                <td style={{ padding: "10px 12px" }}>NAVER Corporation (대한민국)</td>
                 <td style={{ padding: "10px 12px" }}>
-                  음악 메타데이터 검색 (이름·앨범 정보 조회)
+                  사이트 검증 (NAVER Search Console)
                 </td>
               </tr>
             </tbody>
@@ -256,11 +313,14 @@ export default function PrivacyPage() {
               marginTop: 12,
               fontSize: 12,
               color: "rgba(255,255,255,0.55)",
+              lineHeight: 1.7,
             }}
           >
-            ※ 사진 데이터는 Anthropic API로 전송되어 즉시 분석된 후
-            Anthropic 측에서도 모델 학습 등에 사용되지 않으며 30일 이내
-            자동 삭제됩니다 (Anthropic 정책 기준).
+            ※ Anthropic 정책 (2025.09.14 업데이트 기준): API로 전송된 사진 데이터는
+            모델 학습에 사용되지 않으며 7일 이내 자동 삭제됩니다.
+            <br />
+            ※ Vercel, Supabase, Anthropic은 SOC 2 Type II 인증을 받은 보안 인프라를
+            제공합니다.
           </p>
         </Section>
 
@@ -270,8 +330,10 @@ export default function PrivacyPage() {
             items={[
               "개인정보 열람 요구",
               "오류 등이 있을 경우 정정 요구",
-              "삭제 요구 (앱 내 &quot;기록 삭제&quot; 기능 또는 보호책임자 이메일)",
+              "삭제 요구 (앱 내 '기록 삭제' 기능 또는 보호책임자 이메일)",
               "처리 정지 요구",
+              "Google Analytics 옵트아웃: tools.google.com/dlpage/gaoptout 에서 가능",
+              "Meta Pixel 옵트아웃: 페이스북 광고 설정에서 가능",
             ]}
           />
           <p style={{ marginTop: 12 }}>
@@ -283,39 +345,59 @@ export default function PrivacyPage() {
         <Section title="제8조. 개인정보의 안전성 확보 조치">
           <List
             items={[
-              "개인정보 암호화: 전송 구간(HTTPS) 및 저장 데이터 암호화",
-              "접근 통제: 권한 분리 및 최소 권한 원칙 적용",
-              "접속기록 보관: 서버 로그 6개월 이상 보관",
+              "개인정보 암호화: 전송 구간(HTTPS/TLS 1.2+) 및 저장 데이터 암호화",
+              "접근 통제: 권한 분리 및 최소 권한 원칙 적용 (Supabase Row Level Security 활용)",
+              "접속기록 보관: 서버 로그 및 접속 이력 정기 검토",
               "악성프로그램 방지: 보안 업데이트 정기 적용",
-              "물리적 보안: 클라우드 데이터센터 보안 인증 (SOC 2, ISO 27001) 받은 업체 이용",
+              "물리적 보안: SOC 2 Type II 인증을 받은 클라우드 데이터센터 이용",
             ]}
           />
         </Section>
 
         <Section title="제9조. 개인정보 자동 수집 장치의 설치·운영 및 거부">
           <p>
-            서비스는 다음과 같은 기기 식별자를 사용합니다.
+            서비스는 다음과 같은 자동 수집 장치를 사용합니다.
           </p>
           <List
             items={[
               "device_id: UUID 형태의 익명 식별자로, 사용자별 추천 이력 관리 및 부정 사용 방지에 사용됩니다.",
-              "광고 식별자(IDFA, AAID) 사용 안 함: 서비스는 광고 추적 식별자를 수집하지 않습니다.",
+              "Google Analytics 4: 페이지 뷰, 이벤트, 세션 정보를 수집하여 서비스 개선에 활용합니다. IP 주소는 익명화 처리됩니다.",
+              "Meta Pixel: 광고 캠페인 효과 측정을 위해 페이지 뷰, 전환 이벤트를 수집합니다.",
+              "광고 식별자(IDFA, AAID) 사용 안 함: 모바일 앱에서 광고 추적 식별자를 수집하지 않습니다.",
             ]}
           />
           <p style={{ marginTop: 12 }}>
-            device_id는 앱 데이터 또는 브라우저 데이터 삭제 시 함께 삭제되며,
-            새로 생성된 device_id는 이전 데이터와 연결되지 않습니다.
+            사용자는 다음 방법으로 자동 수집을 거부할 수 있습니다.
           </p>
+          <List
+            items={[
+              "device_id: 앱 데이터 또는 브라우저 데이터 삭제 시 함께 삭제됨",
+              "Google Analytics: tools.google.com/dlpage/gaoptout 브라우저 확장 설치",
+              "Meta Pixel: 페이스북 계정의 광고 설정에서 비활성화",
+              "쿠키: 브라우저 설정에서 쿠키 차단 가능 (단, 일부 기능 제한될 수 있음)",
+            ]}
+          />
         </Section>
 
-        <Section title="제10조. 14세 미만 아동의 개인정보 처리">
+        <Section title="제10조. 만 14세 미만 아동의 개인정보 처리">
           <p>
-            서비스는 만 14세 미만 아동의 개인정보를 수집하지 않습니다.
-            서비스 가입 및 이용은 만 14세 이상 사용자만 가능합니다.
+            서비스는 만 14세 미만 아동을 대상으로 하지 않으며, 만 14세 이상
+            사용자의 이용을 권장합니다.
           </p>
           <p style={{ marginTop: 8 }}>
-            만약 만 14세 미만 아동의 개인정보가 수집된 사실을 인지한 경우,
-            지체 없이 해당 정보를 삭제하겠습니다.
+            만 14세 미만 아동의 개인정보가 수집된 사실을 인지한 경우, 지체 없이
+            해당 정보를 삭제하며, 법정대리인의 요청이 있는 경우에도 즉시 삭제
+            조치합니다.
+          </p>
+          <p
+            style={{
+              marginTop: 8,
+              fontSize: 12,
+              color: "rgba(255,255,255,0.55)",
+            }}
+          >
+            ※ 서비스는 별도의 회원가입을 요구하지 않으며, 서비스 이용 시 직접
+            식별 가능한 개인정보(이름, 연락처 등)를 수집하지 않습니다.
           </p>
         </Section>
 
@@ -336,10 +418,10 @@ export default function PrivacyPage() {
               · 이름: 박찬영
               <br />· 이메일:{" "}
               <a
-                href="mailto:pcy2177@gmail.com"
+                href="mailto:dailyyoung@linareen.com"
                 style={{ color: "#C4687A", textDecoration: "none" }}
               >
-                pcy2177@gmail.com
+                dailyyoung@linareen.com
               </a>
             </p>
           </div>
