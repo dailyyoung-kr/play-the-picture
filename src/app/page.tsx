@@ -237,7 +237,13 @@ export default function UploadPage() {
           최대 5장까지 추가할 수 있어요
         </p>
         <p className="text-right" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", marginBottom: 20 }}>
-          사진은 노래 추천에만 사용돼요
+          사진은 노래 추천에만 사용돼요 ·{" "}
+          <a
+            href="/privacy"
+            style={{ color: "rgba(196,104,122,0.7)", textDecoration: "none" }}
+          >
+            자세히
+          </a>
         </p>
 
         {/* 단일 CTA — 상태별 전환 */}
