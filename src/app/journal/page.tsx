@@ -52,11 +52,10 @@ export default function JournalPage() {
     youtubeFallback: string;
   } | null>(null);
   const [loadingLinks, setLoadingLinks] = useState(false);
-  const [longPressEntryId, setLongPressEntryId] = useState<string | null>(null);
   const [carouselIndices, setCarouselIndices] = useState<Record<string, number>>({});
   const [calendarView, setCalendarView] = useState<"week" | "month">("week");
   const [weekStartDate, setWeekStartDate] = useState(() => getMondayOf(new Date()));
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [modalIndex, setModalIndex] = useState<number | null>(null);
   const carouselRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const calendarTouchStartX = useRef(0);
 
@@ -75,14 +74,6 @@ export default function JournalPage() {
       .then((data) => setMusicLinks(data))
       .catch(() => setMusicLinks(null))
       .finally(() => setLoadingLinks(false));
-  };
-
-  const handleLongPressStart = (entryId: string) => {
-    longPressTimer.current = setTimeout(() => setLongPressEntryId(entryId), 600);
-  };
-
-  const handleLongPressEnd = () => {
-    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
   };
 
   const handleCarouselScroll = (entryId: string) => {
@@ -418,7 +409,6 @@ export default function JournalPage() {
                 gap: 12,
               }}>
                 {selectedEntries.map((entry) => {
-                  const isLongPressed = longPressEntryId === entry.id;
                   const isGrid = selectedEntries.length > 1;
                   const photos = entry.photos ?? [];
                   const hasCarousel = photos.length >= 2;
@@ -435,9 +425,6 @@ export default function JournalPage() {
                         WebkitUserSelect: "none",
                         position: "relative",
                       }}
-                      onTouchStart={() => handleLongPressStart(entry.id)}
-                      onTouchEnd={handleLongPressEnd}
-                      onTouchMove={handleLongPressEnd}
                     >
                       {/* 사진 영역 — 캐러셀 or 단일 */}
                       <div
@@ -507,23 +494,12 @@ export default function JournalPage() {
                           </div>
                         )}
 
-                        {/* 롱프레스 삭제 오버레이 */}
-                        {isLongPressed && (
-                          <div
-                            style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center" }}
-                            onClick={(e) => { e.stopPropagation(); setLongPressEntryId(null); setDeleteTarget(entry); }}
-                          >
-                            <div style={{ background: "rgba(220,60,60,0.9)", borderRadius: 20, padding: "8px 20px", fontSize: 13, color: "#fff", fontWeight: 600 }}>
-                              삭제
-                            </div>
-                          </div>
-                        )}
                       </div>
 
                       {/* 정보 영역 — 탭 시 상세 모달 */}
                       <div
                         style={{ padding: isGrid ? 10 : 14, cursor: "pointer" }}
-                        onClick={() => { if (isLongPressed) { setLongPressEntryId(null); return; } setSelectedEntry(entry); }}
+                        onClick={() => setSelectedEntry(entry)}
                       >
                         {/* 캐릭터 + 시간 */}
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
@@ -669,7 +645,11 @@ export default function JournalPage() {
               return (
                 <div style={{ display: "flex", gap, justifyContent: "center", flexWrap: "nowrap", marginBottom: 12 }}>
                   {selectedEntry.photos.map((src, i) => (
-                    <div key={i} style={{ width: slotSize, height: slotSize, borderRadius: 14, overflow: "hidden", border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }}>
+                    <div
+                      key={i}
+                      onClick={(e) => { e.stopPropagation(); setModalIndex(i); }}
+                      style={{ width: slotSize, height: slotSize, borderRadius: 14, overflow: "hidden", border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0, cursor: "pointer" }}
+                    >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                     </div>
@@ -859,6 +839,95 @@ export default function JournalPage() {
           </>
         );
       })()}
+
+      {/* 사진 확대 모달 — result/page.tsx 1:1 */}
+      {modalIndex !== null && selectedEntry?.photos?.[modalIndex] && (
+        <div
+          style={{
+            position: "fixed", inset: 0,
+            background: "rgba(0,0,0,0.9)",
+            zIndex: 200,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            animation: "fadeIn 0.2s ease",
+          }}
+          onClick={() => setModalIndex(null)}
+        >
+          <button
+            onClick={() => setModalIndex(null)}
+            style={{
+              position: "absolute", top: 20, right: 20,
+              background: "rgba(255,255,255,0.15)",
+              border: "none", borderRadius: "50%",
+              width: 40, height: 40,
+              fontSize: 20, color: "#fff",
+              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+              zIndex: 201,
+            }}
+          >
+            ✕
+          </button>
+
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={selectedEntry.photos[modalIndex]}
+            alt={`사진 ${modalIndex + 1}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: "100%",
+              maxHeight: "90vh",
+              objectFit: "contain",
+              borderRadius: 8,
+              userSelect: "none",
+            }}
+          />
+
+          {selectedEntry.photos.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setModalIndex((i) => i !== null ? (i - 1 + selectedEntry.photos.length) % selectedEntry.photos.length : 0); }}
+              style={{
+                position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)",
+                background: "rgba(255,255,255,0.15)",
+                border: "none", borderRadius: "50%",
+                width: 44, height: 44,
+                fontSize: 22, color: "#fff",
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              ‹
+            </button>
+          )}
+
+          {selectedEntry.photos.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setModalIndex((i) => i !== null ? (i + 1) % selectedEntry.photos.length : 0); }}
+              style={{
+                position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)",
+                background: "rgba(255,255,255,0.15)",
+                border: "none", borderRadius: "50%",
+                width: 44, height: 44,
+                fontSize: 22, color: "#fff",
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              ›
+            </button>
+          )}
+
+          {selectedEntry.photos.length > 1 && (
+            <div style={{
+              position: "absolute", bottom: 24,
+              left: "50%", transform: "translateX(-50%)",
+              background: "rgba(0,0,0,0.55)",
+              borderRadius: 20, padding: "5px 16px",
+              fontSize: 13, color: "rgba(255,255,255,0.8)",
+            }}>
+              {modalIndex + 1} / {selectedEntry.photos.length}
+            </div>
+          )}
+
+          <style>{`@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }`}</style>
+        </div>
+      )}
     </div>
   );
 }
