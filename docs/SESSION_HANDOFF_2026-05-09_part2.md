@@ -29,6 +29,8 @@
 
 **(9) Setlog passkey 도입 검토 → 보류** (§18): 광고 funnel·viral 마찰 위험. archive 페이지 강화로 cross-device 가치 80% 회수 가능. iOS 앱 출시(6개월+) 시 자연 도입.
 
+**(10) analysis_results 테이블 도입 (Phase 1)** (§21, commit `a8ac0e8`): 모든 분석의 vibe·reason·tags 박제. 액션 안 한 87% 분석도 데이터 보존 → 패턴 분석 향후 8x 표본. prompt versioning·A/B test 인프라 (model_id·prompt_version·ab_variant 컬럼 미리). 사용자 영향 0 · 데이터 유실 0.
+
 ---
 
 ## 2. 추천 알고리즘 변경 박제 ⭐⭐⭐
@@ -510,6 +512,7 @@ after(async () => {
 - 추천 품질 metrics 대시보드 배포 (Catalog Coverage + Long-tail)
 - Claude 편애 가설 5개 + vibeType·description 패턴 박제
 - candidate_logs 작동 검증 + Setlog passkey 도입 보류 결정
+- analysis_results Phase 1 도입 (모든 분석 vibe 데이터 박제)
 
 ---
 
@@ -758,3 +761,111 @@ Verdict: [ship / iterate / rollback]
 ```
 
 자세한 정의·SQL: [QUALITY_METRICS.md](./QUALITY_METRICS.md)
+
+---
+
+## 21. analysis_results 테이블 도입 박제 ⭐⭐ (commit `a8ac0e8`)
+
+### 도입 배경
+- entries 308건 (외부 액션) vs recommendation_logs 2,435건 (외부 분석) = **87% 갭**
+- 액션 안 한 2,127건 분석의 vibe·reason 데이터 영원히 없음
+- handoff §15·§16 패턴 분석을 더 큰 표본으로 가능하게
+
+### 검토한 옵션 3개
+| 옵션 | 평가 | 채택 |
+|---|---|---|
+| A. entries 즉시 insert (사진 포함) | storage 5GB/년 + privacy 위험 + UX 혼란 | ❌ |
+| B. recommendation_logs 컬럼 확장 | 단순하지만 rec_logs 비대화 + 미래 확장성 약함 | ❌ |
+| **C. analysis_results 신규 테이블** | 깨끗한 분리 + 미래 확장성 ⭐⭐⭐ | ✅ |
+
+### Phase 1 원칙 박제
+- **기존 데이터 그대로** (backfill 없음)
+- **읽기 코드 그대로** (entries에서 직접 읽기)
+- **신규 분석부터** analysis_results 채워짐
+- **사용자 영향 0**, 위험 0
+
+### 변경 파일
+| 파일 | 변경 |
+|---|---|
+| `supabase/migration_014.sql` | 신규 — analysis_results 테이블 + 5 인덱스 |
+| `src/app/api/analyze/new-recommend.ts` | STEP 4: recommendation_logs.id 받아서 analysis_results와 link insert |
+
+### Schema (주요)
+```sql
+analysis_results (
+  id, recommendation_log_id, device_id, song_id,
+  vibe_type, vibe_description, reason, tags, emotions,
+  selected_index,
+  -- 미래 확장 컬럼 (현재 NULL)
+  ab_variant, prompt_version, model_id,
+  created_at
+);
+```
+
+### 데이터 비교 (운영 원칙)
+| 데이터 source | 의미 | 사용처 |
+|---|---|---|
+| **entries** | 사용자 의도적 저장 (사진 포함) | journal·share·OG 페이지 (user-facing) |
+| **recommendation_logs** | 알고리즘 행위 (Claude 호출 사실) | 추천 분포·편향 분석 |
+| **analysis_results** | Claude 응답 콘텐츠 (사진 X) | 패턴 분석·prompt versioning·A/B test |
+| **candidate_logs** | Claude 후보 50곡 박제 | 곡별 진입→선택 전환률 |
+
+### 향후 확장 시점 (컬럼 미리 두었음)
+- **prompt_version**: 5/16 후 prompt 변경 시 채우기 시작 → 변경 효과 분리 측정
+- **ab_variant**: A/B test framework 도입 시 활용 (handoff §19 Spotify lever 3)
+- **model_id**: 매 분석에 채워짐 (Claude vs 미래 다른 모델 비교)
+
+### 5/16+ 활용 SQL 예시
+```sql
+-- 1. 벤치마크: 모든 분석의 vibeType 어미 패턴 (8x 표본)
+SELECT
+  CASE WHEN vibe_type ~ '러$' THEN '~러'
+       WHEN vibe_type ~ '수집가' THEN '수집가'
+       ELSE 'other' END AS suffix,
+  COUNT(*) AS cnt
+FROM analysis_results
+WHERE created_at > '2026-05-09'
+GROUP BY 1;
+
+-- 2. vibe별 액션 전환률 (왜 87% 액션 안 했나?)
+SELECT
+  ar.vibe_type,
+  COUNT(*) AS recommended,
+  COUNT(e.id) AS actioned,
+  ROUND(COUNT(e.id) * 100.0 / COUNT(*), 1) AS conversion_pct
+FROM analysis_results ar
+LEFT JOIN entries e ON e.device_id = ar.device_id
+  AND e.song = (SELECT song FROM songs WHERE id = ar.song_id)
+WHERE ar.created_at > '2026-05-09'
+GROUP BY ar.vibe_type
+HAVING COUNT(*) >= 10
+ORDER BY conversion_pct DESC;
+
+-- 3. prompt versioning 전후 비교 (5/16 후 가능)
+SELECT prompt_version,
+  COUNT(*) FILTER (WHERE reason ~ '딱|결이 맞|어울려요') * 100.0 / COUNT(*) AS banned_phrase_pct
+FROM analysis_results
+GROUP BY prompt_version;
+```
+
+### Phase 2·3 영구 보류 결정
+- Phase 2 (entries 컬럼 deprecate) = 코드 4페이지 수정 + 위험 ↑
+- Phase 3 (entries.vibe drop) = 돌이킬 수 없음
+- → **Phase 1만으로 효과 충분**, normalization은 미래 ML pipeline 도입 시 재검토
+
+### 한 줄
+> "기존은 그대로, 새 분석부터 더 풍부한 데이터 박제 시작" — 사용자 영향 0, 위험 0, 작업 30분.
+
+---
+
+## 22. 5/9 part2 commit 5개 (전체)
+
+| commit | 변경 |
+|---|---|
+| `bc690a1` | 7일 글로벌 순환 가중치 + candidate_logs |
+| `20d43bb` | device 평생 곡 차단 + 아티스트 cap 제거 |
+| `73c9634` | 추천 품질 metrics 대시보드 (Coverage·Long-tail) |
+| `604c748` | handoff 5/9 part1·part2 박제 |
+| **`a8ac0e8`** | **analysis_results Phase 1 (모든 분석 vibe 박제)** |
+
+→ 전체 작업: SQL migration 2개 + 코드 5개 영역 + handoff 2개 + doc 1개
