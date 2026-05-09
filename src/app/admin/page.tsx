@@ -314,6 +314,31 @@ export default function AdminPage() {
   const [spotifyStatus, setSpotifyStatus] = useState<SpotifyStatus | null>(null);
   const [spotifyChecking, setSpotifyChecking] = useState(false);
 
+  // 추천 품질 metrics (Catalog Coverage + Long-tail share)
+  type QualityMetrics = {
+    pool_size: number;
+    period_30d: {
+      total_recs: number;
+      unique_songs_recommended: number;
+      coverage_pct: number;
+      top10_share_pct: number;
+      top50_share_pct: number;
+      long_tail_share_pct: number;
+      max_single_song: number;
+      one_off_songs: number;
+      one_off_pct: number;
+    };
+    period_7d: {
+      total_recs: number;
+      unique_songs_recommended: number;
+      max_single_song: number;
+      top10_share_pct: number;
+    };
+  };
+  const [qualityMetrics, setQualityMetrics] = useState<QualityMetrics | null>(null);
+  const [qualityLoading, setQualityLoading] = useState(false);
+  const [qualityOpen, setQualityOpen] = useState(false);
+
   // ── 텍스트로 곡 추가 state는 ./ImportTextSection.tsx 내부로 이전 (타이핑 지연 해결) ──
 
   // Spotify 429 카운트다운은 <SpotifyCountdown />으로 분리 (매초 리렌더 격리)
@@ -368,6 +393,22 @@ export default function AdminPage() {
       setSpotifyStatus({ status: "token_failed", checkedAt: Date.now(), retryAfter: null });
     } finally {
       setSpotifyChecking(false);
+    }
+  }, []);
+
+  // 추천 품질 metric fetch (Catalog Coverage + Long-tail share)
+  const fetchQualityMetrics = useCallback(async () => {
+    setQualityLoading(true);
+    try {
+      const res = await fetch("/api/admin/quality-metrics", { credentials: "same-origin" });
+      if (res.ok) {
+        const data = await res.json();
+        setQualityMetrics(data);
+      }
+    } catch (e) {
+      console.error("[admin] quality-metrics 로드 실패:", e);
+    } finally {
+      setQualityLoading(false);
     }
   }, []);
 
@@ -1863,6 +1904,118 @@ export default function AdminPage() {
                   확인 시각: {new Date(spotifyStatus.checkedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                 </p>
                 <SpotifyCountdown spotifyStatus={spotifyStatus} />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── 섹션: 추천 품질 metrics (Catalog Coverage + Long-tail) ── */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>추천 품질</p>
+      <div style={{ marginBottom: 20 }}>
+        <button
+          onClick={() => {
+            const next = !qualityOpen;
+            setQualityOpen(next);
+            if (next && !qualityMetrics && !qualityLoading) fetchQualityMetrics();
+          }}
+          style={{
+            width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
+            background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)",
+            borderRadius: qualityOpen ? "14px 14px 0 0" : 14,
+            padding: "13px 18px", cursor: "pointer", color: "#fff",
+          }}
+        >
+          <span style={{ fontSize: 13, fontWeight: 600 }}>📊 추천 품질 (Coverage · Long-tail)</span>
+          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", display: "inline-block", transform: qualityOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>▾</span>
+        </button>
+        {qualityOpen && (
+          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.10)", borderTop: "none", borderRadius: "0 0 14px 14px", padding: "16px 18px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", margin: 0 }}>외부 only · INTERNAL device 제외</p>
+              <button
+                onClick={fetchQualityMetrics}
+                disabled={qualityLoading}
+                style={{ background: qualityLoading ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 16, padding: "5px 12px", color: qualityLoading ? "rgba(255,255,255,0.3)" : "#fff", fontSize: 11, cursor: qualityLoading ? "default" : "pointer" }}
+              >
+                {qualityLoading ? "로드 중..." : "새로고침"}
+              </button>
+            </div>
+
+            {!qualityMetrics && !qualityLoading && (
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", margin: 0 }}>조회하지 않음</p>
+            )}
+            {qualityLoading && (
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", margin: 0 }}>로드 중...</p>
+            )}
+            {qualityMetrics && !qualityLoading && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+                {/* 30일 metric */}
+                <div>
+                  <p style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 8, fontWeight: 600 }}>최근 30일 (외부)</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+                    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "10px 12px" }}>
+                      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", margin: 0, marginBottom: 2 }}>Catalog Coverage</p>
+                      <p style={{ fontSize: 18, color: "#fff", margin: 0, fontWeight: 700 }}>{qualityMetrics.period_30d.coverage_pct}%</p>
+                      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", margin: 0, marginTop: 2 }}>
+                        {qualityMetrics.period_30d.unique_songs_recommended} / {qualityMetrics.pool_size}곡
+                      </p>
+                    </div>
+                    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "10px 12px" }}>
+                      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", margin: 0, marginBottom: 2 }}>Top 10 share</p>
+                      <p style={{ fontSize: 18, color: qualityMetrics.period_30d.top10_share_pct > 15 ? "#f0a070" : "#fff", margin: 0, fontWeight: 700 }}>{qualityMetrics.period_30d.top10_share_pct}%</p>
+                      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", margin: 0, marginTop: 2 }}>편향 진단 (낮을수록 분산)</p>
+                    </div>
+                    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "10px 12px" }}>
+                      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", margin: 0, marginBottom: 2 }}>Top 50 share</p>
+                      <p style={{ fontSize: 18, color: "#fff", margin: 0, fontWeight: 700 }}>{qualityMetrics.period_30d.top50_share_pct}%</p>
+                      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", margin: 0, marginTop: 2 }}>상위 50곡 점유율</p>
+                    </div>
+                    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "10px 12px" }}>
+                      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", margin: 0, marginBottom: 2 }}>Long-tail share</p>
+                      <p style={{ fontSize: 18, color: qualityMetrics.period_30d.long_tail_share_pct > 60 ? "#6be0a0" : "#fff", margin: 0, fontWeight: 700 }}>{qualityMetrics.period_30d.long_tail_share_pct}%</p>
+                      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", margin: 0, marginTop: 2 }}>top 100 외 곡 점유</p>
+                    </div>
+                    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "10px 12px" }}>
+                      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", margin: 0, marginBottom: 2 }}>단일 곡 max</p>
+                      <p style={{ fontSize: 18, color: "#fff", margin: 0, fontWeight: 700 }}>{qualityMetrics.period_30d.max_single_song}회</p>
+                      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", margin: 0, marginTop: 2 }}>가장 많이 추천된 곡</p>
+                    </div>
+                    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "10px 12px" }}>
+                      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", margin: 0, marginBottom: 2 }}>1회만 추천</p>
+                      <p style={{ fontSize: 18, color: "#fff", margin: 0, fontWeight: 700 }}>{qualityMetrics.period_30d.one_off_pct}%</p>
+                      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", margin: 0, marginTop: 2 }}>{qualityMetrics.period_30d.one_off_songs}곡 (long-tail 강도)</p>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", margin: 0, marginTop: 8 }}>
+                    총 추천 {qualityMetrics.period_30d.total_recs}건
+                  </p>
+                </div>
+
+                {/* 7일 metric (cycle 효과 빠른 측정용) */}
+                <div>
+                  <p style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 8, fontWeight: 600 }}>최근 7일 (cycle 효과 측정)</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "10px 12px" }}>
+                      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", margin: 0, marginBottom: 2 }}>총 추천</p>
+                      <p style={{ fontSize: 16, color: "#fff", margin: 0, fontWeight: 700 }}>{qualityMetrics.period_7d.total_recs}건</p>
+                    </div>
+                    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "10px 12px" }}>
+                      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", margin: 0, marginBottom: 2 }}>단일 곡 max (7d)</p>
+                      <p style={{ fontSize: 16, color: qualityMetrics.period_7d.max_single_song > 14 ? "#f0a070" : "#fff", margin: 0, fontWeight: 700 }}>{qualityMetrics.period_7d.max_single_song}회</p>
+                    </div>
+                    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "10px 12px" }}>
+                      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", margin: 0, marginBottom: 2 }}>Top 10 share (7d)</p>
+                      <p style={{ fontSize: 16, color: "#fff", margin: 0, fontWeight: 700 }}>{qualityMetrics.period_7d.top10_share_pct}%</p>
+                    </div>
+                  </div>
+                </div>
+
+                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", margin: 0, lineHeight: 1.5 }}>
+                  ⚠️ 이 metric은 가드레일·편향 진단용. KPI/목표값으로 사용 X (Goodhart&apos;s Law).<br/>
+                  진짜 KPI는 사용자 만족 (save_rate, retention).
+                </p>
               </div>
             )}
           </div>
