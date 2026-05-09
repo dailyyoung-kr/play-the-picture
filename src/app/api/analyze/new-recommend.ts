@@ -43,8 +43,89 @@ function shuffleAndSlice(arr: SongRow[], n: number): SongRow[] {
   return copy.slice(0, n);
 }
 
-// discover 모드: 장르별 균등 샘플링 (각 장르에서 최대 maxPerGenre곡)
-function balancedSample(arr: SongRow[], maxPerGenre: number): SongRow[] {
+// ── 글로벌 7일 카운트 캐시 (편향 방지 가중치용) ──
+// Module-level memory cache. 5분 TTL.
+// - cache hit (99% 호출): 1ms — 사용자 체감 0
+// - cache miss (5분에 1번): ~15ms (700 rows GROUP BY)
+// - 5분 stale OK: 7일 평균에 영향 0.05% 미만
+const GLOBAL_COUNTS_TTL_MS = 5 * 60 * 1000;
+let globalCountsCache: { counts: Map<string, number>; fetchedAt: number } | null = null;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getGlobal7dCounts(supabase: any): Promise<Map<string, number>> {
+  if (globalCountsCache && Date.now() - globalCountsCache.fetchedAt < GLOBAL_COUNTS_TTL_MS) {
+    return globalCountsCache.counts;
+  }
+
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from("recommendation_logs")
+    .select("song_id")
+    .gte("created_at", since);
+
+  if (error) {
+    console.error("[new] global 7d counts fetch 실패:", error.message);
+    // 실패 시 빈 Map 반환 — weight = 1.0 (페널티 없음, fail-safe)
+    return new Map();
+  }
+
+  const counts = new Map<string, number>();
+  for (const row of (data ?? []) as { song_id: string }[]) {
+    if (row.song_id) {
+      counts.set(row.song_id, (counts.get(row.song_id) ?? 0) + 1);
+    }
+  }
+
+  globalCountsCache = { counts, fetchedAt: Date.now() };
+  console.log(`[new] global 7d counts cached: ${counts.size}곡, ${data?.length ?? 0}건`);
+  return counts;
+}
+
+// ── 가중치 공식: weight = 1 / (1 + count × k) ──
+// k=0.10 기준:
+//   0회: 1.00 (사장곡·신곡 그대로)
+//   3회 (median): 0.77
+//   7회 (p95): 0.59
+//   14회 (top, Blue Hour 등): 0.42  ← 58% 페널티
+const ROTATION_K = 0.10;
+
+function computeWeight(songId: string, counts: Map<string, number>): number {
+  const c = counts.get(songId) ?? 0;
+  return 1 / (1 + c * ROTATION_K);
+}
+
+// ── 가중 무작위 샘플링 (n개 비복원 추출) ──
+// weight 비례 확률로 선택. 같은 곡 중복 추출 방지.
+function weightedShuffleAndSlice(
+  arr: SongRow[],
+  n: number,
+  counts: Map<string, number>
+): SongRow[] {
+  const items = arr.map(song => ({ song, weight: computeWeight(song.id, counts) }));
+  const result: SongRow[] = [];
+
+  while (result.length < n && items.length > 0) {
+    const total = items.reduce((sum, x) => sum + x.weight, 0);
+    if (total <= 0) break;
+    let r = Math.random() * total;
+    for (let j = 0; j < items.length; j++) {
+      r -= items[j].weight;
+      if (r <= 0) {
+        result.push(items[j].song);
+        items.splice(j, 1);
+        break;
+      }
+    }
+  }
+  return result;
+}
+
+// discover 모드: 장르별 균등 샘플링 (각 장르에서 최대 maxPerGenre곡, 가중치 적용)
+function balancedSample(
+  arr: SongRow[],
+  maxPerGenre: number,
+  counts: Map<string, number>
+): SongRow[] {
   const byGenre: Record<string, SongRow[]> = {};
   for (const song of arr) {
     if (!byGenre[song.genre]) byGenre[song.genre] = [];
@@ -52,7 +133,8 @@ function balancedSample(arr: SongRow[], maxPerGenre: number): SongRow[] {
   }
   const result: SongRow[] = [];
   for (const genre of Object.keys(byGenre)) {
-    result.push(...shuffleAndSlice(byGenre[genre], maxPerGenre));
+    // 장르별 가중 샘플링 — over-recommended 곡은 같은 장르 안에서도 덜 뽑힘
+    result.push(...weightedShuffleAndSlice(byGenre[genre], maxPerGenre, counts));
   }
   return shuffleAndSlice(result, result.length);
 }
@@ -292,13 +374,17 @@ export async function newRecommend(
     Math.min(50, Math.ceil(filteredCandidates.length * 0.5))
   );
 
+  // 2026-05-09 추가: 7일 글로벌 카운트 기반 가중 샘플링 (편향 방지)
+  // 캐시(5분 TTL) — cache hit 시 ~1ms, miss 시 ~15ms
+  const global7dCounts = await getGlobal7dCounts(supabase);
+
   let finalCandidates: SongRow[];
   if (isDiscover) {
-    // discover: 장르당 균등 샘플링 (perGenre = limit ÷ 6 올림)
+    // discover: 장르당 균등 샘플링 (perGenre = limit ÷ 6 올림) + 가중치
     const perGenre = Math.ceil(dynamicLimit / 6);
-    finalCandidates = balancedSample(filteredCandidates, perGenre).slice(0, dynamicLimit);
+    finalCandidates = balancedSample(filteredCandidates, perGenre, global7dCounts).slice(0, dynamicLimit);
   } else if (filteredCandidates.length > dynamicLimit) {
-    finalCandidates = shuffleAndSlice(filteredCandidates, dynamicLimit);
+    finalCandidates = weightedShuffleAndSlice(filteredCandidates, dynamicLimit, global7dCounts);
   } else {
     finalCandidates = shuffleAndSlice(filteredCandidates, filteredCandidates.length);
   }
@@ -373,6 +459,7 @@ export async function newRecommend(
   // ── STEP 4: 추천 이력 비동기 기록 (응답 대기 시간에 영향 없음) ──
   if (deviceId && selectedSong?.id) {
     after(async () => {
+      // (1) recommendation_logs — 최종 선택 1건
       const { error: logErr } = await supabaseAdmin.from("recommendation_logs").insert({
         device_id: deviceId,
         song_id: selectedSong.id,
@@ -380,6 +467,18 @@ export async function newRecommend(
       });
       if (logErr) console.error("[new] recommendation_logs insert 실패:", logErr.message);
       else console.log(`[new] 추천 이력 기록: device=${deviceId}, song=${selectedSong.id}`);
+
+      // (2) candidate_logs — Claude에게 보낸 후보 50곡 batch insert
+      // 미래 quality scoring 인프라: 곡별 "후보 진입 → 선택 전환률" 측정용
+      const candidateRows = finalCandidates.map((s, i) => ({
+        device_id: deviceId,
+        song_id: s.id,
+        position: i + 1,
+        was_selected: s.id === selectedSong.id,
+      }));
+      const { error: candErr } = await supabaseAdmin.from("candidate_logs").insert(candidateRows);
+      if (candErr) console.error("[new] candidate_logs insert 실패:", candErr.message);
+      else console.log(`[new] candidate_logs 기록: ${candidateRows.length}건 (selected position=${candidateRows.findIndex(r => r.was_selected) + 1})`);
     });
   }
 
