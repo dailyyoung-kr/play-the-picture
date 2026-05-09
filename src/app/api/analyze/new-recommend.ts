@@ -435,16 +435,37 @@ export async function newRecommend(
   // ── STEP 4: 추천 이력 비동기 기록 (응답 대기 시간에 영향 없음) ──
   if (deviceId && selectedSong?.id) {
     after(async () => {
-      // (1) recommendation_logs — 최종 선택 1건
-      const { error: logErr } = await supabaseAdmin.from("recommendation_logs").insert({
-        device_id: deviceId,
-        song_id: selectedSong.id,
-        vibe_type: result.vibeType ?? null,
-      });
+      // (1) recommendation_logs — 최종 선택 1건. id 받아서 analysis_results와 link
+      const { data: recLog, error: logErr } = await supabaseAdmin
+        .from("recommendation_logs")
+        .insert({
+          device_id: deviceId,
+          song_id: selectedSong.id,
+          vibe_type: result.vibeType ?? null,
+        })
+        .select("id")
+        .single();
       if (logErr) console.error("[new] recommendation_logs insert 실패:", logErr.message);
       else console.log(`[new] 추천 이력 기록: device=${deviceId}, song=${selectedSong.id}`);
 
-      // (2) candidate_logs — Claude에게 보낸 후보 50곡 batch insert
+      // (2) analysis_results — Claude 응답 콘텐츠 박제 (모든 분석)
+      // 액션 안 한 user의 vibe·reason 데이터 보존 — 패턴 분석 8x 표본 + prompt versioning 인프라
+      const { error: analysisErr } = await supabaseAdmin.from("analysis_results").insert({
+        recommendation_log_id: recLog?.id ?? null,
+        device_id: deviceId,
+        song_id: selectedSong.id,
+        vibe_type: result.vibeType ?? null,
+        vibe_description: result.vibeDescription ?? null,
+        reason: result.reason ?? null,
+        tags: Array.isArray(result.tags) ? result.tags : null,
+        emotions: result.emotions ?? null,
+        selected_index: selectedIndex,
+        model_id: model,
+      });
+      if (analysisErr) console.error("[new] analysis_results insert 실패:", analysisErr.message);
+      else console.log(`[new] analysis_results 기록: vibe=${result.vibeType ?? "?"}`);
+
+      // (3) candidate_logs — Claude에게 보낸 후보 50곡 batch insert
       // 미래 quality scoring 인프라: 곡별 "후보 진입 → 선택 전환률" 측정용
       const candidateRows = finalCandidates.map((s, i) => ({
         device_id: deviceId,
