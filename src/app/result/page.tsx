@@ -1687,6 +1687,9 @@ export default function ResultPage() {
             const GAP = 20;
             const BORDER_RADIUS = 32;
 
+            // 2026-05-09: <img objectFit:cover> → div backgroundImage 변경
+            // 이유: html2canvas가 img의 object-fit을 무시 → 사진이 정사각형으로 stretched (비율 깨짐)
+            // div의 background-size:cover는 html2canvas 정상 지원
             const slot: React.CSSProperties = {
               width: SIZE,
               height: SIZE,
@@ -1694,31 +1697,24 @@ export default function ResultPage() {
               overflow: "hidden",
               flexShrink: 0,
               border: "1px solid rgba(255,255,255,0.12)",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
             };
-            const imgStyle: React.CSSProperties = {
-              width: "100%",
-              height: "100%",
-              objectFit: "cover", // 가운데 1:1 추출, 사진 비율 유지
-              objectPosition: "center",
-              display: "block",
-            };
+            const slotWithPhoto = (photoSrc: string, sizeOverride?: { width: number; height: number }): React.CSSProperties => ({
+              ...slot,
+              ...(sizeOverride ?? {}),
+              backgroundImage: `url(${photoSrc})`,
+            });
 
             if (count === 1) {
-              return (
-                <div style={slot}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={photos[0]} alt="" style={imgStyle} />
-                </div>
-              );
+              return <div style={slotWithPhoto(photos[0])} />;
             }
             if (count === 2) {
               return (
                 <div style={{ display: "flex", gap: GAP }}>
                   {[0, 1].map((i) => (
-                    <div key={i} style={slot}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={photos[i]} alt="" style={imgStyle} />
-                    </div>
+                    <div key={i} style={slotWithPhoto(photos[i])} />
                   ))}
                 </div>
               );
@@ -1727,23 +1723,12 @@ export default function ResultPage() {
               // 좌 1장 (큼) + 우 2장 (세로 스택). 좌 높이 = 우×2 + GAP — 빈 공간 없이 꽉 참
               const SMALL = SIZE; // 309
               const LARGE = SMALL * 2 + GAP; // 638
-              const smallSlot: React.CSSProperties = { ...slot, width: SMALL, height: SMALL };
-              const largeSlot: React.CSSProperties = { ...slot, width: LARGE, height: LARGE };
               return (
                 <div style={{ display: "flex", gap: GAP }}>
-                  <div style={largeSlot}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={photos[0]} alt="" style={imgStyle} />
-                  </div>
+                  <div style={slotWithPhoto(photos[0], { width: LARGE, height: LARGE })} />
                   <div style={{ display: "flex", flexDirection: "column", gap: GAP }}>
-                    <div style={smallSlot}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={photos[1]} alt="" style={imgStyle} />
-                    </div>
-                    <div style={smallSlot}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={photos[2]} alt="" style={imgStyle} />
-                    </div>
+                    <div style={slotWithPhoto(photos[1], { width: SMALL, height: SMALL })} />
+                    <div style={slotWithPhoto(photos[2], { width: SMALL, height: SMALL })} />
                   </div>
                 </div>
               );
@@ -1752,31 +1737,22 @@ export default function ResultPage() {
               return (
                 <div style={{ display: "grid", gridTemplateColumns: `repeat(2, ${SIZE}px)`, gridTemplateRows: `repeat(2, ${SIZE}px)`, gap: GAP }}>
                   {[0, 1, 2, 3].map((i) => (
-                    <div key={i} style={slot}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={photos[i]} alt="" style={imgStyle} />
-                    </div>
+                    <div key={i} style={slotWithPhoto(photos[i])} />
                   ))}
                 </div>
               );
             }
-            // count === 5: 위2 + 아래3 (모두 동일 320×320)
+            // count === 5: 위2 + 아래3 (모두 동일 309×309)
             return (
               <div style={{ display: "flex", flexDirection: "column", gap: GAP, alignItems: "center" }}>
                 <div style={{ display: "flex", gap: GAP }}>
                   {[0, 1].map((i) => (
-                    <div key={i} style={slot}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={photos[i]} alt="" style={imgStyle} />
-                    </div>
+                    <div key={i} style={slotWithPhoto(photos[i])} />
                   ))}
                 </div>
                 <div style={{ display: "flex", gap: GAP }}>
                   {[2, 3, 4].map((i) => (
-                    <div key={i} style={slot}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={photos[i]} alt="" style={imgStyle} />
-                    </div>
+                    <div key={i} style={slotWithPhoto(photos[i])} />
                   ))}
                 </div>
               </div>
