@@ -999,6 +999,23 @@ export default function AdminPage() {
   // 5/10 변경 — D7 (10/5 → 3/1): 14일 max 2.9%, 1회성 도구 reality 반영
   const d7Accent       = d7BaseCount < 5  ? C.gray : accentByRate(d7Rate, 3, 1);
 
+  // ── Lifetime 재방문 비율 (5/10 신규) ──
+  // "처음 본 사람 중 한 번이라도 다시 온 비율" — 1회성 도구의 진짜 retention 신호.
+  // 분모: 14-30일 전 신규 device (충분히 시간 지난 cohort, sample 안정성)
+  // 분자: 그 중 first 이후 다른 날 재방문한 device
+  // baseline (5/10 검증): 17일치 cohort median 8% / range 1.9-17.6%
+  const lifetimeStart = kstOffset(today, -30);
+  const lifetimeEnd   = kstOffset(today, -14); // -14일까지 (오늘 - 14일 = 안정 기준)
+  const lifetimeBaseDevices = Object.entries(firstSeenMap)
+    .filter(([, fd]) => fd >= lifetimeStart && fd < lifetimeEnd)
+    .map(([id, fd]) => ({ id, fd }));
+  const lifetimeReturned = lifetimeBaseDevices.filter(({ id, fd }) =>
+    Object.entries(visitsByDate).some(([d, set]) => d > fd && set.has(id))
+  ).length;
+  const lifetimeBaseCount = lifetimeBaseDevices.length;
+  const lifetimeRate = lifetimeBaseCount >= 30 ? pct(lifetimeReturned, lifetimeBaseCount) : "—";
+  const lifetimeAccent = lifetimeBaseCount < 30 ? C.gray : accentByRate(lifetimeRate, 10, 5);
+
   // 평균 재방문 간격: 재방문한 유저 기준 (first vs latest)
   const multiVisitGaps: number[] = [];
   for (const [did, firstDate] of Object.entries(firstSeenMap)) {
@@ -1117,13 +1134,17 @@ export default function AdminPage() {
       .map(e => `${e.song}${e.artist ? ` — ${e.artist}` : ""}`)
   ).slice(0, 5);
 
-  // ── ① 공유된 곡 Top 5 ──
-  const topSharedSongs = countBy(
-    filteredShares
-      .map(l => entryById[l.entry_id ?? ""])
-      .filter((e): e is EntryRow => !!e && !!e.song)
-      .map(e => `${e.song}${e.artist ? ` — ${e.artist}` : ""}`)
-  ).slice(0, 5);
+  // ── ① 공유된 곡 Top 5 (5/10: URL 공유 ∪ 스토리 outcome 합집합) ──
+  // 기존엔 URL 공유만 카운트했지만 스토리 outcome 14배 큰 lever 빠짐 → 정정
+  const sharedSongTitles = [
+    ...filteredShares.map(l => entryById[l.entry_id ?? ""]),
+    ...filteredStorySaves
+      .filter(l => l.status === "shared" || l.status === "downloaded")
+      .map(l => entryById[l.entry_id ?? ""]),
+  ]
+    .filter((e): e is EntryRow => !!e && !!e.song)
+    .map(e => `${e.song}${e.artist ? ` — ${e.artist}` : ""}`);
+  const topSharedSongs = countBy(sharedSongTitles).slice(0, 5);
 
   // ── ② 장르별 저장률 / 공유율 ──
   // 분모: preference_logs의 장르별 선택 수 (= 장르 선택 후 분석 시작한 유저 수 근사)
@@ -1919,6 +1940,14 @@ export default function AdminPage() {
             accent={d7Accent}
             tooltip={d7BaseCount < 5 ? "표본 5명 미만 — 판단 보류" : "7일 전 처음 방문 유저 중 오늘도 방문한 비율"}
           />
+          {/* Lifetime 재방문 비율 (5/10 신규) — 1회성 도구 reality 측정 */}
+          <ConvCard
+            label="lifetime 재방문 비율"
+            value={lifetimeRate}
+            sub={`${lifetimeReturned}명 / 14-30일 전 신규 ${lifetimeBaseCount}명`}
+            accent={lifetimeAccent}
+            tooltip={lifetimeBaseCount < 30 ? "cohort 30명 미만 — 판단 보류" : "14-30일 전 처음 방문 유저 중 그 후 한 번이라도 다시 방문한 비율. 1회성 도구의 진짜 retention 신호 (D1·D7는 SNS·게임 모델). 5/10 도입 baseline median 8% / range 1.9-17.6% (17일치 cohort)"}
+          />
           <ConvCard
             label="평균 재방문 간격"
             value={avgRevisitDays != null ? `${avgRevisitDays}일` : "—"}
@@ -2026,7 +2055,7 @@ export default function AdminPage() {
         <RankList title="💾 가장 많이 저장된 곡 Top 5" items={topSavedSongs} accent="#7ec8e3" />
       </div>
       <div style={{ marginBottom: 8 }}>
-        <RankList title="↑ 가장 많이 공유된 곡 Top 5" items={topSharedSongs} accent="#6be0a0" />
+        <RankList title="↑ 가장 많이 공유된 곡 Top 5 (URL ∪ 스토리)" items={topSharedSongs} accent="#6be0a0" />
       </div>
 
       {/* ── 장르별 저장률/공유율 ── */}
