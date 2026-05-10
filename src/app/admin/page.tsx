@@ -988,14 +988,16 @@ export default function AdminPage() {
   const d1Returned     = d1BaseDevices.filter(id => todayVisitors.has(id)).length;
   const d1BaseCount    = d1BaseDevices.length;
   const d1Rate         = d1BaseCount >= 5 ? pct(d1Returned, d1BaseCount) : "—";
-  const d1Accent       = d1BaseCount < 5  ? C.gray : accentByRate(d1Rate, 20, 10);
+  // 5/10 변경 — D1 (20/10 → 7/3): 14일 max 7.6%, 1회성 도구 reality 반영
+  const d1Accent       = d1BaseCount < 5  ? C.gray : accentByRate(d1Rate, 7, 3);
 
   // D7 리텐션: 7일 전 신규 → 오늘 재방문
   const d7BaseDevices  = Object.entries(firstSeenMap).filter(([, fd]) => fd === sevenDaysAgo).map(([id]) => id);
   const d7Returned     = d7BaseDevices.filter(id => todayVisitors.has(id)).length;
   const d7BaseCount    = d7BaseDevices.length;
   const d7Rate         = d7BaseCount >= 5 ? pct(d7Returned, d7BaseCount) : "—";
-  const d7Accent       = d7BaseCount < 5  ? C.gray : accentByRate(d7Rate, 10, 5);
+  // 5/10 변경 — D7 (10/5 → 3/1): 14일 max 2.9%, 1회성 도구 reality 반영
+  const d7Accent       = d7BaseCount < 5  ? C.gray : accentByRate(d7Rate, 3, 1);
 
   // 평균 재방문 간격: 재방문한 유저 기준 (first vs latest)
   const multiVisitGaps: number[] = [];
@@ -1039,6 +1041,15 @@ export default function AdminPage() {
   const avgResponseMs = completedLogs.length > 0
     ? Math.round(completedLogs.reduce((sum, l) => sum + (l.response_time_ms ?? 0), 0) / completedLogs.length)
     : null;
+  // 5/10 추가 — median/max 표시 (avg는 outlier에 흔들림, 분포 함께 보기)
+  const responseTimesMs = completedLogs
+    .map(l => l.response_time_ms ?? 0)
+    .filter(v => v > 0)
+    .sort((a, b) => a - b);
+  const medianResponseMs = responseTimesMs.length > 0
+    ? responseTimesMs[Math.floor(responseTimesMs.length / 2)]
+    : null;
+  const maxResponseMs = responseTimesMs.length > 0 ? responseTimesMs[responseTimesMs.length - 1] : null;
   const completedTotal = successCount + failCount;
   const failRatePct = completedTotal > 0 ? (failCount / completedTotal) * 100 : null;
   const failRateStr = failRatePct != null ? failRatePct.toFixed(1) + "%" : "—";
@@ -1049,10 +1060,11 @@ export default function AdminPage() {
   const convListenAccent  = accentByRate(userListenRate,  70, 50);
   const convSaveAccent    = successUsers >= 10 ? accentByRate(userSaveRate,  15,  5) : C.gray;
   const convShareAccent   = successUsers >= 10 ? accentByRate(userShareRate, 10,  3) : C.gray;
-  // PERFORMANCE
+  // PERFORMANCE — 응답 시간 (5/10 변경: 8000/10000 → 11000/13000)
+  // Claude API median 11s baseline 반영 — 14일 분포 median 11,300ms / range 10,777-12,637ms
   const perfResponseAccent = avgResponseMs == null ? C.gray
-    : avgResponseMs <= 8000  ? C.green
-    : avgResponseMs <= 10000 ? C.yellow
+    : avgResponseMs <= 11000 ? C.green
+    : avgResponseMs <= 13000 ? C.yellow
     : C.red;
   const perfFailAccent = failRatePct == null ? C.gray
     : failRatePct <= 5  ? C.green
@@ -1073,11 +1085,13 @@ export default function AdminPage() {
   // 색상 (10건 미만이면 회색)
   const rvGray = rvTotal < 10;
   const perfAvgDurAccent  = rvGray ? C.gray : avgDuration == null ? C.gray : avgDuration >= 30 ? C.green : avgDuration >= 15 ? C.yellow : C.red;
-  const perfOver30Accent  = rvGray ? C.gray : accentByRate(over30Pct,  40, 20);
+  // 5/10 변경 — 30초+ 체류 (40/20 → 25/15): 14일 baseline median 19% / range 10-30%, green 0/14일 달성
+  const perfOver30Accent  = rvGray ? C.gray : accentByRate(over30Pct,  25, 15);
+  // 5/10 변경 — 10초- 이탈 (60/80 → 30/45): 14일 baseline median 36% / range 19.8-52%, 항상 green 의미 X
   const perfUnder10Accent = rvGray ? C.gray : (() => {
     if (under10Pct === "—") return C.gray;
     const v = parseFloat(under10Pct);
-    return v <= 60 ? C.green : v <= 80 ? C.yellow : C.red;
+    return v <= 30 ? C.green : v <= 45 ? C.yellow : C.red;
   })();
 
   // ── 콘텐츠 인사이트 ──
@@ -1360,8 +1374,8 @@ export default function AdminPage() {
           label="종합 듣기 만족도"
           value={overallListenRate}
           sub={`${listenSatisfiedUsers}명 / ${successUsers}명 · 미리듣기 ∪ 외부 앱`}
-          accent={successUsers >= 10 ? accentByRate(overallListenRate, 50, 30) : C.gray}
-          tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "미리듣기 또는 외부 앱 듣기 발생 유저 비율. 곡 매력도 + 추천 정확도 종합 측정. 30초 미리듣기 도입 후 listen_click 단일 지표가 변질되어 도입한 합집합 지표"}
+          accent={successUsers >= 10 ? accentByRate(overallListenRate, 40, 25) : C.gray}
+          tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "미리듣기 또는 외부 앱 듣기 발생 유저 비율. 곡 매력도 + 추천 정확도 종합 측정. 30초 미리듣기 도입 후 listen_click 단일 지표가 변질되어 도입한 합집합 지표. 5/10 임계값 50/30→40/25 (14일 baseline median 32%, green 0/14일 달성으로 비현실적)"}
         />
         {/* organic 비중 — 신규 device 첫 분석 utm_source NULL 비율 (cohort viral health) */}
         <ConvCard
@@ -1529,8 +1543,8 @@ export default function AdminPage() {
           label="헤비 유저 (3가지 다)"
           value={heavyUserRate}
           sub={`${heavyUsers}명 / ${successUsers}명 · 듣기+저장+공유 모두`}
-          accent={successUsers >= 10 ? accentByRate(heavyUserRate, 5, 1) : C.gray}
-          tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "분석 성공 유저 중 듣기·저장·공유 모두 한 사용자 비율. viral 핵심 후보 (수퍼 팬)"}
+          accent={successUsers >= 100 ? accentByRate(heavyUserRate, 3, 1) : C.gray}
+          tooltip={successUsers < 100 ? "표본 100명 미만 — 판단 보류 (5/10 가드 강화)" : "분석 성공 유저 중 듣기·저장·공유 모두 한 사용자 비율. viral 핵심 후보 (수퍼 팬). 5/10 임계값 5/1→3/1 (14일 max 4.6%, sample 작아 표본 가드 100명+로 강화)"}
         />
         <ConvCard
           label="이탈률"
@@ -1540,9 +1554,9 @@ export default function AdminPage() {
             // 역방향 — 낮을수록 green
             const num = parseFloat(dropoffRate);
             if (isNaN(num)) return C.gray;
-            return num < 50 ? C.green : num < 70 ? C.yellow : C.red;
+            return num < 55 ? C.green : num < 70 ? C.yellow : C.red;
           })() : C.gray}
-          tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "분석 성공 유저 중 듣기·저장·공유 모두 안 한 비율. 이탈 원인 진단 필요 (현재 ~62% 가설)"}
+          tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "분석 성공 유저 중 듣기·저장·공유 모두 안 한 비율. 5/10 임계값 <50/<70 → <55/<70 (14일 median 55%, green 1/14일만 달성)"}
         />
       </div>
 
@@ -1607,8 +1621,8 @@ export default function AdminPage() {
             label="URL K-factor (측정 가능)"
             value={kFactor != null ? kFactor.toFixed(2) : "—"}
             sub={`${tryCount} 유입 / ${successUsers}명 · URL only`}
-            accent={successUsers >= 10 && kFactor != null ? (kFactor >= 0.1 ? C.green : kFactor >= 0.05 ? C.yellow : C.red) : C.gray}
-            tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 1명당 share URL 통해 데려온 try_click 수. ⚠️ 인스타 스토리 viral은 영원히 안 잡힘 — KEY METRICS의 organic 비중 참조. 0.1+ = URL 채널 작동"}
+            accent={successUsers >= 10 && kFactor != null ? (kFactor >= 0.05 ? C.green : kFactor >= 0.02 ? C.yellow : C.red) : C.gray}
+            tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 1명당 share URL 통해 데려온 try_click 수. ⚠️ 인스타 스토리 viral은 영원히 안 잡힘 — KEY METRICS의 organic 비중 참조. 5/10 임계값 0.1/0.05 → 0.05/0.02 (w2 baseline 0.022, share funnel sample 작아 reality 반영)"}
             avg7d={last7KFactor != null ? {
               value: last7KFactor.toFixed(2),
               delta: kFactor != null
@@ -1751,29 +1765,29 @@ export default function AdminPage() {
           label="미리듣기 재생률"
           value={previewPlayRate}
           sub={`${previewPlayedUsers}명 / ${successUsers}명`}
-          accent={successUsers >= 10 ? accentByRate(previewPlayRate, 50, 30) : C.gray}
-          tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "분석 성공 유저 중 ▶ 재생 버튼 누른 비율. 곡 호기심 1단계 — 낮으면 미리듣기 UI 가시성 또는 곡 호감 약함"}
+          accent={successUsers >= 10 ? accentByRate(previewPlayRate, 70, 50) : C.gray}
+          tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "분석 성공 유저 중 ▶ 재생 버튼 누른 비율. 곡 호기심 1단계 — 낮으면 미리듣기 UI 가시성 또는 곡 호감 약함. 5/10 임계값 50/30 → 70/50 (5/3 도입 후 baseline 70-81%, 50%는 항상 green이라 의미 X)"}
         />
         <ConvCard
           label="30초 완료율"
           value={previewCompleteRate}
           sub={`${previewCompletedUsers}명 / ${previewPlayedUsers}명`}
-          accent={previewPlayedUsers >= 5 ? accentByRate(previewCompleteRate, 60, 40) : C.gray}
-          tooltip={previewPlayedUsers < 5 ? "재생 5건 미만 — 판단 보류" : "재생 시작한 유저 중 30초 끝까지 들은 비율. 곡 매력도 척도 — 낮으면 추천 정확도 또는 곡 풀 다양성 약함"}
+          accent={previewPlayedUsers >= 5 ? accentByRate(previewCompleteRate, 35, 25) : C.gray}
+          tooltip={previewPlayedUsers < 5 ? "재생 5건 미만 — 판단 보류" : "재생 시작한 유저 중 30초 끝까지 들은 비율. 곡 매력도 척도 — 낮으면 추천 정확도 또는 곡 풀 다양성 약함. 5/10 임계값 60/40 → 35/25 (5/3 도입 후 baseline 17-37%, 60%는 도달 0)"}
         />
         <ConvCard
           label="외부 앱 듣기율"
           value={userListenRate}
           sub={`${listenUsers}명 / ${successUsers}명`}
-          accent={successUsers >= 10 ? accentByRate(userListenRate, 40, 20) : C.gray}
-          tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "Spotify·YouTube 등 외부 앱 듣기 클릭 비율. 미리듣기 30초로 만족 시 낮을 수 있음 (참고용, 단일 지표 X)"}
+          accent={successUsers >= 10 ? accentByRate(userListenRate, 35, 20) : C.gray}
+          tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "Spotify·YouTube 등 외부 앱 듣기 클릭 비율. 미리듣기 30초로 만족 시 낮을 수 있음 (참고용, 단일 지표 X). 5/10 임계값 40/20 → 35/20 (14일 baseline median 32%)"}
         />
         <ConvCard
           label="iTunes 매칭률"
           value={itunesMatchRate != null ? itunesMatchRate.toFixed(1) + "%" : "—"}
           sub={`${itunesMatchedRows}곡 / ${itunesTotalRows}곡 · 곡 풀 인프라`}
-          accent={itunesTotalRows >= 100 && itunesMatchRate != null ? (itunesMatchRate >= 95 ? C.green : itunesMatchRate >= 90 ? C.yellow : C.red) : C.gray}
-          tooltip={itunesTotalRows < 100 ? "곡 100개 미만 — 판단 보류" : "iTunes API 매칭 성공한 곡 비율 (matched/duration/llm/manual 합산). low_score 곡은 미리듣기 차단 — fix 작업 baseline"}
+          accent={itunesTotalRows >= 100 && itunesMatchRate != null ? (itunesMatchRate >= 90 ? C.green : itunesMatchRate >= 85 ? C.yellow : C.red) : C.gray}
+          tooltip={itunesTotalRows < 100 ? "곡 100개 미만 — 판단 보류" : "iTunes API 매칭 성공한 곡 비율 (matched/duration/llm/manual 합산). low_score 곡은 미리듣기 차단 — fix 작업 baseline. 5/10 임계값 95/90 → 90/85 (현재 87.5%, 95% 비현실적)"}
         />
       </div>
 
@@ -1851,7 +1865,7 @@ export default function AdminPage() {
         <ConvCard
           label="평균 응답 시간"
           value={avgResponseMs != null ? (avgResponseMs >= 1000 ? `${(avgResponseMs / 1000).toFixed(1)}초` : `${avgResponseMs}ms`) : "—"}
-          sub={`${completedLogs.length}건 기준`}
+          sub={`${completedLogs.length}건 기준${medianResponseMs != null ? ` · 중앙값 ${(medianResponseMs / 1000).toFixed(1)}초 · 최대 ${(maxResponseMs! / 1000).toFixed(1)}초` : ""}`}
           accent={perfResponseAccent}
         />
         <ConvCard label="분석 실패율" value={failRateStr} sub={`${failCount}회 / ${failUsers}명`} accent={perfFailAccent} />
