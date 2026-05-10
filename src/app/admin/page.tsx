@@ -875,6 +875,55 @@ export default function AdminPage() {
   const last7OrganicCount = Array.from(last7NewDevices).filter(d => !deviceFirstUtm[d]?.utm).length;
   const last7OrganicRate = last7NewCount > 0 ? (last7OrganicCount / last7NewCount) * 100 : null;
 
+  // ── 📷 스토리 viral 시도율 (Card A) ──
+  // (story shared+downloaded device count) / successUsers
+  // 5/3-5/10 baseline: median 12% / range 6.7%-24.6% (8일치 검증) — 임계값 ≥15/≥10
+  const storyOutcomeDevices = new Set(
+    filteredStorySaves
+      .filter(l => l.status === "shared" || l.status === "downloaded")
+      .map(l => l.device_id)
+      .filter((d): d is string => !!d)
+  );
+  const storyViralUsers = Array.from(successDevices).filter(d => storyOutcomeDevices.has(d)).length;
+  const storyViralRate = pct(storyViralUsers, successUsers);
+  const last7StoryOutcomeDevices = new Set(
+    last7StorySaves
+      .filter(l => l.status === "shared" || l.status === "downloaded")
+      .map(l => l.device_id)
+      .filter((d): d is string => !!d)
+  );
+  const last7StoryViralRate = last7SuccessUsers > 0 ? (last7StoryOutcomeDevices.size / last7SuccessUsers) * 100 : null;
+
+  // ── 📷 스토리 viral 효율 (Card B) ──
+  // outcome / total attempts (clicked 포함 모든 row)
+  // 5/3-5/10 baseline: median 50% / range 30%-77% — 임계값 ≥60/≥40
+  const storyAttempts = filteredStorySaves.length;
+  const storyOutcomes = filteredStorySaves.filter(l => l.status === "shared" || l.status === "downloaded").length;
+  const storyEfficiencyPct = storyAttempts > 0 ? (storyOutcomes / storyAttempts) * 100 : null;
+  const last7StoryAttempts = last7StorySaves.length;
+  const last7StoryOutcomes = last7StorySaves.filter(l => l.status === "shared" || l.status === "downloaded").length;
+  const last7StoryEfficiency = last7StoryAttempts > 0 ? (last7StoryOutcomes / last7StoryAttempts) * 100 : null;
+
+  // ── 📈 유입 cohort 7일 일별 (Mini chart 옵션 X — 광고 vs organic 누적) ──
+  // 마지막 7일 (오늘 포함). 각 day 신규 device의 첫 utm으로 분류.
+  const cohort7dDays: { date: string; meta: number; organic: number; total: number }[] = (() => {
+    const result: { date: string; meta: number; organic: number; total: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = kstOffset(today, -i);
+      const dateStr = d;
+      const newDevsOnDay = Object.entries(deviceFirstUtm).filter(([dev, info]) => {
+        if (!filterDevice({ device_id: dev })) return false;
+        const dateOfFirst = timestampToKSTDate(new Date(info.first).toISOString());
+        return dateOfFirst === dateStr;
+      });
+      const meta = newDevsOnDay.filter(([, info]) => info.utm === "meta").length;
+      const organic = newDevsOnDay.filter(([, info]) => !info.utm || info.utm === "ig" || info.utm === "instagram").length;
+      result.push({ date: dateStr, meta, organic, total: newDevsOnDay.length });
+    }
+    return result;
+  })();
+  const cohort7dMax = Math.max(1, ...cohort7dDays.map(d => d.total));
+
   // 7일 1회차 저장율: 각 device의 첫 성공 → 두 번째 성공 전까지 구간에 save 있는지
   const last7SuccessByDevice: Record<string, number[]> = {};
   for (const l of last7Analyze) {
@@ -1505,15 +1554,18 @@ export default function AdminPage() {
         <ConvCard label="전체 저장률 (유저 기준)" value={userSaveRate} sub={`${saveUsers}명 / ${successUsers}명`} accent={convSaveAccent} tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 중 한 번이라도 저장한 유저 비율 (회차 무관). 1회차 저장율은 KEY METRICS 참고"} />
       </div>
 
-      {/* ── 섹션: VIRAL LOOP ── */}
+      {/* ── 섹션: VIRAL LOOP — 5/10 재구조: 🔗 URL / 📷 스토리 / 📈 cohort 추세 3 sub ── */}
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>VIRAL LOOP</p>
+
+      {/* sub-heading: URL 공유 viral */}
+      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 6, fontWeight: 600 }}>🔗 URL 공유 viral</p>
       {shareCount === 0 ? (
         <div style={{
           background: "rgba(255,255,255,0.03)", borderRadius: 14, padding: "14px 18px", marginBottom: 20,
           display: "flex", alignItems: "center", gap: 10,
         }}>
           <span style={{ fontSize: 15 }}>↑</span>
-          <span style={{ flex: 1, fontSize: 13, color: "rgba(255,255,255,0.45)" }}>기간 내 공유 없음</span>
+          <span style={{ flex: 1, fontSize: 13, color: "rgba(255,255,255,0.45)" }}>기간 내 URL 공유 없음</span>
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
             공유 0 · 조회 {viewCount} · 유입 {tryCount}
           </span>
@@ -1570,6 +1622,83 @@ export default function AdminPage() {
           />
         </div>
       )}
+
+      {/* sub-heading: 스토리 viral (5/10 신규) */}
+      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 6, fontWeight: 600 }}>📷 스토리 viral</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+        {/* Card A: 스토리 viral 시도율 — 5/3-5/10 baseline median 12% / 임계값 ≥15/≥10 */}
+        <ConvCard
+          label="스토리 viral 시도율"
+          value={storyViralRate}
+          sub={`${storyViralUsers}명 / ${successUsers}명 · 인스타 outcome`}
+          accent={successUsers >= 30 ? accentByRate(storyViralRate, 15, 10) : C.gray}
+          tooltip={successUsers < 30 ? "성공 유저 30명 미만 — 판단 보류" : "성공 유저 중 인스타 스토리 outcome (shared·downloaded) 도달 비율. 5/3-5/10 baseline median 12% / range 6.7-24.6% — 임계값 ≥15% green / ≥10% yellow"}
+          avg7d={last7StoryViralRate != null ? {
+            value: last7StoryViralRate.toFixed(1) + "%",
+            delta: successUsers > 0 && storyViralRate !== "—" ? (() => {
+              const curr = (storyViralUsers / successUsers) * 100;
+              const diff = curr - last7StoryViralRate;
+              if (Math.abs(diff) < Math.max(last7StoryViralRate * 0.1, 1)) return "flat" as const;
+              return diff > 0 ? "up" as const : "down" as const;
+            })() : null,
+          } : undefined}
+        />
+        {/* Card B: 스토리 viral 효율 — 5/3-5/10 baseline median 50% / 임계값 ≥60/≥40 */}
+        <ConvCard
+          label="스토리 viral 효율"
+          value={storyEfficiencyPct != null ? storyEfficiencyPct.toFixed(1) + "%" : "—"}
+          sub={`${storyOutcomes}건 / ${storyAttempts}attempts · 클릭→outcome`}
+          accent={storyAttempts >= 10 && storyEfficiencyPct != null ? (storyEfficiencyPct >= 60 ? C.green : storyEfficiencyPct >= 40 ? C.yellow : C.red) : C.gray}
+          tooltip={storyAttempts < 10 ? "스토리 클릭 10건 미만 — 판단 보류" : "스토리 버튼 클릭 후 인스타 공유·다운로드 도달 비율. 5/3-5/10 baseline median 50% / range 30-77%. android_inapp 환경은 webview 차단으로 inapp_shown만 끝나 효율 자연 ↓ — 환경별 표 함께 봐야"}
+          avg7d={last7StoryEfficiency != null ? {
+            value: last7StoryEfficiency.toFixed(1) + "%",
+            delta: storyEfficiencyPct != null
+              ? (() => {
+                  const diff = storyEfficiencyPct - last7StoryEfficiency;
+                  if (Math.abs(diff) < Math.max(last7StoryEfficiency * 0.1, 2)) return "flat" as const;
+                  return diff > 0 ? "up" as const : "down" as const;
+                })()
+              : null,
+          } : undefined}
+        />
+      </div>
+
+      {/* sub-heading: 유입 cohort 7일 추세 (Mini chart 옵션 X — 광고 vs organic 누적 막대) */}
+      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 6, fontWeight: 600 }}>📈 유입 cohort 7일 추세 (광고 vs organic)</p>
+      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "14px 16px", marginBottom: 20 }}>
+        {cohort7dDays.every(d => d.total === 0) ? (
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", margin: 0 }}>최근 7일 신규 device 데이터 없음</p>
+        ) : (
+          <>
+            {cohort7dDays.map(d => {
+              const metaPct = d.total > 0 ? (d.meta / cohort7dMax) * 100 : 0;
+              const organicPct = d.total > 0 ? (d.organic / cohort7dMax) * 100 : 0;
+              const orgRatioPct = d.total > 0 ? Math.round((d.organic / d.total) * 100) : 0;
+              return (
+                <div key={d.date} style={{ marginBottom: 8 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>
+                    <span>{d.date.slice(5)}</span>
+                    <span>
+                      <span style={{ color: "#C4687A" }}>광고 {d.meta}</span>
+                      {" · "}
+                      <span style={{ color: "#6be0a0" }}>organic {d.organic}</span>
+                      <span style={{ color: "rgba(255,255,255,0.35)" }}> · {orgRatioPct}%</span>
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", height: 6, background: "rgba(255,255,255,0.04)", borderRadius: 3, overflow: "hidden" }}>
+                    <div style={{ width: `${metaPct}%`, background: "#C4687A" }} />
+                    <div style={{ width: `${organicPct}%`, background: "#6be0a0" }} />
+                  </div>
+                </div>
+              );
+            })}
+            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 8 }}>
+              <span style={{ color: "#C4687A" }}>■</span> 광고 (meta paid) &nbsp;
+              <span style={{ color: "#6be0a0" }}>■</span> organic (utm null·ig·instagram)
+            </p>
+          </>
+        )}
+      </div>
 
       {/* 📷 스토리 저장 환경별 — 광고 ROAS 시너지 신호 (인스타 인앱 비율 ↑ = Meta 알고리즘 학습 효과) */}
       {storyClickedCount > 0 && (
