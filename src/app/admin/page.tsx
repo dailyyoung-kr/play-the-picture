@@ -6,7 +6,7 @@ import { ImportTextSection } from "./ImportTextSection";
 
 type PhotoLog = { id: string; created_at: string; device_id?: string | null };
 type PrefLog = { id: string; created_at: string; genre: string | null; energy: number | null; device_id?: string | null };
-type AnalyzeLog = { id: string; created_at: string; status: string; response_time_ms: number | null; song: string | null; artist: string | null; device_id?: string | null };
+type AnalyzeLog = { id: string; created_at: string; status: string; response_time_ms: number | null; song: string | null; artist: string | null; device_id?: string | null; utm_source?: string | null };
 type EntryRow = { id: string; date: string; song: string; artist: string; genre: string | null; device_id?: string | null };
 type ListenLog = { id: string; created_at: string; device_id?: string | null };
 type ViewLog  = { id: string; created_at: string; duration_seconds: number | null; exit_type: string | null; device_id?: string | null };
@@ -353,7 +353,7 @@ export default function AdminPage() {
     const [photoRes, prefRes, analyzeRes, entriesRes, listenRes, viewRes, logRowsRes, saveRes] = await Promise.all([
       supabase.from("photo_upload_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("preference_logs").select("id, created_at, genre, energy, device_id").order("created_at", { ascending: false }),
-      supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, song, artist, device_id").order("created_at", { ascending: false }),
+      supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, song, artist, device_id, utm_source").order("created_at", { ascending: false }),
       supabase.from("entries").select("id, date, song, artist, genre, device_id").order("id", { ascending: false }),
       supabase.from("listen_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("result_view_logs").select("id, created_at, duration_seconds, exit_type, device_id").order("created_at", { ascending: false }),
@@ -824,9 +824,56 @@ export default function AdminPage() {
   const last7Views   = shareViews.filter(l => in7Days(l.created_at) && filterDevice(l));
   const last7Try     = tryClicks.filter(l => in7Days(l.created_at) && filterDevice(l));
   const last7SuccessUsers = distinctSet(last7Analyze.filter(l => l.status === "success")).size;
-  const last7ShareRate  = last7SuccessUsers > 0 ? (last7Shares.length / last7SuccessUsers) * 100 : null;
-  const last7InflowRate = last7Views.length > 0 ? (last7Try.length / last7Views.length) * 100 : null;
+  // 5/10 — last7ShareRate/InflowRate 제거 (KEY METRICS 재정의로 미사용)
   const last7KFactor    = last7SuccessUsers > 0 ? (last7Try.length / last7SuccessUsers) : null;
+
+  // ── KEY METRICS — viral 행동률 (URL 공유 ∪ 스토리 저장) ──
+  // 5/10 추가 — 기존 "공유율(URL only)"이 7.7% conversion인 스토리 outcome을 빼고 측정해
+  // viral 약화 신호 못 잡음. shareBranchUsers는 합집합 정의 (line 622) — KEY로 승격.
+  const viralActionRate = pct(shareBranchUsers, successUsers);
+  // last7 평균 (벤치마크용)
+  const last7StorySaves = storySaveLogs.filter(l => in7Days(l.created_at) && filterDevice(l));
+  const last7ShareDevices = new Set(last7Shares.map(l => l.device_id).filter((d): d is string => !!d));
+  const last7StoryDevices = new Set(last7StorySaves.map(l => l.device_id).filter((d): d is string => !!d));
+  const last7ViralActionUsers = new Set([...last7ShareDevices, ...last7StoryDevices]).size;
+  const last7ViralActionRate = last7SuccessUsers > 0 ? (last7ViralActionUsers / last7SuccessUsers) * 100 : null;
+
+  // ── KEY METRICS — organic 유입 비중 (cohort viral health) ──
+  // 5/10 추가 — direct attribution은 본질적 한계가 있어 cohort 측정으로 대체.
+  // 신규 device의 첫 분석 utm_source가 NULL이면 organic (광고 외 = viral + 검색 + 즐겨찾기).
+  // analyze_logs 전체에서 device의 첫 등장 시 utm 기준.
+  const deviceFirstUtm = (() => {
+    const map: Record<string, { first: number; utm: string | null }> = {};
+    for (const l of analyzeLogs) {
+      if (!l.device_id) continue;
+      const t = new Date(l.created_at).getTime();
+      const cur = map[l.device_id];
+      if (!cur || t < cur.first) {
+        map[l.device_id] = { first: t, utm: l.utm_source ?? null };
+      }
+    }
+    return map;
+  })();
+  // 현재 기간 내 첫 등장 device (= 신규 device)
+  const periodNewDevices = new Set<string>();
+  for (const [dev, info] of Object.entries(deviceFirstUtm)) {
+    if (filterTs(new Date(info.first).toISOString()) && filterDevice({ device_id: dev })) {
+      periodNewDevices.add(dev);
+    }
+  }
+  const periodNewCount = periodNewDevices.size;
+  const periodOrganicCount = Array.from(periodNewDevices).filter(d => !deviceFirstUtm[d]?.utm).length;
+  const organicRatePct = periodNewCount > 0 ? (periodOrganicCount / periodNewCount) * 100 : null;
+  // last7 organic 비중
+  const last7NewDevices = new Set<string>();
+  for (const [dev, info] of Object.entries(deviceFirstUtm)) {
+    if (in7Days(new Date(info.first).toISOString()) && filterDevice({ device_id: dev })) {
+      last7NewDevices.add(dev);
+    }
+  }
+  const last7NewCount = last7NewDevices.size;
+  const last7OrganicCount = Array.from(last7NewDevices).filter(d => !deviceFirstUtm[d]?.utm).length;
+  const last7OrganicRate = last7NewCount > 0 ? (last7OrganicCount / last7NewCount) * 100 : null;
 
   // 7일 1회차 저장율: 각 device의 첫 성공 → 두 번째 성공 전까지 구간에 save 있는지
   const last7SuccessByDevice: Record<string, number[]> = {};
@@ -1219,22 +1266,23 @@ export default function AdminPage() {
       </div>
 
       {/* ── 섹션: KEY METRICS (북극성 지표) ── */}
+      {/* 5/10 재정의 — viral 행동률 (URL ∪ 스토리 합집합) + organic 비중 (cohort 측정) 도입 */}
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>KEY METRICS</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
-        {/* 공유율 */}
+        {/* viral 행동률 — URL 공유 ∪ 스토리 저장 합집합 (스토리 outcome 14배 lever 반영) */}
         <ConvCard
-          label="공유율"
-          value={userShareRate}
-          sub={`${shareCount}건 / ${successUsers}명`}
-          accent={successUsers >= 10 ? accentByRate(userShareRate, 10, 3) : C.gray}
-          tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 대비 공유 건수 (바이럴 핵심)"}
-          avg7d={last7ShareRate != null ? {
-            value: last7ShareRate.toFixed(1) + "%",
+          label="viral 행동률"
+          value={viralActionRate}
+          sub={`${shareBranchUsers}명 / ${successUsers}명 · URL ∪ 스토리`}
+          accent={successUsers >= 10 ? accentByRate(viralActionRate, 15, 5) : C.gray}
+          tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 중 URL 공유 또는 스토리 저장 한 비율 (합집합). 5/10 재정의 — 기존 '공유율(URL only)'은 14배 큰 스토리 outcome을 빼고 측정해 viral 약화 신호 못 잡았음"}
+          avg7d={last7ViralActionRate != null ? {
+            value: last7ViralActionRate.toFixed(1) + "%",
             delta: successUsers > 0
               ? (() => {
-                  const curr = (shareCount / successUsers) * 100;
-                  const diff = curr - last7ShareRate;
-                  if (Math.abs(diff) < Math.max(last7ShareRate * 0.1, 1)) return "flat" as const;
+                  const curr = (shareBranchUsers / successUsers) * 100;
+                  const diff = curr - last7ViralActionRate;
+                  if (Math.abs(diff) < Math.max(last7ViralActionRate * 0.1, 1)) return "flat" as const;
                   return diff > 0 ? "up" as const : "down" as const;
                 })()
               : null,
@@ -1266,19 +1314,19 @@ export default function AdminPage() {
           accent={successUsers >= 10 ? accentByRate(overallListenRate, 50, 30) : C.gray}
           tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "미리듣기 또는 외부 앱 듣기 발생 유저 비율. 곡 매력도 + 추천 정확도 종합 측정. 30초 미리듣기 도입 후 listen_click 단일 지표가 변질되어 도입한 합집합 지표"}
         />
-        {/* K-factor */}
+        {/* organic 비중 — 신규 device 첫 분석 utm_source NULL 비율 (cohort viral health) */}
         <ConvCard
-          label="K-factor"
-          value={kFactor != null ? kFactor.toFixed(2) : "—"}
-          sub={`${tryCount} 유입 / ${successUsers}명`}
-          accent={successUsers >= 10 && kFactor != null ? (kFactor >= 0.1 ? C.green : kFactor >= 0.05 ? C.yellow : C.red) : C.gray}
-          tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 1명당 데려온 나도해보기 클릭 수. 1 이상이면 자력 성장, 미만이면 광고 의존"}
-          avg7d={last7KFactor != null ? {
-            value: last7KFactor.toFixed(2),
-            delta: kFactor != null
+          label="organic 비중 (신규)"
+          value={organicRatePct != null ? organicRatePct.toFixed(1) + "%" : "—"}
+          sub={`${periodOrganicCount}명 / ${periodNewCount}명 · utm 없는 신규`}
+          accent={periodNewCount >= 20 && organicRatePct != null ? accentByRate(organicRatePct.toFixed(1) + "%", 25, 15) : C.gray}
+          tooltip={periodNewCount < 20 ? "신규 20명 미만 — 판단 보류" : "신규 device 중 첫 분석 시 utm_source가 없는 비율 (광고 외 = viral·검색·즐겨찾기·word-of-mouth 합). direct attribution 한계 보완하는 cohort 단위 viral health KPI. 광고 비중과 trade-off — organic 절대값 추세도 함께 봐야"}
+          avg7d={last7OrganicRate != null ? {
+            value: last7OrganicRate.toFixed(1) + "%",
+            delta: organicRatePct != null
               ? (() => {
-                  const diff = kFactor - last7KFactor;
-                  if (Math.abs(diff) < Math.max(last7KFactor * 0.1, 0.05)) return "flat" as const;
+                  const diff = organicRatePct - last7OrganicRate;
+                  if (Math.abs(diff) < Math.max(last7OrganicRate * 0.1, 1)) return "flat" as const;
                   return diff > 0 ? "up" as const : "down" as const;
                 })()
               : null,
@@ -1450,11 +1498,11 @@ export default function AdminPage() {
       </div>
 
       {/* ── 섹션: 전환율 (유저 기준) ── */}
+      {/* "전체 공유율"은 KEY METRICS의 viral 행동률(URL ∪ 스토리)이 더 정직 — 중복 제거 (5/10) */}
       <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>CONVERSION</p>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
         <ConvCard label="분석 성공률" value={userSuccessRate} sub={`${successUsers}명 / ${analyzeUsers}명`} accent={convSuccessAccent} tooltip="분석 시작 유저 중 성공한 유저 비율" />
         <ConvCard label="전체 저장률 (유저 기준)" value={userSaveRate} sub={`${saveUsers}명 / ${successUsers}명`} accent={convSaveAccent} tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 중 한 번이라도 저장한 유저 비율 (회차 무관). 1회차 저장율은 KEY METRICS 참고"} />
-        <ConvCard label="전체 공유율 (유저 기준)" value={userShareRate} sub={`${filteredShares.length}건 / ${successUsers}명`} accent={convShareAccent} tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 대비 공유 건수 (회차 무관). KEY METRICS와 동일 정의"} />
       </div>
 
       {/* ── 섹션: VIRAL LOOP ── */}
@@ -1501,6 +1549,24 @@ export default function AdminPage() {
             sub={`${tryCount}유입 / ${shareCount}공유`}
             accent={shareCount >= 5 && tryPerShare != null ? (tryPerShare >= 0.5 ? C.green : tryPerShare >= 0.2 ? C.yellow : C.red) : C.gray}
             tooltip={shareCount < 5 ? "공유 5건 미만 — 판단 보류" : "공유 1건이 만들어낸 나도해보기 클릭 수"}
+          />
+          {/* URL K-factor — 5/10 KEY METRICS에서 강등 (인스타 viral 측정 안 됨, organic 비중이 정직) */}
+          <ConvCard
+            label="URL K-factor (측정 가능)"
+            value={kFactor != null ? kFactor.toFixed(2) : "—"}
+            sub={`${tryCount} 유입 / ${successUsers}명 · URL only`}
+            accent={successUsers >= 10 && kFactor != null ? (kFactor >= 0.1 ? C.green : kFactor >= 0.05 ? C.yellow : C.red) : C.gray}
+            tooltip={successUsers < 10 ? "표본 10명 미만 — 판단 보류" : "성공 유저 1명당 share URL 통해 데려온 try_click 수. ⚠️ 인스타 스토리 viral은 영원히 안 잡힘 — KEY METRICS의 organic 비중 참조. 0.1+ = URL 채널 작동"}
+            avg7d={last7KFactor != null ? {
+              value: last7KFactor.toFixed(2),
+              delta: kFactor != null
+                ? (() => {
+                    const diff = kFactor - last7KFactor;
+                    if (Math.abs(diff) < Math.max(last7KFactor * 0.1, 0.05)) return "flat" as const;
+                    return diff > 0 ? "up" as const : "down" as const;
+                  })()
+                : null,
+            } : undefined}
           />
         </div>
       )}
