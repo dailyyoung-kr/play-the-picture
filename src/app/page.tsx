@@ -1,12 +1,15 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRef, useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Archive, Music, ArrowRight } from "lucide-react";
 import { supabase, getDeviceId } from "@/lib/supabase";
+import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { pixelInitiateCheckout } from "@/lib/fpixel";
 import { isAnalyticsEnabled } from "@/lib/analytics";
 import { captureUtmFromUrl } from "@/lib/utm";
+import { isAuthGateEnabled } from "@/lib/auth/feature-flag";
+import { LoginGate } from "@/components/auth/LoginGate";
 
 // 사진을 800px 이하로 압축해서 base64로 변환
 function compressImage(file: File): Promise<string> {
@@ -36,6 +39,21 @@ function compressImage(file: File): Promise<string> {
   });
 }
 
+// useSearchParams는 Suspense 경계 안에서만 사용 가능 (Next.js 정적 생성 제약)
+function AuthErrorHandler({ onError }: { onError: (msg: string) => void }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const err = searchParams.get("auth_error");
+    if (err) {
+      onError(`로그인 실패: ${err}`);
+      router.replace("/");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+  return null;
+}
+
 export default function UploadPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -43,10 +61,21 @@ export default function UploadPage() {
     try { return JSON.parse(localStorage.getItem("ptp_photos") ?? "[]"); } catch { return []; }
   });
   const [toast, setToast] = useState("");
+  const [loginGateOpen, setLoginGateOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const maxPhotos = 5;
 
   // URL에 utm_* 있으면 sessionStorage에 저장 (이후 analyze_logs에 기록됨)
   useEffect(() => { captureUtmFromUrl(); }, []);
+
+  // 로그인 상태 체크 (게이트 표시 여부 결정)
+  useEffect(() => {
+    if (!isAuthGateEnabled()) return;
+    const supabase = createSupabaseBrowserClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setIsLoggedIn(!!user);
+    });
+  }, []);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -81,8 +110,7 @@ export default function UploadPage() {
     localStorage.setItem("ptp_photos", JSON.stringify(newPhotos));
   };
 
-  const handleNext = () => {
-    if (photos.length === 0) return;
+  const proceedToPreference = () => {
     if (isAnalyticsEnabled()) {
       supabase
         .from("photo_upload_logs")
@@ -91,6 +119,16 @@ export default function UploadPage() {
     }
     pixelInitiateCheckout();
     router.push("/preference");
+  };
+
+  const handleNext = () => {
+    if (photos.length === 0) return;
+    // 게이트 활성화 + 비로그인 시에만 게이트 노출, 그 외엔 바로 분석으로
+    if (isAuthGateEnabled() && !isLoggedIn) {
+      setLoginGateOpen(true);
+      return;
+    }
+    proceedToPreference();
   };
 
   return (
@@ -336,6 +374,16 @@ export default function UploadPage() {
           노래 추천받기
         </div>
       </div>
+
+      <LoginGate
+        isOpen={loginGateOpen}
+        onClose={() => setLoginGateOpen(false)}
+        onGuestContinue={() => { setLoginGateOpen(false); proceedToPreference(); }}
+      />
+
+      <Suspense fallback={null}>
+        <AuthErrorHandler onError={showToast} />
+      </Suspense>
     </div>
   );
 }
