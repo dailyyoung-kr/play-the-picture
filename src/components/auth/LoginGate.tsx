@@ -39,11 +39,41 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
 
   const handleGuest = async () => {
     await logAuthEvent("guest_skip", { source });
-    onGuestContinue();
+    const deviceId = getDeviceId();
+    const supabase = createSupabaseBrowserClient();
+
+    // 1. Supabase anonymous sign-in → 실제 user 생성 + trigger로 닉네임 자동 부여
+    const { data, error } = await supabase.auth.signInAnonymously();
+
+    if (error) {
+      console.error("[LoginGate] anonymous signin 실패:", error.message);
+      await logAuthEvent("anonymous_signin_failed", { source, message: error.message });
+      // Fallback — 모달만 닫음 (옛 device_id 기반 흐름)
+      onGuestContinue();
+      return;
+    }
+
+    const userId = data.user?.id;
+    await logAuthEvent("anonymous_signin_success", { source }, userId);
+    await logAuthEvent("signup_complete", { method: "anonymous", source }, userId);
+
+    // 2. device_id 기반 데이터 마이그레이션 (entries 등 → user_id)
+    try {
+      await fetch("/api/auth/migrate-device", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ device_id: deviceId }),
+      });
+    } catch (e) {
+      console.error("[LoginGate] migrate-device 실패:", e);
+      // 마이그레이션 실패해도 계속 진행 (다음 분석부터 user_id로 기록됨)
+    }
+
+    // 3. /?signup=success로 full reload → useEffect 재실행으로 isLoggedIn=true, welcome toast 트리거
+    window.location.href = "/?signup=success";
   };
 
-  // 햄버거에서 열린 경우 — 이미 게스트라 "가입 없이 시작하기" 무의미. 숨김.
-  const showGuestOption = source !== "hamburger";
+  // "비회원 로그인" = signInAnonymously() — 실제 anon Supabase user 생성. 모든 source에서 노출.
 
   return (
     <div
@@ -131,31 +161,27 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
           Google로 로그인
         </button>
 
-        {showGuestOption && (
-          <>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-              <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
-              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>또는</span>
-              <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
-            </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>또는</span>
+          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
+        </div>
 
-            <button
-              onClick={handleGuest}
-              style={{
-                width: "100%",
-                padding: "12px 16px",
-                background: "transparent",
-                border: "1px solid rgba(255,255,255,0.15)",
-                borderRadius: 12,
-                color: "rgba(255,255,255,0.7)",
-                fontSize: 14,
-                cursor: "pointer",
-              }}
-            >
-              가입 없이 시작하기
-            </button>
-          </>
-        )}
+        <button
+          onClick={handleGuest}
+          style={{
+            width: "100%",
+            padding: "12px 16px",
+            background: "transparent",
+            border: "1px solid rgba(255,255,255,0.15)",
+            borderRadius: 12,
+            color: "rgba(255,255,255,0.7)",
+            fontSize: 14,
+            cursor: "pointer",
+          }}
+        >
+          비회원 로그인
+        </button>
       </div>
     </div>
   );

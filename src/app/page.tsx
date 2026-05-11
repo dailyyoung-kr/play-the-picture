@@ -10,6 +10,7 @@ import { isAnalyticsEnabled } from "@/lib/analytics";
 import { captureUtmFromUrl } from "@/lib/utm";
 import { isAuthGateEnabled } from "@/lib/auth/feature-flag";
 import { LoginGate } from "@/components/auth/LoginGate";
+import { AccountConflictModal } from "@/components/auth/AccountConflictModal";
 import { HamburgerMenu } from "@/components/header/HamburgerMenu";
 
 // 사진을 800px 이하로 압축해서 base64로 변환
@@ -41,13 +42,38 @@ function compressImage(file: File): Promise<string> {
 }
 
 // useSearchParams는 Suspense 경계 안에서만 사용 가능 (Next.js 정적 생성 제약)
-function AuthErrorHandler({ onError }: { onError: (msg: string) => void }) {
+function AuthErrorHandler({
+  onError,
+  onConflict,
+}: {
+  onError: (msg: string) => void;
+  onConflict: () => void;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   useEffect(() => {
     const err = searchParams.get("auth_error");
-    if (err) {
+    if (!err) return;
+
+    if (err === "email_conflict") {
+      // 모달로 처리 → URL은 모달 닫힐 때 정리
+      onConflict();
+    } else {
       onError(`로그인 실패: ${err}`);
+      router.replace("/");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+  return null;
+}
+
+// merge_success=1 감지 → 토스트 표시 + URL 정리
+function MergeSuccessHandler({ onSuccess }: { onSuccess: () => void }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("merge_success") === "1") {
+      onSuccess();
       router.replace("/");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -85,11 +111,20 @@ function AuthSuccessHandler({ onWelcome }: { onWelcome: (nickname: string) => vo
 export default function UploadPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [photos, setPhotos] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem("ptp_photos") ?? "[]"); } catch { return []; }
-  });
+  const [photos, setPhotos] = useState<string[]>([]);
+  // localStorage는 클라이언트 전용 — hydration 후에 로드 (SSR mismatch 방지)
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("ptp_photos") ?? "[]");
+      if (Array.isArray(stored) && stored.length > 0) setPhotos(stored);
+    } catch { /* noop */ }
+  }, []);
+
+  // bfcache·back/forward 복원 시 reload는 layout.tsx의 inline script에서 처리 (React가 hydrate 안 되는 케이스 대응)
+
   const [toast, setToast] = useState("");
   const [loginGateOpen, setLoginGateOpen] = useState(false);
+  const [conflictModalOpen, setConflictModalOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const maxPhotos = 5;
 
@@ -151,11 +186,8 @@ export default function UploadPage() {
 
   const handleNext = () => {
     if (photos.length === 0) return;
-    // 게이트 활성화 + 비로그인 + 세션 내 skip 이력 없을 때만 게이트 노출
-    const guestSkipped =
-      typeof window !== "undefined" &&
-      sessionStorage.getItem("ptp_guest_skipped") === "true";
-    if (isAuthGateEnabled() && !isLoggedIn && !guestSkipped) {
+    // 게이트 활성화 + 비로그인 시 게이트 노출. anonymous signin도 isLoggedIn=true로 처리됨
+    if (isAuthGateEnabled() && !isLoggedIn) {
       setLoginGateOpen(true);
       return;
     }
@@ -413,17 +445,32 @@ export default function UploadPage() {
         isOpen={loginGateOpen}
         onClose={() => setLoginGateOpen(false)}
         onGuestContinue={() => {
-          // 세션 내 게스트 진행 의사 기록 → 다음 "다음" 클릭부터 게이트 안 띄움
-          sessionStorage.setItem("ptp_guest_skipped", "true");
+          // anonymous signin 실패 fallback — 그냥 모달만 닫음
+          // (정상 흐름은 LoginGate 내부에서 signInAnonymously + full reload 처리)
           setLoginGateOpen(false);
         }}
         source="photo_upload"
       />
 
       <Suspense fallback={null}>
-        <AuthErrorHandler onError={showToast} />
+        <AuthErrorHandler
+          onError={showToast}
+          onConflict={() => setConflictModalOpen(true)}
+        />
         <AuthSuccessHandler onWelcome={(nick) => showToast(`${nick}님, 환영해요!`)} />
+        <MergeSuccessHandler onSuccess={() => showToast("기존 계정으로 로그인됐어요!")} />
       </Suspense>
+
+      <AccountConflictModal
+        isOpen={conflictModalOpen}
+        onClose={() => {
+          setConflictModalOpen(false);
+          // URL의 auth_error 정리
+          if (typeof window !== "undefined") {
+            router.replace("/");
+          }
+        }}
+      />
     </div>
   );
 }

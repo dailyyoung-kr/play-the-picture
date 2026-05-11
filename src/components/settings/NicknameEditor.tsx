@@ -103,7 +103,7 @@ export function NicknameEditor() {
           fontSize: 14,
         }}
       >
-        잠시만요...
+        잠시만 기다려주세요
       </div>
     );
   }
@@ -178,16 +178,14 @@ export function NicknameEditor() {
 
         <div
           style={{
-            display: "flex",
-            justifyContent: "space-between",
+            textAlign: "right",
             fontSize: 11,
             color: "rgba(255,255,255,0.4)",
             marginTop: 6,
             marginBottom: 28,
           }}
         >
-          <span>한글·영문·숫자 가능</span>
-          <span>{nickname.length} / {MAX_LENGTH}</span>
+          {nickname.length} / {MAX_LENGTH}
         </div>
 
         <button

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseWithDeviceId, Entry } from "@/lib/supabase";
+import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { Archive, Music } from "lucide-react";
 import { getDeviceId } from "@/lib/device";
 import { HamburgerMenu } from "@/components/header/HamburgerMenu";
@@ -134,20 +135,42 @@ export default function JournalPage() {
       const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
       to = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
     }
-    const deviceId = getDeviceId();
+    const currentDeviceId = getDeviceId();
     (async () => {
+      // 1) 로그인 user 확인 → device_ids 결정
+      // - 로그인 (anon 또는 google): profiles.device_ids 누적 (cross-device 자동 지원)
+      // - 비로그인 (pure guest): 현재 device_id만
+      const authClient = createSupabaseBrowserClient();
+      const { data: { user } } = await authClient.auth.getUser();
+
+      let deviceIds: string[];
+      if (user) {
+        const { data: profile } = await authClient
+          .from("profiles")
+          .select("device_ids")
+          .eq("id", user.id)
+          .single();
+        const profileDeviceIds = (profile?.device_ids as string[] | null) ?? [];
+        // 현재 device_id가 누락된 경우(예: cross-device 직접 진입) 포함
+        deviceIds = profileDeviceIds.includes(currentDeviceId)
+          ? profileDeviceIds
+          : [...profileDeviceIds, currentDeviceId];
+      } else {
+        deviceIds = [currentDeviceId];
+      }
+
       const supabase = getSupabaseWithDeviceId();
-      // 1) 이 기기가 save_logs에 기록한 entry_id 목록
+      // 2) 해당 device_id들의 save_logs 조회 → entry_id 목록
       const { data: savedRows } = await supabase
         .from("save_logs")
         .select("entry_id")
-        .eq("device_id", deviceId);
+        .in("device_id", deviceIds);
       const savedIds = (savedRows ?? []).map((r: { entry_id: string }) => r.entry_id);
       if (savedIds.length === 0) {
         setEntries([]);
         return;
       }
-      // 2) 해당 entry들 중 날짜 범위에 걸치는 것만 로드
+      // 3) 해당 entry들 중 날짜 범위에 걸치는 것만 로드
       const { data } = await supabase
         .from("entries")
         .select("*")

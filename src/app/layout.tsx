@@ -87,8 +87,22 @@ export default function RootLayout({
             alt=""
           />
         </noscript>
+        {/* bfcache 또는 back/forward navigation 복원 시 강제 새로고침
+            — OAuth 이탈 후 뒤로가기에서 React가 hydrate 안 되는 케이스 대응
+            (사진·모달·file input 등 stale state 일괄 해소) */}
+        <Script id="bfcache-reload" strategy="beforeInteractive">{`
+          window.addEventListener('pageshow', function(e) {
+            try {
+              var navEntries = performance.getEntriesByType('navigation');
+              var navType = navEntries[0] ? navEntries[0].type : '';
+              if (e.persisted || navType === 'back_forward') {
+                window.location.reload();
+              }
+            } catch (err) { /* noop */ }
+          });
+        `}</Script>
       </head>
-      <body className="min-h-full font-sans">{children}</body>
+      <body className="min-h-full font-sans" suppressHydrationWarning>{children}</body>
     </html>
   );
 }
