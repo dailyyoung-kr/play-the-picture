@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { verifyAdminRequest } from "@/lib/admin-auth";
 
-// INTERNAL device 20개 — 운영자 본인 테스트 박제 (handoff 5/9 part1 §13)
+// INTERNAL device 21개 — 운영자 본인 테스트 박제 (handoff 5/9 part1 §13)
+// 5/11: 65ce15ca 추가 (Stop The Rain 추천 케이스 — 새 device 발견)
 const INTERNAL_DEVICES = [
   'c9a5ac48-842b-450c-9f55-843f9aad09d7','ffbfb9b2-d60a-43a3-899d-51185fad652e',
   'd49b33dc-698b-4ebf-9c92-11fae75af78f','f39f816f-6e76-4e19-8369-81df4349ef67',
@@ -13,7 +14,8 @@ const INTERNAL_DEVICES = [
   '93038bf5-225f-4e22-8657-eaaa9ff304eb','c59476c5-46e5-4bce-a8c0-21f2e3c4359f',
   '3093e413-489b-485c-8ca2-d4caa9385f96','fca75eda-9f0a-44dc-855a-81038a2ebc2b',
   '90ad0567-e04b-4a7b-99a4-9353c592dd6f','01c77837-2095-4953-bd89-5126a98c4f2d',
-  '2d181638-aa4a-4969-9b50-591bce879243','183e91c4-96af-4518-8e40-7bc4412e5a4c'
+  '2d181638-aa4a-4969-9b50-591bce879243','183e91c4-96af-4518-8e40-7bc4412e5a4c',
+  '65ce15ca-7fde-40ad-b4c6-9de073f42a5d'
 ];
 
 // ── 추천 품질 metric 5개 (외부 only) ──
