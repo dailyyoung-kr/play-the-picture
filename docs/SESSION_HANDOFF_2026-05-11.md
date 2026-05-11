@@ -157,7 +157,7 @@
 
 | 셋업 | 필수 여부 | 시간 |
 |---|---|---|
-| **`pg_dump` SQL backup** | ✅ Supabase Free 백업 X 보완 | 5분 |
+| ~~`pg_dump` SQL backup~~ | ❌ skip 결정 (5/11) — Docker 의존성 + 우회 셋업 부담 vs DAU 작음·결제 데이터 X·Additive 변경·Feature flag로 risk 충분히 작음 | — |
 | **Apple Developer 계정** | Apple Sign-In 쓰려면 (무료 OK) | 30-60분 |
 | **Google Cloud OAuth client** | Google Sign-In 쓰려면 | 20-30분 |
 | **Supabase Auth provider 등록** | Apple·Google 쓰려면 | 5분 |
