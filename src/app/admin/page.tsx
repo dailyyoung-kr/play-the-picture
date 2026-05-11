@@ -862,7 +862,10 @@ export default function AdminPage() {
     }
   }
   const periodNewCount = periodNewDevices.size;
-  const periodOrganicCount = Array.from(periodNewDevices).filter(d => !deviceFirstUtm[d]?.utm).length;
+  // 5/11 정의 통일 — cohort chart와 동일하게 (utm null + ig + instagram) 합집합
+  // ig·instagram은 viral 신호 (Meta 광고는 utm=meta로 명확히 박힘)
+  const isOrganicUtm = (utm: string | null | undefined) => !utm || utm === "ig" || utm === "instagram";
+  const periodOrganicCount = Array.from(periodNewDevices).filter(d => isOrganicUtm(deviceFirstUtm[d]?.utm)).length;
   const organicRatePct = periodNewCount > 0 ? (periodOrganicCount / periodNewCount) * 100 : null;
   // last7 organic 비중
   const last7NewDevices = new Set<string>();
@@ -872,7 +875,7 @@ export default function AdminPage() {
     }
   }
   const last7NewCount = last7NewDevices.size;
-  const last7OrganicCount = Array.from(last7NewDevices).filter(d => !deviceFirstUtm[d]?.utm).length;
+  const last7OrganicCount = Array.from(last7NewDevices).filter(d => isOrganicUtm(deviceFirstUtm[d]?.utm)).length;
   const last7OrganicRate = last7NewCount > 0 ? (last7OrganicCount / last7NewCount) * 100 : null;
 
   // ── 📷 스토리 viral 시도율 (Card A) ──
@@ -1402,9 +1405,9 @@ export default function AdminPage() {
         <ConvCard
           label="organic 비중 (신규)"
           value={organicRatePct != null ? organicRatePct.toFixed(1) + "%" : "—"}
-          sub={`${periodOrganicCount}명 / ${periodNewCount}명 · utm 없는 신규`}
+          sub={`${periodOrganicCount}명 / ${periodNewCount}명 · null+ig+instagram`}
           accent={periodNewCount >= 20 && organicRatePct != null ? accentByRate(organicRatePct.toFixed(1) + "%", 25, 15) : C.gray}
-          tooltip={periodNewCount < 20 ? "신규 20명 미만 — 판단 보류" : "신규 device 중 첫 분석 시 utm_source가 없는 비율 (광고 외 = viral·검색·즐겨찾기·word-of-mouth 합). direct attribution 한계 보완하는 cohort 단위 viral health KPI. 광고 비중과 trade-off — organic 절대값 추세도 함께 봐야"}
+          tooltip={periodNewCount < 20 ? "신규 20명 미만 — 판단 보류" : "신규 device 중 첫 분석 시 utm_source가 (null) 또는 ig/instagram인 비율 (광고 외 = viral·검색·즐겨찾기·word-of-mouth·인스타 referrer 합). 5/11 정의 통일 — VIRAL LOOP cohort chart와 동일 (Meta 광고만 utm=meta로 박힘). direct attribution 한계 보완하는 cohort 단위 viral health KPI"}
           avg7d={last7OrganicRate != null ? {
             value: last7OrganicRate.toFixed(1) + "%",
             delta: organicRatePct != null
