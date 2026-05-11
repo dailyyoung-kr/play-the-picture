@@ -16,6 +16,11 @@ export function HamburgerMenu() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // production (flag OFF)에선 햄버거 자체 노출 안 함 → Supabase 호출도 skip
+    if (!isAuthGateEnabled()) {
+      setLoaded(true);
+      return;
+    }
     const supabase = createSupabaseBrowserClient();
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -45,9 +50,9 @@ export function HamburgerMenu() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
-  // 게이트 비활성 + 비로그인이면 안 보임 (production flag OFF면 실유저에 hamburger 자체 노출 X)
+  // production (flag OFF)에선 무조건 hidden — 실유저 영향 0 보장
   if (!loaded) return null;
-  if (!isAuthGateEnabled() && !nickname) return null;
+  if (!isAuthGateEnabled()) return null;
 
   const isLoggedIn = !!nickname;
 
