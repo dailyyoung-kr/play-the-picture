@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { getSupabaseWithDeviceId, Entry } from "@/lib/supabase";
 import { Archive, Music } from "lucide-react";
 import { getDeviceId } from "@/lib/device";
+import { HamburgerMenu } from "@/components/header/HamburgerMenu";
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const WEEK_DAYS = ["월", "화", "수", "목", "금", "토", "일"];
@@ -208,8 +209,10 @@ export default function JournalPage() {
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{ background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)" }}
+      style={{ background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)", position: "relative" }}
     >
+      <HamburgerMenu />
+
       {/* 상단 */}
       <div className="text-center pt-12 pb-1" style={{ fontSize: 15, letterSpacing: "0.2em", color: "#C4687A", fontFamily: "var(--font-dm-sans)", fontWeight: 300 }}>
         Play the Picture

@@ -7,6 +7,7 @@ import { trackEvent } from "@/lib/gtag";
 import { supabase, getDeviceId } from "@/lib/supabase";
 import { isAnalyticsEnabled } from "@/lib/analytics";
 import { getUtm } from "@/lib/utm";
+import { HamburgerMenu } from "@/components/header/HamburgerMenu";
 
 const GENRE_OPTIONS = [
   { value: "discover",      label: "장르 발견하기",  apiGenre: "장르 발견하기" },
@@ -249,8 +250,10 @@ export default function PreferencePage() {
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{ background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)" }}
+      style={{ background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)", position: "relative" }}
     >
+      <HamburgerMenu />
+
       {/* 상단 바 */}
       <div className="flex items-center justify-between px-5 pt-12 pb-5">
         <button

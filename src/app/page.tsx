@@ -10,6 +10,7 @@ import { isAnalyticsEnabled } from "@/lib/analytics";
 import { captureUtmFromUrl } from "@/lib/utm";
 import { isAuthGateEnabled } from "@/lib/auth/feature-flag";
 import { LoginGate } from "@/components/auth/LoginGate";
+import { HamburgerMenu } from "@/components/header/HamburgerMenu";
 
 // 사진을 800px 이하로 압축해서 base64로 변환
 function compressImage(file: File): Promise<string> {
@@ -136,8 +137,11 @@ export default function UploadPage() {
       className="min-h-screen flex flex-col"
       style={{
         background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)",
+        position: "relative",
       }}
     >
+      <HamburgerMenu />
+
       {/* 숨겨진 파일 입력 */}
       <input
         id="photo-input"
