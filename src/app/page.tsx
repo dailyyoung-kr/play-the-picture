@@ -151,8 +151,11 @@ export default function UploadPage() {
 
   const handleNext = () => {
     if (photos.length === 0) return;
-    // 게이트 활성화 + 비로그인 시에만 게이트 노출, 그 외엔 바로 분석으로
-    if (isAuthGateEnabled() && !isLoggedIn) {
+    // 게이트 활성화 + 비로그인 + 세션 내 skip 이력 없을 때만 게이트 노출
+    const guestSkipped =
+      typeof window !== "undefined" &&
+      sessionStorage.getItem("ptp_guest_skipped") === "true";
+    if (isAuthGateEnabled() && !isLoggedIn && !guestSkipped) {
       setLoginGateOpen(true);
       return;
     }
@@ -409,7 +412,11 @@ export default function UploadPage() {
       <LoginGate
         isOpen={loginGateOpen}
         onClose={() => setLoginGateOpen(false)}
-        onGuestContinue={() => { setLoginGateOpen(false); proceedToPreference(); }}
+        onGuestContinue={() => {
+          // 세션 내 게스트 진행 의사 기록 → 다음 "다음" 클릭부터 게이트 안 띄움
+          sessionStorage.setItem("ptp_guest_skipped", "true");
+          setLoginGateOpen(false);
+        }}
         source="photo_upload"
       />
 
