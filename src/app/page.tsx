@@ -383,6 +383,7 @@ export default function UploadPage() {
         isOpen={loginGateOpen}
         onClose={() => setLoginGateOpen(false)}
         onGuestContinue={() => { setLoginGateOpen(false); proceedToPreference(); }}
+        source="photo_upload"
       />
 
       <Suspense fallback={null}>

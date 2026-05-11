@@ -5,23 +5,26 @@ import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { getDeviceId } from "@/lib/supabase";
 import { logAuthEvent } from "@/lib/auth/log";
 
+export type LoginGateSource = "photo_upload" | "hamburger";
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onGuestContinue: () => void;
+  source?: LoginGateSource;
 }
 
-export function LoginGate({ isOpen, onClose, onGuestContinue }: Props) {
+export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_upload" }: Props) {
   useEffect(() => {
     if (isOpen) {
-      logAuthEvent("gate_shown");
+      logAuthEvent("gate_shown", { source });
     }
-  }, [isOpen]);
+  }, [isOpen, source]);
 
   if (!isOpen) return null;
 
   const handleGoogleLogin = async () => {
-    await logAuthEvent("google_login_start");
+    await logAuthEvent("google_login_start", { source });
     const deviceId = getDeviceId();
     const supabase = createSupabaseBrowserClient();
     const callbackUrl = `${window.location.origin}/auth/callback?device_id=${encodeURIComponent(deviceId)}`;
@@ -35,9 +38,12 @@ export function LoginGate({ isOpen, onClose, onGuestContinue }: Props) {
   };
 
   const handleGuest = async () => {
-    await logAuthEvent("guest_skip");
+    await logAuthEvent("guest_skip", { source });
     onGuestContinue();
   };
+
+  // 햄버거에서 열린 경우 — 이미 게스트라 "가입 없이 시작하기" 무의미. 숨김.
+  const showGuestOption = source !== "hamburger";
 
   return (
     <div
@@ -125,27 +131,31 @@ export function LoginGate({ isOpen, onClose, onGuestContinue }: Props) {
           Google로 로그인
         </button>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
-          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>또는</span>
-          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
-        </div>
+        {showGuestOption && (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+              <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>또는</span>
+              <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
+            </div>
 
-        <button
-          onClick={handleGuest}
-          style={{
-            width: "100%",
-            padding: "12px 16px",
-            background: "transparent",
-            border: "1px solid rgba(255,255,255,0.15)",
-            borderRadius: 12,
-            color: "rgba(255,255,255,0.7)",
-            fontSize: 14,
-            cursor: "pointer",
-          }}
-        >
-          가입 없이 시작하기
-        </button>
+            <button
+              onClick={handleGuest}
+              style={{
+                width: "100%",
+                padding: "12px 16px",
+                background: "transparent",
+                border: "1px solid rgba(255,255,255,0.15)",
+                borderRadius: 12,
+                color: "rgba(255,255,255,0.7)",
+                fontSize: 14,
+                cursor: "pointer",
+              }}
+            >
+              가입 없이 시작하기
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
