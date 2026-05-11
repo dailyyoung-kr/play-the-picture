@@ -20,7 +20,8 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const deviceId = searchParams.get("device_id");
-  const next = searchParams.get("next") ?? "/preference";
+  // 가입 후 홈으로 복귀 (사진 그대로) + ?signup=success로 welcome toast 트리거
+  const next = searchParams.get("next") ?? "/?signup=success";
 
   if (!code) {
     return NextResponse.redirect(`${origin}/?auth_error=missing_code`);

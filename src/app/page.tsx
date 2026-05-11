@@ -55,6 +55,33 @@ function AuthErrorHandler({ onError }: { onError: (msg: string) => void }) {
   return null;
 }
 
+// 가입 직후 callback에서 /?signup=success로 redirect됨 → 닉네임 fetch 후 welcome toast 표시
+function AuthSuccessHandler({ onWelcome }: { onWelcome: (nickname: string) => void }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("signup") !== "success") return;
+    const supabase = createSupabaseBrowserClient();
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.replace("/");
+        return;
+      }
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("nickname")
+        .eq("id", user.id)
+        .single();
+      if (profile) onWelcome(profile.nickname);
+      // query param 정리 (새로고침 시 toast 재표시 방지)
+      router.replace("/");
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+  return null;
+}
+
 export default function UploadPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -388,6 +415,7 @@ export default function UploadPage() {
 
       <Suspense fallback={null}>
         <AuthErrorHandler onError={showToast} />
+        <AuthSuccessHandler onWelcome={(nick) => showToast(`${nick}님, 환영해요!`)} />
       </Suspense>
     </div>
   );
