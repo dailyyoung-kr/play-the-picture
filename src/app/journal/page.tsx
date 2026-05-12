@@ -508,8 +508,8 @@ export default function JournalPage() {
                           </div>
                         )}
 
-                        {/* 캐러셀 인디케이터 */}
-                        {hasCarousel && (
+                        {/* 사진 인디케이터 — 1장도 1/1로 통일 표시 */}
+                        {photos.length > 0 && (
                           <div style={{
                             position: "absolute", top: 8, right: 8,
                             background: "rgba(0,0,0,0.45)",
@@ -538,27 +538,14 @@ export default function JournalPage() {
                           </span>
                         </div>
 
-                        {/* 곡명 + 재생 버튼 */}
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 4 }}>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ fontWeight: 700, fontSize: isGrid ? 13 : 16, color: "#fff", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {entry.song}
-                            </p>
-                            <p style={{ fontSize: isGrid ? 11 : 13, color: "rgba(255,255,255,0.55)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {entry.artist}
-                            </p>
-                          </div>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleListenClick(entry); }}
-                            style={{
-                              width: 32, height: 32, borderRadius: "50%",
-                              background: "#C4687A", border: "none", cursor: "pointer",
-                              display: "flex", alignItems: "center", justifyContent: "center",
-                              flexShrink: 0,
-                            }}
-                          >
-                            <span style={{ fontSize: 11, color: "#fff", marginLeft: 2, lineHeight: 1 }}>▶</span>
-                          </button>
+                        {/* 곡명·아티스트 — 카드 클릭 시 모달에서 미리듣기·외부 듣기 */}
+                        <div style={{ minWidth: 0 }}>
+                          <p style={{ fontWeight: 700, fontSize: isGrid ? 13 : 16, color: "#fff", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {entry.song}
+                          </p>
+                          <p style={{ fontSize: isGrid ? 11 : 13, color: "rgba(255,255,255,0.55)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {entry.artist}
+                          </p>
                         </div>
                       </div>
                     </div>
