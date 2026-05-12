@@ -1,7 +1,7 @@
 # Session Handoff — 2026-05-12
 
-> 5/12 박제. **근본 fix + Admin AUTH 섹션 + 카카오 로그인 + 약관·정책 + 데이터 기반 포지셔닝 분석.**
-> 코드 4 commit 모두 push. 게이트 OFF 그대로 → 실유저 영향 0.
+> 5/12 박제. **근본 fix + Admin AUTH + 카카오 로그인 + 약관·정책 + 게이트 ON + UX 폴리싱 + iOS 폴리싱 plan.**
+> 코드 10 commit push 완료. **prod 게이트 ON** (5/12 18:30 KST 시점).
 > 이전 핸드오프: [SESSION_HANDOFF_2026-05-11_part3.md](./SESSION_HANDOFF_2026-05-11_part3.md)
 
 ---
@@ -396,3 +396,161 @@ LoginGate "카카오로 로그인" → /api/auth/kakao/start?device_id=X&action=
 4. **K-factor 0.01 = 흑자 path = CAC 절감** — 매출 ↑보다 광고 의존도 ↓이 중요. organic 확대 lever (vibeType share UX·셀럽·트렌드 연계)
 5. **/api/admin/log-rows 확장 패턴** — RLS 우회용 admin 데이터 fetch 라우트. AUTH 추가 데이터 소스 통합 표준
 6. **회사 정보 명시 (PIPA 요구)** — /privacy·/terms 두 곳에 일관 박기. 사업자 정보 placeholder로 시작해 본인이 채우는 흐름
+7. **모달 단일 흐름 = 동시 재생 자연 처리** — 글로벌 player manager 없이 PreviewPlayer unmount 시 audio.pause() cleanup만으로 충분
+8. **AUTH 데이터 cutoff 패턴** — 게이트 ON 시점 기준 timestamp 컷오프로 검증 데이터 자동 제외 (env var 또는 hardcoded constant)
+
+---
+
+## 12. 5/12 추가 작업 (핸드오프 작성 후 — `7bb4387` 이후)
+
+핸드오프 작성 후 동일 세션 내 5 commit 추가 + 운영 결정·이슈 발견:
+
+### 12-1. 코드 commit (5건)
+
+| commit | 내용 |
+|---|---|
+| `8eab4dc` | **perf(auth)**: 비회원 로그인 응답성 개선. 4 logAuthEvent + migrate-device sequential await(3-4초) → 로깅 fire-and-forget + signInAnonymously·migrate-device만 await. loading state ("잠시만 기다려주세요...") 추가. 1.5초로 단축 |
+| `967e8ba` | **feat(header)**: HamburgerMenu 아이콘 분기. 비로그인=MoreHorizontal(•••), 로그인 후=User. 사용자 본인 상태 시각 구분 |
+| `971860b` | **feat(preview)**: journal 모달 미리듣기 + PreviewPlayer 컴포넌트 추출. result 페이지의 200+줄 preview 로직 → 재사용 컴포넌트로 분리. journal에서 entry 클릭 시 모달에서 30초 미리듣기 가능. 카드 사진 영역 stopPropagation 제거 → 사진 탭으로도 모달 열림. "다시 듣기" → "음악앱에서 듣기" 라벨 통일 |
+| `26418f9` | **feat(journal)**: 카드 우측 ▶ 외부 듣기 버튼 제거 (미리듣기·외부 듣기 모두 모달로 단일화). 사진 인디케이터 조건 hasCarousel(≥2) → photos.length>0 (1장도 "1/1" 표시) |
+| `e0fd893` | **fix(admin)**: AUTH 섹션 데이터 cutoff. AUTH_PROD_START_UTC=2026-05-12T09:30:00Z 컷오프 추가 → 게이트 ON 전 검증 데이터(Scenario 1·2) 자동 제외 |
+
+### 12-2. ★ 게이트 ON 결정 (운영 변경)
+
+- 결정 시점: 2026-05-12 18:30 KST
+- Soft Launch 단계 skip하고 바로 prod ON (롤백 비용 0 — env var 토글)
+- Vercel env에 `NEXT_PUBLIC_AUTH_GATE_ENABLED=true` 추가 (Production만)
+- 검증된 흐름 (Scenario 1·2 통과 + 카카오 로그인 동작 확인)에 기반
+
+**모니터링 대상**:
+- 분석 성공률 (평소 95%+ vs Anthropic 부하 시 감소)
+- 게이트 완료율 (signup_complete + guest_skip + anon_success / gate_shown)
+- 비회원·Kakao·Google 분포
+
+**롤백 path**: Vercel env `NEXT_PUBLIC_AUTH_GATE_ENABLED` 값을 `false`로 또는 변수 삭제 → 자동 redeploy 1-2분.
+
+### 12-3. 발견·박제한 함정·이슈
+
+#### a) Instagram in-app browser → Safari cross-browser 데이터 격리
+- 사용자가 인스타 인앱에서 사용 후 Safari로 직접 진입 시 localStorage·세션 분리 → 데이터 안 보임
+- **해결**: OAuth 로그인 = profile.device_ids 누적 → 어느 브라우저에서든 동일 데이터 접근 가능
+- 게이트 ON이 cross-browser UX 정상화 핵심 lever임을 데이터로 검증
+
+#### b) Anthropic API 529 (overloaded) 발생
+- 5/12 15:30-16:30 KST 1시간 사이 분석 실패 3건 (2 device, 모두 overloaded)
+- 동시간대 성공률 4/7 = 57% (평소 95%+ 대비 매우 낮음)
+- device B는 1분 안에 2번 연속 실패 → 이탈 가능성 큼
+- 우리 측 버그 X, Anthropic 글로벌 부하
+- **대응 옵션 (구현 안 함, 박제)**:
+  - A. 서버 자동 retry (1-2초 후 1회) — 짧은 hiccup 복구
+  - B. Fallback model (Opus → Sonnet) — 부하 시 quality 살짝 ↓·비용 ↓·성공률 ↑
+  - C. 모니터링 알림만
+
+#### c) 로그아웃 후 journal 일부 entry 안 보이는 현상
+- 사용자가 로그인 시 cross-device 데이터 3개 → 로그아웃 후 2개만
+- **원인**: profile.device_ids 합집합 → 로그아웃 시 현재 device_id만 매칭
+- by design 동작 (privacy + 데이터 분리). 단 사용자 인식 마찰 있음
+- 후속 대응 option: "더 많은 기록이 있어요. 로그인하면 모두 보여요" 안내 추가 (현재 보류)
+
+#### d) AUTH 섹션 cutoff 적용 후 본인 device 인지 issue
+- cutoff 적용해도 본인 device(15cc7b32)가 INTERNAL_DEVICE_IDS에 등록돼 있어 "user" 모드 필터됨
+- → 실 외부 사용자 게이트 통과해야 AUTH 섹션 숫자 잡힘
+- 현재 임시: admin 상단 "테스트" 모드 토글로 본인 데이터 확인
+
+### 12-4. UX 개선 박제
+
+#### 사진 탭 → 모달 열림 fix
+- journal/page.tsx 카드 사진 영역의 `onClick={(e) => e.stopPropagation()}` 제거
+- 사용자가 사진 영역 탭 시 무반응 → 모달 정상 열림 (`971860b`에 포함)
+
+#### 카드 UI 정리
+- 카드 우측 ▶ 외부 듣기 버튼 제거 → 미리듣기·외부 듣기 모두 모달에서 처리 (`26418f9`)
+- 사진 인디케이터 1/1 통일
+
+---
+
+## 13. iOS Expo 앱 폴리싱 plan ★
+
+**현 상태** (`/Users/pcy_mac/play-the-picture-app/`):
+- Expo SDK 54, React Native 0.81, Expo Router 6
+- 4 화면 (index, preference, result, journal) — 약 4,000줄
+- PreviewPlayer · ListenSheet · StoryCard 컴포넌트
+- supabase.ts 45줄 (minimal, anon key client only)
+- **AUTH 기능 거의 없음** — LoginGate·Kakao·signInAnonymously 모두 미구현
+- 카카오 SDK 미설치 (lucide-react-native에 KakaoTalk 아이콘만 share용)
+
+→ **web Phase 1A 수준 sync 필요**.
+
+### 13-1. 기반 인프라 (1-2일)
+
+| 작업 | 내용 | 시간 |
+|---|---|---|
+| Supabase Auth React Native 통합 | `@supabase/supabase-js` + SecureStore session persist | 0.5일 |
+| Kakao iOS SDK 통합 | `@react-native-kakao/core` + `@react-native-kakao/user` (또는 EAS Config Plugin) | 0.5일 |
+| Apple Sign-In native | `expo-apple-authentication` (Apple 승인 후) | 0.5일 |
+| AsyncStorage device_id → user.id 마이그레이션 | web과 동일 흐름 | 0.5일 |
+
+### 13-2. 화면 단위 sync (2-3일)
+
+| 화면 | 작업 |
+|---|---|
+| **LoginGate** (신규) | RN 모달 컴포넌트. Kakao·Google·Apple·비회원 4 옵션 + disclaimer (Terms/Privacy 링크) |
+| **HamburgerMenu** (신규) | RN drawer/popover. 닉네임·로그아웃·연동 옵션 |
+| **AccountConflictModal** (신규) | merge 흐름 처리 |
+| **index** | 사진 추가 → 다음 클릭 시 LoginGate trigger (web과 동일 조건) |
+| **result** | OAuth user 한정 entry 저장 (현 비회원 흐름과 양립) |
+| **journal** | profile.device_ids 합집합 query (web과 동일) |
+
+### 13-3. 백엔드·공유 자산 재사용
+
+- ✅ Supabase DB·user 모델·migration 모두 공유
+- ✅ `/api/auth/kakao/start·callback` 라우트 그대로 사용 가능 (RN webview·딥링크로 호출)
+- ✅ AccountConflictModal merge 로직 callback 그대로 작동
+- 단 redirect URI는 RN deep link 전용 새 등록 필요 (예: `playthepicture://auth/callback`)
+
+### 13-4. Tracking 통일
+
+- web의 logAuthEvent 동일 이벤트 타입 (gate_shown, kakao_login_*, anonymous_signin_*, signup_complete 등)
+- iOS native에서도 `/api/auth/log` 호출
+- admin AUTH 섹션이 iOS 데이터도 자동 집계
+
+### 13-5. 약관·정책
+
+| 옵션 | 작업 |
+|---|---|
+| WebView로 web 페이지 노출 | https://playthepicture.com/terms·/privacy 그대로 표시. 일관성 ↑, 작업 최소 |
+| RN 화면 별도 작성 | 텍스트 복붙. iOS 디자인 가이드 적용 가능 |
+
+→ **WebView 권장** (동기화 자동, 변경 시 web만 수정).
+
+### 13-6. iOS 특화 추가
+
+- **Apple Sign-In** ← 승인 후 native AuthenticationServices framework
+- **Universal Links** — `playthepicture.com/share/...` URL을 iOS 앱에서 직접 열기
+- **Push notification** (선택) — APNs로 viral 신호·재방문 알림
+- **Haptics** (이미 expo-haptics 있음) — 분석 완료·저장 시 미세 진동
+
+### 13-7. App Store 심사 대응
+
+- App Store Review Guidelines 5.1.1 (수집 데이터·동의) — /privacy 링크 노출 필수
+- 5.1.2 (Apple Sign-In 의무) — 다른 OAuth 있으면 Apple도 제공
+- Apple Developer 승인 떨어지면 Apple Sign-In 활성화·UI에 노출
+- 2026 App Privacy "Nutrition Label" 작성 (수집 데이터 명시)
+
+### 13-8. 권장 진행 순서
+
+1. **Phase 1 (1-2일)** — Supabase Auth + Kakao SDK 인프라 구축 + AsyncStorage session persist
+2. **Phase 2 (1일)** — LoginGate·HamburgerMenu 화면 작성
+3. **Phase 3 (1일)** — index 화면에 게이트 trigger + result·journal에 user_id flow 적용
+4. **Phase 4 (반일)** — WebView로 /terms·/privacy 노출
+5. **Phase 5 (Apple 승인 후, 1일)** — Apple Sign-In 활성화
+6. **Phase 6 (선택, 1-2일)** — Universal Links + Push notification
+
+**합계: 약 4-6일 작업** (Apple 승인 대기 동안 1-4 진행 가능)
+
+### 13-9. 짚어볼 점
+
+- web의 카카오 callback은 magic link 발급 → 클라이언트 verifyOtp 패턴. RN에선 deep link로 finalize page 호출 또는 직접 세션 발급 endpoint 별도 검토
+- Apple Sign-In의 relay email 처리 (web과 동일 — `sub` identifier로 매칭)
+- iOS 앱 분석 비용은 web과 동일 Anthropic API 사용 → 분석 횟수 제한·결제 모델도 양 플랫폼 공유
+- 검증 단계엔 Web에서 사용자 분포 데이터 모은 후 iOS 출시 결정 권장
