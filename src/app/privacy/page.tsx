@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 };
 
 // 한국 PIPA 2025.4.21 작성지침 + 2026.3 개정 + App Store 5.1.1/5.1.2 준수
-// 시행일: 2026-05-08
+// 시행일: 2026-05-12 (5/12 개정 — 카카오·Google OAuth 로그인 도입 반영)
 
 export default function PrivacyPage() {
   return (
@@ -52,7 +52,7 @@ export default function PrivacyPage() {
           개인정보 처리방침
         </h1>
         <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
-          시행일자: 2026년 5월 8일
+          시행일자: 2026년 5월 12일
         </p>
       </div>
 
@@ -80,16 +80,22 @@ export default function PrivacyPage() {
         </p>
 
         <Section title="1. 수집하는 개인정보">
+          <p style={{ marginBottom: 8 }}>
+            서비스 이용 형태에 따라 다음 정보를 수집합니다.
+          </p>
           <List
             items={[
               "사진: 분석에만 사용되며 서버에 저장되지 않습니다 (사용자가 '보관' 또는 '공유 링크 생성'을 선택한 경우에만 저장)",
               "익명 기기 식별자: 사용자 구분을 위한 임의 ID (개인을 직접 식별하지 않음)",
               "서비스 이용 기록: 분석 요청, 추천 결과, 클릭 이벤트 등",
               "선호 정보: 장르·분위기 등 사용자가 선택한 항목",
+              "가입 정보 (OAuth 가입 시): Google·Apple·카카오 계정에서 받는 이메일·닉네임·프로필 사진·회원번호 (제공자 측 동의 항목에 따름)",
             ]}
           />
           <p style={{ marginTop: 12, fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
-            ※ 이름·이메일·전화번호 등 개인을 식별할 수 있는 정보는 수집하지 않습니다.
+            ※ 전화번호·실명·주소·금융정보는 수집하지 않습니다. 가입 정보는 사용자가 OAuth
+            제공자에서 동의한 항목에 한해 받으며, 비회원으로 이용 시에는 익명 기기 식별자만
+            사용됩니다.
           </p>
         </Section>
 
@@ -97,6 +103,7 @@ export default function PrivacyPage() {
           <List
             items={[
               "AI 기반 음악 추천 서비스 제공",
+              "회원 가입·로그인·계정 관리 (OAuth 가입자에 한함)",
               "서비스 품질 개선 및 통계 분석",
               "공유 링크 생성 (사용자가 직접 요청한 경우)",
             ]}
@@ -108,6 +115,7 @@ export default function PrivacyPage() {
             items={[
               "사진: 분석 직후 삭제 (보관·공유 시에만 저장, 사용자가 직접 삭제 가능)",
               "익명 기기 식별자·이용 기록: 서비스 운영 기간 동안 보관",
+              "회원 가입 정보(OAuth): 회원 자격 유지 기간 동안 보관, 탈퇴 시 즉시 파기 (법령상 보존 의무 있는 경우 해당 기간 동안 보관)",
               "삭제 요청 시: 즉시 영구 삭제",
             ]}
           />
@@ -115,13 +123,14 @@ export default function PrivacyPage() {
 
         <Section title="4. 제3자 제공 및 위탁">
           <p>
-            서비스는 개인정보를 제3자에게 제공하지 않습니다. 다만, 서비스 운영을 위해
-            아래 영역에서 외부 사업자의 도움을 받습니다.
+            서비스는 개인정보를 제3자에게 별도로 제공하지 않습니다. 다만, 서비스 운영을
+            위해 아래 영역에서 외부 사업자의 도움을 받습니다.
           </p>
           <List
             items={[
               "AI 분석: Anthropic (사진은 7일 이내 자동 삭제, 모델 학습에 사용되지 않음)",
               "클라우드 인프라: Vercel, Supabase (국제 보안 인증 보유)",
+              "OAuth 인증: Google, Apple, Kakao (가입 시 회원 동의에 따라 계정 정보 일부를 제공받음)",
               "음악 정보 검색: Spotify, YouTube",
               "서비스 통계: Google Analytics, Meta",
             ]}
@@ -169,7 +178,7 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
-        <Section title="9. 개인정보 보호책임자">
+        <Section title="9. 개인정보 보호책임자 및 회사 정보">
           <div
             style={{
               background: "rgba(255,255,255,0.05)",
@@ -182,7 +191,7 @@ export default function PrivacyPage() {
             <p style={{ fontWeight: 500, marginBottom: 6 }}>
               개인정보 보호책임자
             </p>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.9 }}>
               · 이름: 박찬영
               <br />· 이메일:{" "}
               <a
@@ -191,6 +200,14 @@ export default function PrivacyPage() {
               >
                 dailyyoung@linareen.com
               </a>
+            </p>
+            <p style={{ fontWeight: 500, marginBottom: 6, marginTop: 14 }}>회사 정보</p>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.9 }}>
+              · 상호: 리나린
+              <br />· 대표자: 박찬영, 김판준
+              <br />· 사업자등록번호: 501-31-30511
+              <br />· 주소: 서울특별시 강동구 성내로6가길 8, 101호
+              <br />· 전화: 0507-1303-5742
             </p>
           </div>
         </Section>
@@ -212,7 +229,7 @@ export default function PrivacyPage() {
             통해 사전 고지합니다.
           </p>
           <p style={{ marginTop: 12, fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
-            · 시행일자: 2026년 5월 8일
+            · 시행일자: 2026년 5월 12일 (직전 개정: 2026년 5월 8일)
           </p>
         </Section>
       </div>

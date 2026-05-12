@@ -118,29 +118,6 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
         <div style={{ width: 40, height: 4, background: "rgba(255,255,255,0.2)", borderRadius: 2, margin: "0 auto 24px" }} />
 
         <button
-          disabled
-          style={{
-            width: "100%",
-            padding: "14px 16px",
-            marginBottom: 10,
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 12,
-            color: "rgba(255,255,255,0.35)",
-            fontSize: 15,
-            fontWeight: 500,
-            cursor: "not-allowed",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-          }}
-        >
-          <span style={{ fontSize: 16 }}>🍎</span>
-          <span>Apple로 로그인 (준비 중)</span>
-        </button>
-
-        <button
           onClick={handleKakaoLogin}
           style={{
             width: "100%",
@@ -214,6 +191,37 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
         >
           비회원 로그인
         </button>
+
+        {/* 약관·정책 동의 안내 (implicit consent — OAuth 간편 로그인 표준 패턴) */}
+        <p
+          style={{
+            marginTop: 16,
+            fontSize: 11,
+            color: "rgba(255,255,255,0.4)",
+            lineHeight: 1.6,
+            textAlign: "center",
+          }}
+        >
+          로그인 시{" "}
+          <a
+            href="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "rgba(255,255,255,0.65)", textDecoration: "underline" }}
+          >
+            이용약관
+          </a>
+          과{" "}
+          <a
+            href="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "rgba(255,255,255,0.65)", textDecoration: "underline" }}
+          >
+            개인정보 처리방침
+          </a>
+          에 동의한 것으로 간주됩니다.
+        </p>
       </div>
     </div>
   );
