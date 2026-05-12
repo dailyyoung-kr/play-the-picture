@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Archive, Music, Music2, SlidersHorizontal } from "lucide-react";
 import { trackEvent } from "@/lib/gtag";
 import { supabase, getDeviceId } from "@/lib/supabase";
+import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { isAnalyticsEnabled } from "@/lib/analytics";
 import { getUtm } from "@/lib/utm";
 import { HamburgerMenu } from "@/components/header/HamburgerMenu";
@@ -162,10 +163,12 @@ export default function PreferencePage() {
     if (isAnalyticsEnabled()) {
       try {
         const utm = getUtm();
+        const { data: { user } } = await createSupabaseBrowserClient().auth.getUser();
         const { data: logData } = await supabase
           .from("analyze_logs")
           .insert({
             device_id: deviceId,
+            user_id: user?.id ?? null,
             status: "start",
             utm_source: utm.utm_source ?? null,
             utm_medium: utm.utm_medium ?? null,

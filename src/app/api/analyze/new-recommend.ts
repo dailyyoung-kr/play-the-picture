@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse, after } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getCurrentUserId } from "@/lib/auth/server";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -243,6 +244,8 @@ export async function newRecommend(
   const energy = Number(body.energy) || 3;
   const isDiscover = genre === "discover";
   const deviceId = (body.deviceId as string) ?? null;
+  // 로그인 user (anon 포함) — 후속 insert에서 user_id로 박힘. 미로그인이면 null.
+  const userId = await getCurrentUserId();
   console.log(`[new] genre 변환: "${rawGenre}" → "${genre}"`);
 
   const perfStart = Date.now();
@@ -440,6 +443,7 @@ export async function newRecommend(
         .from("recommendation_logs")
         .insert({
           device_id: deviceId,
+          user_id: userId,
           song_id: selectedSong.id,
           vibe_type: result.vibeType ?? null,
         })
@@ -453,6 +457,7 @@ export async function newRecommend(
       const { error: analysisErr } = await supabaseAdmin.from("analysis_results").insert({
         recommendation_log_id: recLog?.id ?? null,
         device_id: deviceId,
+        user_id: userId,
         song_id: selectedSong.id,
         vibe_type: result.vibeType ?? null,
         vibe_description: result.vibeDescription ?? null,
@@ -469,6 +474,7 @@ export async function newRecommend(
       // 미래 quality scoring 인프라: 곡별 "후보 진입 → 선택 전환률" 측정용
       const candidateRows = finalCandidates.map((s, i) => ({
         device_id: deviceId,
+        user_id: userId,
         song_id: s.id,
         position: i + 1,
         was_selected: s.id === selectedSong.id,

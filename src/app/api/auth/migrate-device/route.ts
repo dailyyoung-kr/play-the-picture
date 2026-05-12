@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 
 // 게스트 device_id에 묶인 데이터를 가입 user_id로 이전 (anon signin 후 호출)
 // OAuth flow는 /auth/callback에서 inline으로 처리. 이 route는 anonymous signin 전용.
+// save_logs는 migration_018에서 user_id 컬럼 추가 후 포함.
 const TABLES_TO_MIGRATE = [
   "entries",
   "share_logs",
@@ -15,6 +16,7 @@ const TABLES_TO_MIGRATE = [
   "recommendation_logs",
   "candidate_logs",
   "analysis_results",
+  "save_logs",
 ] as const;
 
 export async function POST(req: NextRequest) {

@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
 // 게스트 device_id에 묶인 데이터를 가입 user_id로 이전할 테이블
+// save_logs는 migration_018에서 user_id 컬럼 추가 후 포함
 const TABLES_TO_MIGRATE = [
   "entries",
   "share_logs",
@@ -14,6 +15,7 @@ const TABLES_TO_MIGRATE = [
   "recommendation_logs",
   "candidate_logs",
   "analysis_results",
+  "save_logs",
 ] as const;
 
 // Supabase가 OAuth 실패 시 redirect URL에 담는 에러 description 패턴 → conflict 분류
@@ -105,17 +107,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(`${origin}/?auth_error=merge_source_expired`);
       }
 
-      // 2. 9개 테이블 user_id UPDATE: anon → google
-      const movedRows: Record<string, number> = {};
-      for (const table of TABLES_TO_MIGRATE) {
-        const { count } = await adminClient
-          .from(table)
-          .update({ user_id: userId }, { count: "exact" })
-          .eq("user_id", mergeFrom);
-        movedRows[table] = count ?? 0;
-      }
-
-      // 3. profile.device_ids 병합 (중복 제거)
+      // 2. anon profile.device_ids 먼저 fetch — 아래 device_id 기반 UPDATE에서 사용
       const { data: anonProfile } = await adminClient
         .from("profiles")
         .select("device_ids")
@@ -129,6 +121,29 @@ export async function GET(request: NextRequest) {
       const anonDeviceIds = (anonProfile?.device_ids as string[] | null) ?? [];
       const googleDeviceIds = (googleProfile?.device_ids as string[] | null) ?? [];
       const mergedDeviceIds = Array.from(new Set([...googleDeviceIds, ...anonDeviceIds]));
+
+      // 3. 테이블별 user_id UPDATE: anon → google (2단계)
+      //   1단계: anon device_id에 속하고 user_id=NULL인 row (insert 시 user_id 못 박은 케이스)
+      //   2단계: user_id=anon인 row (migrate-device로 attribute됐던 케이스)
+      // 두 단계 모두 다른 user 데이터 절대 못 건드림 (NULL 가드 + user_id 일치 가드)
+      const movedRows: Record<string, number> = {};
+      for (const table of TABLES_TO_MIGRATE) {
+        let migrated = 0;
+        if (anonDeviceIds.length > 0) {
+          const { count } = await adminClient
+            .from(table)
+            .update({ user_id: userId }, { count: "exact" })
+            .in("device_id", anonDeviceIds)
+            .is("user_id", null);
+          migrated += count ?? 0;
+        }
+        const { count: byUserId } = await adminClient
+          .from(table)
+          .update({ user_id: userId }, { count: "exact" })
+          .eq("user_id", mergeFrom);
+        migrated += byUserId ?? 0;
+        movedRows[table] = migrated;
+      }
       await adminClient
         .from("profiles")
         .update({

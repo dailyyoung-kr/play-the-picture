@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getCurrentUserId } from "@/lib/auth/server";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,11 +24,14 @@ export async function POST(req: NextRequest) {
     // 같은 세션이라 환경 안 바뀜 — 비대칭 의도적.
     const ua = req.headers.get("user-agent")?.slice(0, 500) ?? null;
 
+    const user_id = await getCurrentUserId();
+
     const { data, error } = await supabaseAdmin
       .from("share_logs")
       .insert({
         entry_id,
         device_id: device_id ?? null,
+        user_id,
         status: finalStatus,
         user_agent: ua,
         ...(platform ? { platform } : {}),

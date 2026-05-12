@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getCurrentUserId } from "@/lib/auth/server";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,6 +44,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "song 필요" }, { status: 400 });
     }
 
+    const user_id = await getCurrentUserId();
+
     const { data, error } = await supabaseAdmin
       .from("entries")
       .insert({
@@ -57,6 +60,7 @@ export async function POST(req: NextRequest) {
         photos: Array.isArray(photos) ? photos : [],
         album_art: album_art ?? null,
         device_id,
+        user_id,
         genre: genre ?? null,
         ...(platform ? { platform } : {}),
         ...(os ? { os } : {}),

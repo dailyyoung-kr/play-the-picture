@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseWithDeviceId } from "@/lib/supabase";
+import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { Archive, Music, Play, Pause, Bookmark, RotateCcw, Check } from "lucide-react";
 
 // Instagram 아이콘 — lucide-react가 브랜드 트레이드마크 이슈로 제거함, inline SVG로 대체
@@ -153,6 +154,8 @@ export default function ResultPage() {
     const prefsRaw = localStorage.getItem("ptp_prefs");
     const prefs: { genre?: string } = prefsRaw ? JSON.parse(prefsRaw) : {};
 
+    const { data: { user } } = await createSupabaseBrowserClient().auth.getUser();
+
     const { data, error } = await getSupabaseWithDeviceId()
       .from("entries")
       .insert({
@@ -167,6 +170,7 @@ export default function ResultPage() {
         photos,
         album_art: result.albumArt ?? null,
         device_id: getDeviceId(),
+        user_id: user?.id ?? null,
         genre: prefs.genre ?? null,
       })
       .select("id")

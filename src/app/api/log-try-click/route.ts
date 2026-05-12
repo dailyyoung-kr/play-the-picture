@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getCurrentUserId } from "@/lib/auth/server";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,9 +15,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "entry_id 필요" }, { status: 400 });
     }
 
+    const user_id = await getCurrentUserId();
+
     const { error } = await supabaseAdmin
       .from("try_click")
-      .insert({ entry_id, device_id: device_id ?? null });
+      .insert({ entry_id, device_id: device_id ?? null, user_id });
 
     if (error) {
       console.error("[log-try-click] insert 실패:", error.code, error.message);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getCurrentUserId } from "@/lib/auth/server";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,16 +15,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "genre 필요" }, { status: 400 });
     }
 
+    const user_id = await getCurrentUserId();
+
     // energy 컬럼 포함 시도
     const { error } = await supabaseAdmin
       .from("preference_logs")
-      .insert({ genre, energy: energy ?? null, device_id: device_id ?? null });
+      .insert({ genre, energy: energy ?? null, device_id: device_id ?? null, user_id });
 
     if (error) {
       // energy 컬럼 없을 경우 genre + device_id만 저장
       const { error: e2 } = await supabaseAdmin
         .from("preference_logs")
-        .insert({ genre, device_id: device_id ?? null });
+        .insert({ genre, device_id: device_id ?? null, user_id });
       if (e2) {
         console.error("[log-preference] insert 실패:", e2.message);
         return NextResponse.json({ error: e2.message }, { status: 500 });
