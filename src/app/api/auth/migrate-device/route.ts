@@ -53,15 +53,18 @@ export async function POST(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
     );
 
-    const results: Record<string, number> = {};
-    for (const table of TABLES_TO_MIGRATE) {
-      const { count } = await adminClient
-        .from(table)
-        .update({ user_id: user.id }, { count: "exact" })
-        .eq("device_id", device_id)
-        .is("user_id", null);
-      results[table] = count ?? 0;
-    }
+    // 10개 테이블 UPDATE를 병렬 실행 — 서로 독립적이라 안전. 직렬 대비 5-10x 빠름.
+    const tableUpdates = await Promise.all(
+      TABLES_TO_MIGRATE.map(async (table) => {
+        const { count } = await adminClient
+          .from(table)
+          .update({ user_id: user.id }, { count: "exact" })
+          .eq("device_id", device_id)
+          .is("user_id", null);
+        return [table, count ?? 0] as const;
+      }),
+    );
+    const results: Record<string, number> = Object.fromEntries(tableUpdates);
 
     // profiles.device_ids 업데이트 (중복 방지)
     const { data: profile } = await adminClient

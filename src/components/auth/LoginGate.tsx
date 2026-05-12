@@ -74,16 +74,16 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
     logAuthEvent("anonymous_signin_success", { source }, userId);
     logAuthEvent("signup_complete", { method: "anonymous", source }, userId);
 
-    // 2. device_id 마이그레이션 (필수 await — /journal 데이터 보존)
-    try {
-      await fetch("/api/auth/migrate-device", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ device_id: deviceId }),
-      });
-    } catch (e) {
+    // 2. device_id 마이그레이션 — fire-and-forget로 변경 (사용자 응답성 우선)
+    // /journal은 device_id 기준 query라 migrate 결과 안 기다려도 정상 작동.
+    // profile.device_ids·entries.user_id 동기화는 백그라운드에서 수 초 내 완료.
+    fetch("/api/auth/migrate-device", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ device_id: deviceId }),
+    }).catch((e) => {
       console.error("[LoginGate] migrate-device 실패:", e);
-    }
+    });
 
     // 3. /?signup=success로 full reload → welcome toast 트리거
     window.location.href = "/?signup=success";
