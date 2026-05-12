@@ -81,6 +81,20 @@ export function HamburgerMenu() {
     }
   };
 
+  const handleLinkKakao = async () => {
+    setIsOpen(false);
+    await logAuthEvent("identity_link_start", { provider: "kakao" }, userId);
+    // 카카오는 Supabase 표준 OAuth 아니라 우리 라우트가 인증·user 매칭 처리
+    // anon 사용자가 link 시도 → merge_from에 현재 anon user_id를 넘겨야 callback에서 데이터 merge
+    const deviceId = getDeviceId();
+    if (!userId) {
+      // anon user_id가 없으면 link 의미 없음 — 일반 sign-in flow
+      window.location.href = `/api/auth/kakao/start?device_id=${encodeURIComponent(deviceId)}&action=signin`;
+      return;
+    }
+    window.location.href = `/api/auth/kakao/start?device_id=${encodeURIComponent(deviceId)}&merge_from=${encodeURIComponent(userId)}&action=link`;
+  };
+
   return (
     <>
       <div
@@ -169,6 +183,14 @@ export function HamburgerMenu() {
                     >
                       정식 계정으로 전환
                     </div>
+
+                    {/* 카카오 계정 연동 — 한국 18-24 여성 친숙도 ↑ */}
+                    <button onClick={handleLinkKakao} style={{ ...oauthButtonStyle, background: "#FEE500", color: "#1a1a1a", borderColor: "#FEE500" } as React.CSSProperties}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+                        <path d="M12 3C6.477 3 2 6.477 2 10.8c0 2.766 1.836 5.197 4.604 6.617L5.4 21l4.34-2.86c.74.092 1.494.14 2.26.14 5.523 0 10-3.477 10-7.78S17.523 3 12 3z" fill="#3C1E1E"/>
+                      </svg>
+                      <span style={{ flex: 1, textAlign: "left" }}>카카오 계정 연동</span>
+                    </button>
 
                     {/* Google 계정 연동 — 버튼 스타일 */}
                     <button onClick={handleLinkGoogle} style={oauthButtonStyle}>

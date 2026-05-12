@@ -37,6 +37,13 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
     }
   };
 
+  const handleKakaoLogin = async () => {
+    await logAuthEvent("kakao_login_start", { source });
+    const deviceId = getDeviceId();
+    // 우리 서버 라우트가 카카오 authorize URL을 만들어 redirect — Supabase 표준 provider 아니라 직접 통합
+    window.location.href = `/api/auth/kakao/start?device_id=${encodeURIComponent(deviceId)}&action=signin`;
+  };
+
   const handleGuest = async () => {
     await logAuthEvent("guest_skip", { source });
     const deviceId = getDeviceId();
@@ -131,6 +138,31 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
         >
           <span style={{ fontSize: 16 }}>🍎</span>
           <span>Apple로 로그인 (준비 중)</span>
+        </button>
+
+        <button
+          onClick={handleKakaoLogin}
+          style={{
+            width: "100%",
+            padding: "14px 16px",
+            marginBottom: 10,
+            background: "#FEE500",
+            border: "none",
+            borderRadius: 12,
+            color: "#1a1a1a",
+            fontSize: 15,
+            fontWeight: 500,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M12 3C6.477 3 2 6.477 2 10.8c0 2.766 1.836 5.197 4.604 6.617L5.4 21l4.34-2.86c.74.092 1.494.14 2.26.14 5.523 0 10-3.477 10-7.78S17.523 3 12 3z" fill="#3C1E1E"/>
+          </svg>
+          카카오로 로그인
         </button>
 
         <button
