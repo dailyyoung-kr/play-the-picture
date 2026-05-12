@@ -14,6 +14,7 @@ export function HamburgerMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const [nickname, setNickname] = useState<string | null>(null);
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const [provider, setProvider] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [loginGateOpen, setLoginGateOpen] = useState(false);
@@ -33,6 +34,17 @@ export function HamburgerMenu() {
       }
       setUserId(user.id);
       setIsAnonymous(user.is_anonymous === true);
+      // provider 우선순위:
+      //   1) user_metadata.provider (Kakao — admin.createUser 시 우리가 명시)
+      //   2) app_metadata.provider (Google/Apple — Supabase OAuth 자동)
+      //   Kakao user는 app_metadata.provider="email"로 채워지므로 user_metadata 먼저 봐야 함
+      const meta = user.app_metadata as Record<string, unknown> | undefined;
+      const userMeta = user.user_metadata as Record<string, unknown> | undefined;
+      setProvider(
+        (userMeta?.provider as string | undefined) ??
+          (meta?.provider as string | undefined) ??
+          null,
+      );
       const { data: profile } = await supabase
         .from("profiles")
         .select("nickname")
@@ -151,18 +163,37 @@ export function HamburgerMenu() {
             >
               {isLoggedIn ? (
                 <>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>
-                    {isAnonymous ? "비회원" : "로그인 계정"}
-                  </div>
+                  {isAnonymous && (
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>
+                      비회원
+                    </div>
+                  )}
                   <div
                     style={{
+                      display: "flex",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
                       fontSize: 17,
                       fontWeight: 600,
                       color: "#fff",
                       lineHeight: 1.3,
                     }}
                   >
-                    {nickname}
+                    {!isAnonymous && provider === "kakao" && (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+                        <path d="M12 3C6.477 3 2 6.477 2 10.8c0 2.766 1.836 5.197 4.604 6.617L5.4 21l4.34-2.86c.74.092 1.494.14 2.26.14 5.523 0 10-3.477 10-7.78S17.523 3 12 3z" fill="#FEE500"/>
+                      </svg>
+                    )}
+                    {!isAnonymous && provider === "google" && (
+                      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+                        <path d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 01-1.8 2.72v2.25h2.92c1.7-1.57 2.68-3.88 2.68-6.6z" fill="#4285F4" />
+                        <path d="M9 18c2.43 0 4.47-.81 5.96-2.18l-2.92-2.27c-.81.54-1.85.86-3.04.86-2.34 0-4.32-1.58-5.03-3.71H.96v2.33A9 9 0 009 18z" fill="#34A853" />
+                        <path d="M3.97 10.7a5.4 5.4 0 010-3.4V4.97H.96a9 9 0 000 8.06l3.01-2.33z" fill="#FBBC05" />
+                        <path d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.59A9 9 0 009 0a9 9 0 00-8.04 4.97l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" fill="#EA4335" />
+                      </svg>
+                    )}
+                    <span>{nickname}</span>
                   </div>
                 </>
               ) : (
