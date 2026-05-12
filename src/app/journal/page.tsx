@@ -7,6 +7,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { Archive, Music } from "lucide-react";
 import { getDeviceId } from "@/lib/device";
 import { HamburgerMenu } from "@/components/header/HamburgerMenu";
+import { PreviewPlayer } from "@/components/PreviewPlayer";
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const WEEK_DAYS = ["월", "화", "수", "목", "금", "토", "일"];
@@ -452,10 +453,10 @@ export default function JournalPage() {
                         position: "relative",
                       }}
                     >
-                      {/* 사진 영역 — 캐러셀 or 단일 */}
+                      {/* 사진 영역 — 캐러셀 or 단일. 탭 시 정보 영역과 동일하게 상세 모달 열기 */}
                       <div
-                        style={{ position: "relative" }}
-                        onClick={(e) => e.stopPropagation()}
+                        style={{ position: "relative", cursor: "pointer" }}
+                        onClick={() => setSelectedEntry(entry)}
                       >
                         {hasCarousel ? (
                           /* ── 캐러셀 ── */
@@ -720,6 +721,13 @@ export default function JournalPage() {
               </div>
             </div>
 
+            {/* 섹션 4-b: 30초 미리듣기 — iTunes URL 있을 때만 표시 (컴포넌트 내부에서 처리) */}
+            <PreviewPlayer
+              song={selectedEntry.song}
+              artist={selectedEntry.artist}
+              pageContext="journal"
+            />
+
             {/* 섹션 5: 플더픽이 추천한 이유 */}
             <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "12px 16px", marginBottom: 16 }}>
               <p className="font-medium" style={{ fontSize: 10, color: "#f0d080", letterSpacing: "0.05em", marginBottom: 6 }}>
@@ -728,7 +736,7 @@ export default function JournalPage() {
               <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.8 }}>{selectedEntry.reason}</p>
             </div>
 
-            {/* 다시 듣기 버튼 */}
+            {/* 음악앱에서 듣기 — result 페이지와 라벨 통일 */}
             <button
               onClick={() => handleListenClick(selectedEntry)}
               style={{
@@ -738,7 +746,7 @@ export default function JournalPage() {
                 cursor: "pointer",
               }}
             >
-              ▶  다시 듣기
+              ▶  음악앱에서 듣기
             </button>
 
             {/* 기록 삭제 */}
