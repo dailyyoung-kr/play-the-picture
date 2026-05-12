@@ -553,7 +553,14 @@ export default function AdminPage() {
   const filteredTry     = tryClicks.filter(l => filterTs(l.created_at) && filterDevice(l));
   const filteredResultViews = viewLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
   const filteredStorySaves = storySaveLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
-  const filteredAuth    = authLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
+  // AUTH 섹션은 prod 게이트 ON 시점(2026-05-12 18:30 KST = 09:30 UTC) 이후 데이터만 집계.
+  // 그 전 데이터는 내부 테스트(검증 시나리오 1·2 등)라 통계에서 제외.
+  const AUTH_PROD_START_UTC = new Date("2026-05-12T09:30:00Z").getTime();
+  const filteredAuth = authLogs.filter(l =>
+    filterTs(l.created_at)
+    && filterDevice(l)
+    && new Date(l.created_at).getTime() >= AUTH_PROD_START_UTC
+  );
 
   // ── AUTH 섹션 metrics (Phase 1A funnel 측정) ──
   const authEventCount = (event: string) => filteredAuth.filter(l => l.event === event).length;
