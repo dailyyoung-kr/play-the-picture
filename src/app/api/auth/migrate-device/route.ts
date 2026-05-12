@@ -26,23 +26,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "device_id 필요" }, { status: 400 });
     }
 
-    // 세션 cookie에서 user 추출
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll() {
-            // read-only — 마이그레이션은 인증 cookie를 수정하지 않음
+    // user 식별: (1) Authorization Bearer 토큰 (RN/native), (2) cookie 세션 (web)
+    let user: { id: string } | null = null;
+
+    const authHeader = req.headers.get("authorization") ?? "";
+    if (authHeader.startsWith("Bearer ")) {
+      const accessToken = authHeader.slice(7);
+      const adminCheck = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      );
+      const { data, error } = await adminCheck.auth.getUser(accessToken);
+      if (!error && data.user) user = { id: data.user.id };
+    }
+
+    if (!user) {
+      // cookie 기반 fallback (web)
+      const cookieStore = await cookies();
+      const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            getAll() {
+              return cookieStore.getAll();
+            },
+            setAll() {
+              // read-only — 마이그레이션은 인증 cookie를 수정하지 않음
+            },
           },
         },
-      },
-    );
-    const { data: { user } } = await supabase.auth.getUser();
+      );
+      const { data } = await supabase.auth.getUser();
+      if (data.user) user = { id: data.user.id };
+    }
+
     if (!user) {
       return NextResponse.json({ error: "인증 필요" }, { status: 401 });
     }

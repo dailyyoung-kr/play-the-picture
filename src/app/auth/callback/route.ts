@@ -39,6 +39,8 @@ export async function GET(request: NextRequest) {
   const errorDescription = searchParams.get("error_description");
   const deviceId = searchParams.get("device_id");
   const mergeFrom = searchParams.get("merge_from"); // anon → google merge 케이스
+  const native = searchParams.get("native") === "1"; // iOS/Android 앱 deep link 모드
+  const NATIVE_DEEP_LINK_SCHEME = "playthepicture";
 
   // OAuth 에러 응답 — 이메일 충돌 vs 기타로 분류
   if (errorCode || errorDescription) {
@@ -205,6 +207,26 @@ export async function GET(request: NextRequest) {
       { device_id: deviceId, user_id: userId, event: "signup_complete" },
       { device_id: deviceId, user_id: userId, event: "device_migrated", metadata: movedRows },
     ]);
+  }
+
+  // native 모드: 이미 web 세션은 쿠키에 박혔지만, RN은 별도 세션 필요 → magic link 생성 후 deep link redirect
+  if (native && exchangeData?.user?.email) {
+    try {
+      const { data: linkData } = await adminClient.auth.admin.generateLink({
+        type: "magiclink",
+        email: exchangeData.user.email,
+      });
+      const tokenHash = linkData?.properties?.hashed_token;
+      if (tokenHash) {
+        const provider = exchangeData.user.app_metadata?.provider ?? "oauth";
+        return NextResponse.redirect(
+          `${NATIVE_DEEP_LINK_SCHEME}://auth/callback?token_hash=${encodeURIComponent(tokenHash)}&provider=${encodeURIComponent(provider)}&signup=success`,
+        );
+      }
+    } catch (e) {
+      console.error("[auth/callback] native magic link failed:", e);
+      return NextResponse.redirect(`${NATIVE_DEEP_LINK_SCHEME}://auth/callback?auth_error=session_failed`);
+    }
   }
 
   const next = searchParams.get("next") ?? "/?signup=success";

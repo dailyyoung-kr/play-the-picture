@@ -20,7 +20,11 @@ type StatePayload = {
   device_id?: string;
   merge_from?: string;
   action?: "signin" | "link";
+  native?: boolean; // iOS/Android 앱 deep link 모드
 };
+
+// 모바일 앱 deep link scheme (app.json의 scheme과 일치)
+const NATIVE_DEEP_LINK_SCHEME = "playthepicture";
 
 function parseState(stateRaw: string | null): StatePayload {
   if (!stateRaw) return {};
@@ -250,8 +254,15 @@ export async function GET(request: NextRequest) {
     }
 
     const tokenHash = linkData.properties.hashed_token;
-    const finalizeNext = state.merge_from ? "/?merge_success=1" : "/?signup=success";
 
+    // native 모드: web finalize 거치지 않고 앱 deep link로 직접 redirect → RN이 verifyOtp 처리
+    if (state.native) {
+      return NextResponse.redirect(
+        `${NATIVE_DEEP_LINK_SCHEME}://auth/callback?token_hash=${encodeURIComponent(tokenHash)}&provider=kakao${state.merge_from ? "&merge_success=1" : "&signup=success"}`,
+      );
+    }
+
+    const finalizeNext = state.merge_from ? "/?merge_success=1" : "/?signup=success";
     return NextResponse.redirect(
       `${origin}/auth/kakao-finalize?token_hash=${encodeURIComponent(tokenHash)}&next=${encodeURIComponent(finalizeNext)}`,
     );

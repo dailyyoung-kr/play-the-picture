@@ -11,9 +11,10 @@ export async function GET(req: NextRequest) {
   const deviceId = req.nextUrl.searchParams.get("device_id") ?? "";
   const mergeFrom = req.nextUrl.searchParams.get("merge_from") ?? "";
   const action = req.nextUrl.searchParams.get("action") ?? "signin"; // signin | link
+  const native = req.nextUrl.searchParams.get("native") === "1"; // iOS·Android 앱 deep link 모드
 
   // state payload — 카카오는 state 그대로 callback에 다시 넘김
-  const statePayload = JSON.stringify({ device_id: deviceId, merge_from: mergeFrom, action });
+  const statePayload = JSON.stringify({ device_id: deviceId, merge_from: mergeFrom, action, native });
   // base64url 인코딩 — URL-safe하고 카카오에 그대로 전달 가능
   const state = Buffer.from(statePayload, "utf8").toString("base64url");
 
