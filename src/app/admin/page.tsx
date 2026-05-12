@@ -14,6 +14,7 @@ type LogRow = { id: string; created_at: string; device_id?: string | null; entry
 type StorySaveLog = { id: string; created_at: string; device_id: string | null; entry_id: string | null; status: string; user_agent: string | null };
 type SaveLog = { id: string; created_at: string; entry_id: string; device_id: string };
 type PreviewLog = { id: string; created_at: string; device_id: string; song: string | null; artist: string | null; action: "played" | "completed" };
+type AuthLog = { id: string; created_at: string; device_id: string | null; user_id: string | null; event: string; metadata: Record<string, unknown> | null };
 type ItunesCacheRow = { status: string | null };
 
 // 내부 테스트 기기 목록 (콤마 구분). 대시보드에서 유저/테스트 데이터 구분용
@@ -307,6 +308,7 @@ export default function AdminPage() {
   const [tryClicks, setTryClicks] = useState<LogRow[]>([]);
   const [saveLogs, setSaveLogs] = useState<SaveLog[]>([]);
   const [previewLogs, setPreviewLogs] = useState<PreviewLog[]>([]);
+  const [authLogs, setAuthLogs] = useState<AuthLog[]>([]);
   const [itunesCache, setItunesCache] = useState<ItunesCacheRow[]>([]);
   const [storySaveLogs, setStorySaveLogs] = useState<StorySaveLog[]>([]);
   const [loading, setLoading] = useState(false);
@@ -358,7 +360,7 @@ export default function AdminPage() {
       supabase.from("listen_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("result_view_logs").select("id, created_at, duration_seconds, exit_type, device_id").order("created_at", { ascending: false }),
       // RLS 켜진 테이블 — supabaseAdmin 경유 서버 API 사용 (share_views, try_click, itunes, story_save_logs, share_logs, preview_logs)
-      fetch("/api/admin/log-rows", { credentials: "same-origin" }).then(r => r.json()) as Promise<{ shareViews: LogRow[]; tryClicks: LogRow[]; itunes: ItunesCacheRow[]; storySaveLogs: StorySaveLog[]; shareLogs: LogRow[]; previewLogs: PreviewLog[] }>,
+      fetch("/api/admin/log-rows", { credentials: "same-origin" }).then(r => r.json()) as Promise<{ shareViews: LogRow[]; tryClicks: LogRow[]; itunes: ItunesCacheRow[]; storySaveLogs: StorySaveLog[]; shareLogs: LogRow[]; previewLogs: PreviewLog[]; authLogs: AuthLog[] }>,
       supabase.from("save_logs").select("id, created_at, entry_id, device_id").order("created_at", { ascending: false }),
     ]);
 
@@ -376,6 +378,7 @@ export default function AdminPage() {
     setStorySaveLogs(logRowsRes.storySaveLogs ?? []);
     setShareLogs(logRowsRes.shareLogs ?? []);
     setPreviewLogs(logRowsRes.previewLogs ?? []);
+    setAuthLogs(logRowsRes.authLogs ?? []);
     if (!saveRes.error) setSaveLogs(saveRes.data ?? []);
     else console.error("[admin] save_logs 로드 실패:", saveRes.error.message);
 
@@ -550,6 +553,62 @@ export default function AdminPage() {
   const filteredTry     = tryClicks.filter(l => filterTs(l.created_at) && filterDevice(l));
   const filteredResultViews = viewLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
   const filteredStorySaves = storySaveLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
+  const filteredAuth    = authLogs.filter(l => filterTs(l.created_at) && filterDevice(l));
+
+  // ── AUTH 섹션 metrics (Phase 1A funnel 측정) ──
+  const authEventCount = (event: string) => filteredAuth.filter(l => l.event === event).length;
+  const authEventDevices = (event: string) =>
+    new Set(filteredAuth.filter(l => l.event === event).map(l => l.device_id).filter((d): d is string => !!d)).size;
+
+  // 1. 게이트 완료율 — gate_shown 본 device 중 어떤 식으로든 가입/스킵으로 통과한 비율
+  // 분자: signup_complete · guest_skip · anonymous_signin_success 중 하나라도 발생한 device
+  // 분모: gate_shown 본 device. 게이트 노출 자체는 client flag 의존이라 사진 업로드 대비 비교 불가.
+  const gateShownDeviceCount = authEventDevices("gate_shown");
+  const gateShownDeviceSet = new Set(
+    filteredAuth.filter(l => l.event === "gate_shown").map(l => l.device_id).filter((d): d is string => !!d)
+  );
+  const GATE_RESOLUTION_EVENTS = ["signup_complete", "guest_skip", "anonymous_signin_success"];
+  const gateResolvedDeviceCount = new Set(
+    filteredAuth
+      .filter(l => GATE_RESOLUTION_EVENTS.includes(l.event))
+      .map(l => l.device_id)
+      .filter((d): d is string => !!d && gateShownDeviceSet.has(d))
+  ).size;
+  const gateCompletionRatePct = gateShownDeviceCount > 0 ? (gateResolvedDeviceCount / gateShownDeviceCount) * 100 : null;
+
+  // 2. 가입 방식별 — 각 success 이벤트 device 단위
+  const googleSignupDevices = authEventDevices("google_login_success");
+  const appleSignupDevices = authEventDevices("apple_login_success");
+  const anonSignupDevices = authEventDevices("anonymous_signin_success");
+  const totalSignupDevices = googleSignupDevices + appleSignupDevices + anonSignupDevices;
+  const dominantMethod =
+    totalSignupDevices === 0 ? null :
+    anonSignupDevices >= googleSignupDevices && anonSignupDevices >= appleSignupDevices ? "비회원" :
+    googleSignupDevices >= appleSignupDevices ? "Google" : "Apple";
+  const dominantSharePct =
+    totalSignupDevices === 0 ? null :
+    dominantMethod === "비회원" ? (anonSignupDevices / totalSignupDevices) * 100 :
+    dominantMethod === "Google" ? (googleSignupDevices / totalSignupDevices) * 100 :
+    (appleSignupDevices / totalSignupDevices) * 100;
+
+  // 3. linkIdentity 사용률 — anon 가입자 중 Google 업그레이드 시도 비율
+  const linkStartDevices = authEventDevices("identity_link_start");
+  const linkRatePct = anonSignupDevices > 0 ? (linkStartDevices / anonSignupDevices) * 100 : null;
+
+  // 4. 충돌 발생률 — linkIdentity 시도 중 conflict merge로 이어진 비율
+  const accountMergedCount = authEventCount("account_merged");
+  const conflictRatePct = linkStartDevices > 0 ? (accountMergedCount / linkStartDevices) * 100 : null;
+
+  // 5. 닉네임 변경률 — 가입 완료 중 닉네임 변경 비율
+  const signupCompleteDevices = authEventDevices("signup_complete");
+  const nicknameChangedDevices = authEventDevices("nickname_changed");
+  const nicknameChangeRatePct = signupCompleteDevices > 0 ? (nicknameChangedDevices / signupCompleteDevices) * 100 : null;
+
+  // 6. 인증 에러 분류 — *_failed 이벤트 합산 + 분류
+  const anonFailCount = authEventCount("anonymous_signin_failed");
+  const linkFailCount = authEventCount("identity_link_failed");
+  const mergeFailCount = filteredAuth.filter(l => l.event === "account_merged" && l.metadata && (l.metadata as Record<string, unknown>).failed === true).length;
+  const totalAuthFailCount = anonFailCount + linkFailCount + mergeFailCount;
 
   // ── 퍼널 수치 ──
   const photoCount = filteredPhotos.length;
@@ -1418,6 +1477,71 @@ export default function AdminPage() {
                 })()
               : null,
           } : undefined}
+        />
+      </div>
+
+      {/* ── 섹션: AUTH (Phase 1A 로그인 게이트 funnel) ── */}
+      {/* 5/12 도입 — gate_shown / 가입 방식 / linkIdentity / 충돌 / 닉네임 변경 / 에러 분류
+          데이터 소스: auth_logs. 표본 부족 시(<10) 색상 판정 보류 (회색). */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>AUTH</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+        {/* 1. 게이트 완료율 */}
+        <ConvCard
+          label="게이트 완료율"
+          value={gateCompletionRatePct != null ? gateCompletionRatePct.toFixed(1) + "%" : "—"}
+          sub={`${gateResolvedDeviceCount}명 통과 / ${gateShownDeviceCount}명 게이트 노출`}
+          accent={gateShownDeviceCount >= 10 && gateCompletionRatePct != null ? accentByRate(gateCompletionRatePct.toFixed(1) + "%", 70, 50) : C.gray}
+          tooltip={gateShownDeviceCount < 10 ? "게이트 노출 10명 미만 — 판단 보류" : "게이트 본 device 중 가입/스킵 중 하나로 통과한 비율 (signup_complete · guest_skip · anonymous_signin_success). 낮으면 게이트 디자인이 사용자를 이탈시킴. 게이트 ON/OFF 무관하게 funnel 본질 측정"}
+        />
+        {/* 2. 가입 방식별 — 가장 큰 비율 표시 + sub로 분포 */}
+        <ConvCard
+          label="우세 가입 방식"
+          value={dominantMethod ? `${dominantMethod} ${dominantSharePct!.toFixed(0)}%` : "—"}
+          sub={`비회원 ${anonSignupDevices} · Google ${googleSignupDevices} · Apple ${appleSignupDevices}`}
+          accent={totalSignupDevices >= 5 ? "#C4687A" : C.gray}
+          tooltip={totalSignupDevices < 5 ? "가입 5건 미만 — 판단 보류" : "각 가입 success 이벤트의 device 수. 비회원이 압도적으로 높으면 가입 마찰 큼 (정식 가입 funnel 추가 필요). Google/Apple이 높으면 사용자 신뢰도 ↑"}
+        />
+        {/* 3. linkIdentity 사용률 — 모든 provider (Google·Apple·passkey 등) 합산 */}
+        <ConvCard
+          label="비회원 → 정식 전환율"
+          value={linkRatePct != null ? linkRatePct.toFixed(1) + "%" : "—"}
+          sub={`${linkStartDevices}명 시도 / ${anonSignupDevices}명 비회원 가입`}
+          accent={anonSignupDevices >= 10 && linkRatePct != null ? accentByRate(linkRatePct.toFixed(1) + "%", 15, 5) : C.gray}
+          tooltip={anonSignupDevices < 10 ? "비회원 가입 10명 미만 — 판단 보류" : "비회원으로 시작한 device 중 정식 계정 연동(Google·Apple·passkey 등) 클릭한 비율. 비회원 → 정식 가입 funnel 효율. 산업 baseline 5-15%, 15% 이상이면 우수"}
+        />
+        {/* 4. 충돌 발생률 */}
+        <ConvCard
+          label="merge 충돌 발생"
+          value={conflictRatePct != null ? conflictRatePct.toFixed(1) + "%" : "—"}
+          sub={`${accountMergedCount}건 merge / ${linkStartDevices}건 link 시도`}
+          accent={
+            linkStartDevices < 10 || conflictRatePct == null ? C.gray :
+            conflictRatePct <= 3 ? C.green :
+            conflictRatePct <= 5 ? C.yellow :
+            C.red
+          }
+          tooltip={linkStartDevices < 10 ? "link 시도 10건 미만 — 판단 보류" : "linkIdentity 시도 중 같은 이메일이 이미 다른 user에 묶여있어 conflict merge로 이어진 비율. 추정 baseline 3%. 5% 넘으면 UX 점검 (사용자가 다른 계정 인지 못 함)"}
+        />
+        {/* 5. 닉네임 변경률 */}
+        <ConvCard
+          label="닉네임 변경률"
+          value={nicknameChangeRatePct != null ? nicknameChangeRatePct.toFixed(1) + "%" : "—"}
+          sub={`${nicknameChangedDevices}명 변경 / ${signupCompleteDevices}명 가입 완료`}
+          accent={
+            signupCompleteDevices < 10 || nicknameChangeRatePct == null ? C.gray :
+            nicknameChangeRatePct <= 30 ? C.green :
+            nicknameChangeRatePct <= 50 ? C.yellow :
+            C.red
+          }
+          tooltip={signupCompleteDevices < 10 ? "가입 완료 10명 미만 — 판단 보류" : "가입 완료 device 중 닉네임 변경한 비율. 50% 넘으면 자동 닉네임 풀 품질 낮음 (재생성·수정 마찰). 5% 미만이면 변경 UI 못 찾는 케이스"}
+        />
+        {/* 6. 인증 에러 분류 */}
+        <ConvCard
+          label="인증 에러 합계"
+          value={totalAuthFailCount.toString() + "건"}
+          sub={`anon ${anonFailCount} · link ${linkFailCount} · merge ${mergeFailCount}`}
+          accent={totalAuthFailCount === 0 ? C.gray : totalAuthFailCount < 5 ? "#C4687A" : "#f07070"}
+          tooltip="인증 실패 이벤트 합계 — anonymous_signin_failed, identity_link_failed, account_merged(failed). 1자리수면 산발적 네트워크 이슈. 두 자리수면 systemic 버그 의심"
         />
       </div>
 
