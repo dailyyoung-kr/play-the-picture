@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Menu } from "lucide-react";
+import { MoreHorizontal, User } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { getDeviceId } from "@/lib/supabase";
 import { LoginGate } from "@/components/auth/LoginGate";
@@ -103,7 +103,7 @@ export function HamburgerMenu() {
       >
         <button
           onClick={() => setIsOpen(!isOpen)}
-          aria-label="메뉴"
+          aria-label={isLoggedIn ? "내 계정" : "메뉴"}
           style={{
             width: 40,
             height: 40,
@@ -117,7 +117,11 @@ export function HamburgerMenu() {
             cursor: "pointer",
           }}
         >
-          <Menu size={20} strokeWidth={1.8} />
+          {isLoggedIn ? (
+            <User size={18} strokeWidth={1.8} />
+          ) : (
+            <MoreHorizontal size={20} strokeWidth={1.8} />
+          )}
         </button>
 
         {isOpen && (
