@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { getDeviceId } from "@/lib/supabase";
 import { logAuthEvent } from "@/lib/auth/log";
@@ -15,6 +15,8 @@ interface Props {
 }
 
 export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_upload" }: Props) {
+  const [guestLoading, setGuestLoading] = useState(false);
+
   useEffect(() => {
     if (isOpen) {
       logAuthEvent("gate_shown", { source });
@@ -24,7 +26,8 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
   if (!isOpen) return null;
 
   const handleGoogleLogin = async () => {
-    await logAuthEvent("google_login_start", { source });
+    // 로깅 fire-and-forget — redirect 지연 X
+    logAuthEvent("google_login_start", { source });
     const deviceId = getDeviceId();
     const supabase = createSupabaseBrowserClient();
     const callbackUrl = `${window.location.origin}/auth/callback?device_id=${encodeURIComponent(deviceId)}`;
@@ -37,34 +40,41 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
     }
   };
 
-  const handleKakaoLogin = async () => {
-    await logAuthEvent("kakao_login_start", { source });
+  const handleKakaoLogin = () => {
+    // 로깅 fire-and-forget — 즉시 redirect
+    logAuthEvent("kakao_login_start", { source });
     const deviceId = getDeviceId();
     // 우리 서버 라우트가 카카오 authorize URL을 만들어 redirect — Supabase 표준 provider 아니라 직접 통합
     window.location.href = `/api/auth/kakao/start?device_id=${encodeURIComponent(deviceId)}&action=signin`;
   };
 
   const handleGuest = async () => {
-    await logAuthEvent("guest_skip", { source });
+    if (guestLoading) return;
+    setGuestLoading(true);
+
+    // 로깅은 fire-and-forget — 결과 대기 X (UX 응답성 우선)
+    logAuthEvent("guest_skip", { source });
+
     const deviceId = getDeviceId();
     const supabase = createSupabaseBrowserClient();
 
-    // 1. Supabase anonymous sign-in → 실제 user 생성 + trigger로 닉네임 자동 부여
+    // 1. Supabase anonymous sign-in (필수 await — anon user 생성)
     const { data, error } = await supabase.auth.signInAnonymously();
 
     if (error) {
       console.error("[LoginGate] anonymous signin 실패:", error.message);
-      await logAuthEvent("anonymous_signin_failed", { source, message: error.message });
-      // Fallback — 모달만 닫음 (옛 device_id 기반 흐름)
+      logAuthEvent("anonymous_signin_failed", { source, message: error.message });
+      setGuestLoading(false);
       onGuestContinue();
       return;
     }
 
     const userId = data.user?.id;
-    await logAuthEvent("anonymous_signin_success", { source }, userId);
-    await logAuthEvent("signup_complete", { method: "anonymous", source }, userId);
+    // 두 로그 모두 fire-and-forget — user_id는 이미 잡혀있음
+    logAuthEvent("anonymous_signin_success", { source }, userId);
+    logAuthEvent("signup_complete", { method: "anonymous", source }, userId);
 
-    // 2. device_id 기반 데이터 마이그레이션 (entries 등 → user_id)
+    // 2. device_id 마이그레이션 (필수 await — /journal 데이터 보존)
     try {
       await fetch("/api/auth/migrate-device", {
         method: "POST",
@@ -73,10 +83,9 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
       });
     } catch (e) {
       console.error("[LoginGate] migrate-device 실패:", e);
-      // 마이그레이션 실패해도 계속 진행 (다음 분석부터 user_id로 기록됨)
     }
 
-    // 3. /?signup=success로 full reload → useEffect 재실행으로 isLoggedIn=true, welcome toast 트리거
+    // 3. /?signup=success로 full reload → welcome toast 트리거
     window.location.href = "/?signup=success";
   };
 
@@ -178,18 +187,19 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
 
         <button
           onClick={handleGuest}
+          disabled={guestLoading}
           style={{
             width: "100%",
             padding: "12px 16px",
             background: "transparent",
             border: "1px solid rgba(255,255,255,0.15)",
             borderRadius: 12,
-            color: "rgba(255,255,255,0.7)",
+            color: guestLoading ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.7)",
             fontSize: 14,
-            cursor: "pointer",
+            cursor: guestLoading ? "wait" : "pointer",
           }}
         >
-          비회원 로그인
+          {guestLoading ? "잠시만 기다려주세요..." : "비회원 로그인"}
         </button>
 
         {/* 약관·정책 동의 안내 (implicit consent — OAuth 간편 로그인 표준 패턴) */}
