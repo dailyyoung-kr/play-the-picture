@@ -15,3 +15,31 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* 픽셀아트 렌더링 — 캐릭터 마스코트(픽터)용 */
+.pixel-art {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* Charlie-style 픽셀 폰트 (Galmuri11) — 랜딩 테마 테스트 */
+@font-face {
+  font-family: 'Galmuri11';
+  src: url('https://cdn.jsdelivr.net/gh/quiple/galmuri@latest/dist/Galmuri11.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/gh/quiple/galmuri@latest/dist/Galmuri11.woff') format('woff');
+  font-display: swap;
+  font-weight: normal;
+  font-style: normal;
+}
+
+.font-pixel {
+  font-family: 'Galmuri11', 'Courier New', 'D2Coding', monospace;
+  letter-spacing: 0;
+}
+
+/* 손글씨 한글 폰트 (Gaegu) — 헤드라인용 (next/font/google로 로드) */
+.font-handwritten {
+  font-family: var(--font-gaegu), 'Gaegu', cursive;
+  letter-spacing: 0;
+}

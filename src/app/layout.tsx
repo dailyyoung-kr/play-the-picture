@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Noto_Sans_KR, DM_Sans } from "next/font/google";
+import { Noto_Sans_KR, DM_Sans, Gaegu } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import { GA_ID } from "@/lib/gtag";
@@ -15,6 +15,12 @@ const dmSans = DM_Sans({
   weight: ["300"],
   subsets: ["latin"],
   variable: "--font-dm-sans",
+});
+
+const gaegu = Gaegu({
+  weight: ["400", "700"],
+  subsets: ["latin"],
+  variable: "--font-gaegu",
 });
 
 export const metadata: Metadata = {
@@ -45,7 +51,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className={`${notoSansKR.variable} ${dmSans.variable} h-full`}>
+    <html lang="ko" className={`${notoSansKR.variable} ${dmSans.variable} ${gaegu.variable} h-full`}>
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
