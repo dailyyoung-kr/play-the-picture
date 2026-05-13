@@ -63,8 +63,8 @@ export function shareToKakao(params: KakaoShareParams): boolean {
     window.Kakao.Share.sendDefault({
       objectType: "feed",
       content: {
-        title: params.vibeType,
-        description: `${params.vibeDescription}\n🎵 ${params.song}`,
+        title: `${params.vibeType}의 오늘의 노래`,
+        description: `🎵 ${params.song}`,
         imageUrl,
         // /api/og 는 1200x630 (1.91:1). Kakao가 자동 크롭하지 않게 명시.
         imageWidth: 1200,
@@ -76,7 +76,7 @@ export function shareToKakao(params: KakaoShareParams): boolean {
       },
       buttons: [
         {
-          title: "나도 분석받기",
+          title: "나도 해보기",
           link: {
             mobileWebUrl: inviteLink,
             webUrl: inviteLink,
