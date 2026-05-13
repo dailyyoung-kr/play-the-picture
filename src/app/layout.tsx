@@ -87,6 +87,15 @@ export default function RootLayout({
             alt=""
           />
         </noscript>
+
+        {/* Kakao JavaScript SDK v2 — Share Rich Card 용 (init은 lib/kakao-share.ts에서 lazy) */}
+        <Script
+          src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.5/kakao.min.js"
+          integrity="sha384-dok87au0gKqJdxs7msEdBPNnKSRT+/mhTVzq+qOhcL/lwYgmau9HJjmscaT00sm6"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
+
         {/* bfcache 또는 back/forward navigation 복원 시 강제 새로고침
             — OAuth 이탈 후 뒤로가기에서 React가 hydrate 안 되는 케이스 대응
             (사진·모달·file input 등 stale state 일괄 해소) */}

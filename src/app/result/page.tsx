@@ -44,6 +44,7 @@ import { getDeviceId } from "@/lib/device";
 import { trackEvent } from "@/lib/gtag";
 import { pixelViewContent, pixelLead } from "@/lib/fpixel";
 import { isAnalyticsEnabled } from "@/lib/analytics";
+import { shareToKakao } from "@/lib/kakao-share";
 
 interface AnalysisResult {
   song: string; // "곡명 - 아티스트명" 형식
@@ -200,6 +201,67 @@ export default function ResultPage() {
       showToast("저장에 실패했어요. 다시 시도해주세요.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  // 카카오톡 Rich Card 공유 — Kakao JS SDK (Feed Default Template)
+  // 친구가 받는 카드: vibeType + description + 추천곡 + "나도 분석받기" CTA 버튼
+  const handleKakaoShare = async () => {
+    if (!result) return;
+    trackEvent("share_kakao_click", { song: result.song });
+    pixelLead();
+    setSharing(true);
+    try {
+      const entryId = await saveEntry();
+      if (!entryId) {
+        showToast("공유 준비에 실패했어요. 다시 시도해주세요.");
+        return;
+      }
+
+      // share_logs 'clicked' 로그 (fire-and-forget)
+      if (isAnalyticsEnabled()) {
+        fetch("/api/log-share", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            entry_id: entryId,
+            device_id: getDeviceId(),
+            status: "clicked",
+          }),
+        }).then(r => r.json()).then(d => {
+          // Kakao 발송은 popup이라 success/cancel을 안정적으로 감지 못 함 → 'completed' 낙관 마킹
+          if (typeof d?.id === "string") {
+            fetch(`/api/log-share/${d.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: "completed" }),
+            }).catch(() => {});
+          }
+        }).catch(() => {});
+      }
+
+      // OG 이미지 background pre-trigger
+      fetch(`/api/og?id=${entryId}`).catch(() => {});
+
+      // Kakao SDK 호출
+      const dashIdx = result.song?.indexOf(" - ") ?? -1;
+      const songStr = result.song ?? "";
+      const ok = shareToKakao({
+        entryId,
+        vibeType: result.vibeType ?? result.vibe_type ?? "플더픽",
+        vibeDescription: result.vibeDescription ?? result.vibe_description ?? "",
+        song: dashIdx >= 0 ? songStr : songStr,
+      });
+
+      if (!ok) {
+        // SDK 미로드·init 실패 → generic share fallback
+        showToast("카카오 공유 준비 중이에요. 다른 방법으로 시도해주세요.");
+      }
+    } catch (e) {
+      console.error("[handleKakaoShare] 실패:", e);
+      showToast("공유에 실패했어요. 다시 시도해주세요.");
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -890,19 +952,20 @@ export default function ResultPage() {
           </button>
         </div>
 
-        {/* Tier 2: 결과 공유하기 (단독, 옅은 분홍 — 측정 가능 viral CTA 강조) */}
+        {/* Tier 2-A: 카톡으로 보내기 — Kakao SDK Rich Card (primary viral CTA) */}
         <button
           className="font-medium"
-          onClick={handleShare}
+          onClick={handleKakaoShare}
           disabled={sharing}
           style={{
             width: "100%",
-            background: "rgba(196,104,122,0.18)",
-            border: "1px solid rgba(196,104,122,0.5)",
+            background: sharing ? "rgba(254,229,0,0.4)" : "#FEE500",
+            border: "none",
             borderRadius: 24,
             padding: 14,
-            color: sharing ? "rgba(255,255,255,0.4)" : "#fff",
-            fontSize: 13,
+            color: sharing ? "rgba(60,30,30,0.5)" : "#3C1E1E",
+            fontSize: 14,
+            fontWeight: 600,
             cursor: sharing ? "default" : "pointer",
             marginBottom: 8,
           }}
@@ -911,9 +974,29 @@ export default function ResultPage() {
             "공유 준비 중..."
           ) : (
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <KakaoTalkIcon size={15} strokeWidth={1.5} /> 결과 공유하기
+              <KakaoTalkIcon size={15} strokeWidth={1.5} /> 카톡으로 보내기
             </span>
           )}
+        </button>
+
+        {/* Tier 2-B: 기타 공유 (DM·iMessage·X 등 — 작게, 보조) */}
+        <button
+          className="font-medium"
+          onClick={handleShare}
+          disabled={sharing}
+          style={{
+            width: "100%",
+            background: "transparent",
+            border: "1px solid rgba(255,255,255,0.15)",
+            borderRadius: 24,
+            padding: 12,
+            color: sharing ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.75)",
+            fontSize: 12,
+            cursor: sharing ? "default" : "pointer",
+            marginBottom: 8,
+          }}
+        >
+          {sharing ? "공유 준비 중..." : "기타 공유 (DM·메시지·링크 복사)"}
         </button>
 
         {/* 지금 바로 듣기 CTA — A안 실험: 저장/공유 아래로 이동 (외부 이탈 전 체류 유도) */}
