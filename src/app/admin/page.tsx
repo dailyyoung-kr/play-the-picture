@@ -568,13 +568,21 @@ export default function AdminPage() {
     new Set(filteredAuth.filter(l => l.event === event).map(l => l.device_id).filter((d): d is string => !!d)).size;
 
   // 1. 게이트 완료율 — gate_shown 본 device 중 어떤 식으로든 가입/스킵으로 통과한 비율
-  // 분자: signup_complete · guest_skip · anonymous_signin_success 중 하나라도 발생한 device
+  // 분자: signup_complete · guest_skip · anonymous_signin_success · *_login_success 중 하나라도 발생한 device
+  // OAuth re-login (signup_complete 안 찍힘)도 게이트 통과로 인정 — kakao/google/apple_login_success 포함
   // 분모: gate_shown 본 device. 게이트 노출 자체는 client flag 의존이라 사진 업로드 대비 비교 불가.
   const gateShownDeviceCount = authEventDevices("gate_shown");
   const gateShownDeviceSet = new Set(
     filteredAuth.filter(l => l.event === "gate_shown").map(l => l.device_id).filter((d): d is string => !!d)
   );
-  const GATE_RESOLUTION_EVENTS = ["signup_complete", "guest_skip", "anonymous_signin_success"];
+  const GATE_RESOLUTION_EVENTS = [
+    "signup_complete",
+    "guest_skip",
+    "anonymous_signin_success",
+    "kakao_login_success",
+    "google_login_success",
+    "apple_login_success",
+  ];
   const gateResolvedDeviceCount = new Set(
     filteredAuth
       .filter(l => GATE_RESOLUTION_EVENTS.includes(l.event))
@@ -586,17 +594,26 @@ export default function AdminPage() {
   // 2. 가입 방식별 — 각 success 이벤트 device 단위
   const googleSignupDevices = authEventDevices("google_login_success");
   const appleSignupDevices = authEventDevices("apple_login_success");
+  const kakaoSignupDevices = authEventDevices("kakao_login_success");
   const anonSignupDevices = authEventDevices("anonymous_signin_success");
-  const totalSignupDevices = googleSignupDevices + appleSignupDevices + anonSignupDevices;
+  const totalSignupDevices =
+    googleSignupDevices + appleSignupDevices + kakaoSignupDevices + anonSignupDevices;
+  // dominantMethod: 최대값 픽 — kakao까지 비교
+  const maxSignup = Math.max(
+    anonSignupDevices,
+    kakaoSignupDevices,
+    googleSignupDevices,
+    appleSignupDevices,
+  );
   const dominantMethod =
     totalSignupDevices === 0 ? null :
-    anonSignupDevices >= googleSignupDevices && anonSignupDevices >= appleSignupDevices ? "비회원" :
-    googleSignupDevices >= appleSignupDevices ? "Google" : "Apple";
+    maxSignup === anonSignupDevices ? "비회원" :
+    maxSignup === kakaoSignupDevices ? "카카오" :
+    maxSignup === googleSignupDevices ? "Google" : "Apple";
   const dominantSharePct =
-    totalSignupDevices === 0 ? null :
-    dominantMethod === "비회원" ? (anonSignupDevices / totalSignupDevices) * 100 :
-    dominantMethod === "Google" ? (googleSignupDevices / totalSignupDevices) * 100 :
-    (appleSignupDevices / totalSignupDevices) * 100;
+    totalSignupDevices === 0 || maxSignup === 0
+      ? null
+      : (maxSignup / totalSignupDevices) * 100;
 
   // 3. linkIdentity 사용률 — anon 가입자 중 Google 업그레이드 시도 비율
   const linkStartDevices = authEventDevices("identity_link_start");
@@ -1498,23 +1515,23 @@ export default function AdminPage() {
           value={gateCompletionRatePct != null ? gateCompletionRatePct.toFixed(1) + "%" : "—"}
           sub={`${gateResolvedDeviceCount}명 통과 / ${gateShownDeviceCount}명 게이트 노출`}
           accent={gateShownDeviceCount >= 10 && gateCompletionRatePct != null ? accentByRate(gateCompletionRatePct.toFixed(1) + "%", 70, 50) : C.gray}
-          tooltip={gateShownDeviceCount < 10 ? "게이트 노출 10명 미만 — 판단 보류" : "게이트 본 device 중 가입/스킵 중 하나로 통과한 비율 (signup_complete · guest_skip · anonymous_signin_success). 낮으면 게이트 디자인이 사용자를 이탈시킴. 게이트 ON/OFF 무관하게 funnel 본질 측정"}
+          tooltip={gateShownDeviceCount < 10 ? "게이트 노출 10명 미만 — 판단 보류" : "게이트 본 device 중 가입/스킵 중 하나로 통과한 비율 (signup_complete · guest_skip · anonymous_signin_success · kakao/google/apple_login_success). 낮으면 게이트 디자인이 사용자를 이탈시킴. 게이트 ON/OFF 무관하게 funnel 본질 측정"}
         />
         {/* 2. 가입 방식별 — 가장 큰 비율 표시 + sub로 분포 */}
         <ConvCard
           label="우세 가입 방식"
           value={dominantMethod ? `${dominantMethod} ${dominantSharePct!.toFixed(0)}%` : "—"}
-          sub={`비회원 ${anonSignupDevices} · Google ${googleSignupDevices} · Apple ${appleSignupDevices}`}
+          sub={`비회원 ${anonSignupDevices} · 카카오 ${kakaoSignupDevices} · Google ${googleSignupDevices} · Apple ${appleSignupDevices}`}
           accent={totalSignupDevices >= 5 ? "#C4687A" : C.gray}
           tooltip={totalSignupDevices < 5 ? "가입 5건 미만 — 판단 보류" : "각 가입 success 이벤트의 device 수. 비회원이 압도적으로 높으면 가입 마찰 큼 (정식 가입 funnel 추가 필요). Google/Apple이 높으면 사용자 신뢰도 ↑"}
         />
-        {/* 3. linkIdentity 사용률 — 모든 provider (Google·Apple·passkey 등) 합산 */}
+        {/* 3. linkIdentity 사용률 — 모든 provider (Kakao·Google·Apple·passkey 등) 합산 */}
         <ConvCard
           label="비회원 → 정식 전환율"
           value={linkRatePct != null ? linkRatePct.toFixed(1) + "%" : "—"}
           sub={`${linkStartDevices}명 시도 / ${anonSignupDevices}명 비회원 가입`}
           accent={anonSignupDevices >= 10 && linkRatePct != null ? accentByRate(linkRatePct.toFixed(1) + "%", 15, 5) : C.gray}
-          tooltip={anonSignupDevices < 10 ? "비회원 가입 10명 미만 — 판단 보류" : "비회원으로 시작한 device 중 정식 계정 연동(Google·Apple·passkey 등) 클릭한 비율. 비회원 → 정식 가입 funnel 효율. 산업 baseline 5-15%, 15% 이상이면 우수"}
+          tooltip={anonSignupDevices < 10 ? "비회원 가입 10명 미만 — 판단 보류" : "비회원으로 시작한 device 중 정식 계정 연동(Kakao·Google·Apple 등) 클릭한 비율. 비회원 → 정식 가입 funnel 효율. 산업 baseline 5-15%, 15% 이상이면 우수"}
         />
         {/* 4. 충돌 발생률 */}
         <ConvCard
