@@ -66,6 +66,9 @@ export function shareToKakao(params: KakaoShareParams): boolean {
         title: params.vibeType,
         description: `${params.vibeDescription}\n🎵 ${params.song}`,
         imageUrl,
+        // /api/og 는 1200x630 (1.91:1). Kakao가 자동 크롭하지 않게 명시.
+        imageWidth: 1200,
+        imageHeight: 630,
         link: {
           mobileWebUrl: sharedLink,
           webUrl: sharedLink,
