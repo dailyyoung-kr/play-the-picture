@@ -88,13 +88,6 @@ export default function RootLayout({
           />
         </noscript>
 
-        {/* Kakao JavaScript SDK v2 — Share Rich Card 용 (init은 lib/kakao-share.ts에서 lazy) */}
-        {/* integrity 생략 — 잘못된 hash 시 브라우저가 스크립트 차단해 window.Kakao undefined됨 */}
-        <Script
-          src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.5/kakao.min.js"
-          crossOrigin="anonymous"
-          strategy="afterInteractive"
-        />
 
         {/* bfcache 또는 back/forward navigation 복원 시 강제 새로고침
             — OAuth 이탈 후 뒤로가기에서 React가 hydrate 안 되는 케이스 대응

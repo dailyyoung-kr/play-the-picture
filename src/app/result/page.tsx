@@ -44,7 +44,6 @@ import { getDeviceId } from "@/lib/device";
 import { trackEvent } from "@/lib/gtag";
 import { pixelViewContent, pixelLead } from "@/lib/fpixel";
 import { isAnalyticsEnabled } from "@/lib/analytics";
-import { shareToKakao } from "@/lib/kakao-share";
 
 interface AnalysisResult {
   song: string; // "곡명 - 아티스트명" 형식
@@ -201,70 +200,6 @@ export default function ResultPage() {
       showToast("저장에 실패했어요. 다시 시도해주세요.");
     } finally {
       setSaving(false);
-    }
-  };
-
-  // 카카오톡 Rich Card 공유 — Kakao JS SDK (Feed Default Template)
-  // 친구가 받는 카드: vibeType + description + 추천곡 + "나도 분석받기" CTA 버튼
-  const handleKakaoShare = async () => {
-    if (!result) return;
-    trackEvent("share_kakao_click", { song: result.song });
-    pixelLead();
-    setSharing(true);
-    try {
-      const entryId = await saveEntry();
-      if (!entryId) {
-        showToast("공유 준비에 실패했어요. 다시 시도해주세요.");
-        return;
-      }
-
-      // share_logs 'clicked' 로그 (fire-and-forget)
-      if (isAnalyticsEnabled()) {
-        fetch("/api/log-share", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            entry_id: entryId,
-            device_id: getDeviceId(),
-            status: "clicked",
-          }),
-        }).then(r => r.json()).then(d => {
-          // Kakao 발송은 popup이라 success/cancel을 안정적으로 감지 못 함 → 'completed' 낙관 마킹
-          if (typeof d?.id === "string") {
-            fetch(`/api/log-share/${d.id}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ status: "completed" }),
-            }).catch(() => {});
-          }
-        }).catch(() => {});
-      }
-
-      // OG 이미지 background pre-trigger
-      fetch(`/api/og?id=${entryId}`).catch(() => {});
-
-      // Kakao SDK 호출
-      const dashIdx = result.song?.indexOf(" - ") ?? -1;
-      const songStr = result.song ?? "";
-      const ok = shareToKakao({
-        entryId,
-        vibeType: result.vibeType ?? result.vibe_type ?? "플더픽",
-        vibeDescription: result.vibeDescription ?? result.vibe_description ?? "",
-        song: dashIdx >= 0 ? songStr : songStr,
-      });
-
-      if (!ok) {
-        // Kakao SDK 미로드·init 실패 → navigator.share 자동 fallback
-        // (사용자에게 별도 안내 없이 시스템 공유 시트로 폴백 — 끊김 없는 UX)
-        console.warn("[handleKakaoShare] Kakao SDK 실패 → navigator.share fallback");
-        setSharing(false); // handleShare가 다시 setSharing(true) 호출
-        await handleShare();
-      }
-    } catch (e) {
-      console.error("[handleKakaoShare] 실패:", e);
-      showToast("공유에 실패했어요. 다시 시도해주세요.");
-    } finally {
-      setSharing(false);
     }
   };
 
@@ -955,10 +890,10 @@ export default function ResultPage() {
           </button>
         </div>
 
-        {/* Tier 2: 결과 공유하기 (Kakao SDK Rich Card — 기존 디자인 유지, 로직만 SDK로 교체) */}
+        {/* Tier 2: 결과 공유하기 (단독, 옅은 분홍 — 측정 가능 viral CTA 강조) */}
         <button
           className="font-medium"
-          onClick={handleKakaoShare}
+          onClick={handleShare}
           disabled={sharing}
           style={{
             width: "100%",
