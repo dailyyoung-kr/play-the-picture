@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     // 같은 세션이라 환경 안 바뀜 — 비대칭 의도적.
     const ua = req.headers.get("user-agent")?.slice(0, 500) ?? null;
 
-    const user_id = await getCurrentUserId();
+    const user_id = await getCurrentUserId(req);
 
     const { data, error } = await supabaseAdmin
       .from("share_logs")

@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, already_saved: true });
     }
 
-    const user_id = await getCurrentUserId();
+    const user_id = await getCurrentUserId(req);
 
     const { error } = await supabaseAdmin
       .from("save_logs")

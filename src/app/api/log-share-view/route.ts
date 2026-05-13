@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
     const ua = req.headers.get("user-agent")?.slice(0, 500) ?? null;
 
-    const user_id = await getCurrentUserId();
+    const user_id = await getCurrentUserId(req);
 
     const { error } = await supabaseAdmin
       .from("share_views")

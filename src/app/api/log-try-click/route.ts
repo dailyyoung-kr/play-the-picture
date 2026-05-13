@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "entry_id 필요" }, { status: 400 });
     }
 
-    const user_id = await getCurrentUserId();
+    const user_id = await getCurrentUserId(req);
 
     const { error } = await supabaseAdmin
       .from("try_click")

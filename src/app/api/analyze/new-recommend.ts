@@ -212,7 +212,8 @@ ${songList}
 
 export async function newRecommend(
   body: Record<string, unknown>,
-  photos: string[]
+  photos: string[],
+  req?: Request,
 ): Promise<ReturnType<typeof NextResponse.json>> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -245,7 +246,8 @@ export async function newRecommend(
   const isDiscover = genre === "discover";
   const deviceId = (body.deviceId as string) ?? null;
   // 로그인 user (anon 포함) — 후속 insert에서 user_id로 박힘. 미로그인이면 null.
-  const userId = await getCurrentUserId();
+  // Bearer 헤더 (RN/native) + 쿠키 (web) 둘 다 지원
+  const userId = await getCurrentUserId(req);
   console.log(`[new] genre 변환: "${rawGenre}" → "${genre}"`);
 
   const perfStart = Date.now();

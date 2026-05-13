@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "genre 필요" }, { status: 400 });
     }
 
-    const user_id = await getCurrentUserId();
+    const user_id = await getCurrentUserId(req);
 
     // energy 컬럼 포함 시도
     const { error } = await supabaseAdmin

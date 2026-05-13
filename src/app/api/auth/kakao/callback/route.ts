@@ -122,6 +122,12 @@ export async function GET(request: NextRequest) {
       // 다른 provider(Google 등)로 가입한 동일 이메일 user → conflict
       // merge_from 들고온 경우엔 의도적 merge이므로 그대로 진행
       if (!state.merge_from) {
+        // native 모드: deep link로 conflict 전달 (앱 WebView 세션 자동 종료)
+        if (state.native) {
+          return NextResponse.redirect(
+            `${NATIVE_DEEP_LINK_SCHEME}://auth/callback?auth_error=email_conflict`,
+          );
+        }
         return NextResponse.redirect(`${origin}/?auth_error=email_conflict`);
       }
     }

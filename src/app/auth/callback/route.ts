@@ -43,8 +43,16 @@ export async function GET(request: NextRequest) {
   const NATIVE_DEEP_LINK_SCHEME = "playthepicture";
 
   // OAuth 에러 응답 — 이메일 충돌 vs 기타로 분류
+  // native=1 모드: deep link로 redirect (앱 WebView 세션 자동 종료 + 클라이언트가 error 파싱)
   if (errorCode || errorDescription) {
-    if (isEmailConflict(errorCode, errorDescription)) {
+    const isConflict = isEmailConflict(errorCode, errorDescription);
+    if (native) {
+      const err = isConflict
+        ? "email_conflict"
+        : encodeURIComponent(errorDescription || errorCode || "unknown");
+      return NextResponse.redirect(`${NATIVE_DEEP_LINK_SCHEME}://auth/callback?auth_error=${err}`);
+    }
+    if (isConflict) {
       return NextResponse.redirect(`${origin}/?auth_error=email_conflict`);
     }
     return NextResponse.redirect(

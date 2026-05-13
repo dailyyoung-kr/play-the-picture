@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "song 필요" }, { status: 400 });
     }
 
-    const user_id = await getCurrentUserId();
+    const user_id = await getCurrentUserId(req);
 
     const { data, error } = await supabaseAdmin
       .from("entries")

@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return await newRecommend(body as Record<string, unknown>, photos);
+    return await newRecommend(body as Record<string, unknown>, photos, req);
   } catch (error) {
     const status = (error as { status?: number })?.status;
     const message = error instanceof Error ? error.message : String(error);
