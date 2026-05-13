@@ -254,8 +254,11 @@ export default function ResultPage() {
       });
 
       if (!ok) {
-        // SDK 미로드·init 실패 → generic share fallback
-        showToast("카카오 공유 준비 중이에요. 다른 방법으로 시도해주세요.");
+        // Kakao SDK 미로드·init 실패 → navigator.share 자동 fallback
+        // (사용자에게 별도 안내 없이 시스템 공유 시트로 폴백 — 끊김 없는 UX)
+        console.warn("[handleKakaoShare] Kakao SDK 실패 → navigator.share fallback");
+        setSharing(false); // handleShare가 다시 setSharing(true) 호출
+        await handleShare();
       }
     } catch (e) {
       console.error("[handleKakaoShare] 실패:", e);
@@ -952,20 +955,19 @@ export default function ResultPage() {
           </button>
         </div>
 
-        {/* Tier 2-A: 카톡으로 보내기 — Kakao SDK Rich Card (primary viral CTA) */}
+        {/* Tier 2: 결과 공유하기 (Kakao SDK Rich Card — 기존 디자인 유지, 로직만 SDK로 교체) */}
         <button
           className="font-medium"
           onClick={handleKakaoShare}
           disabled={sharing}
           style={{
             width: "100%",
-            background: sharing ? "rgba(254,229,0,0.4)" : "#FEE500",
-            border: "none",
+            background: "rgba(196,104,122,0.18)",
+            border: "1px solid rgba(196,104,122,0.5)",
             borderRadius: 24,
             padding: 14,
-            color: sharing ? "rgba(60,30,30,0.5)" : "#3C1E1E",
-            fontSize: 14,
-            fontWeight: 600,
+            color: sharing ? "rgba(255,255,255,0.4)" : "#fff",
+            fontSize: 13,
             cursor: sharing ? "default" : "pointer",
             marginBottom: 8,
           }}
@@ -974,29 +976,9 @@ export default function ResultPage() {
             "공유 준비 중..."
           ) : (
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <KakaoTalkIcon size={15} strokeWidth={1.5} /> 카톡으로 보내기
+              <KakaoTalkIcon size={15} strokeWidth={1.5} /> 결과 공유하기
             </span>
           )}
-        </button>
-
-        {/* Tier 2-B: 기타 공유 (DM·iMessage·X 등 — 작게, 보조) */}
-        <button
-          className="font-medium"
-          onClick={handleShare}
-          disabled={sharing}
-          style={{
-            width: "100%",
-            background: "transparent",
-            border: "1px solid rgba(255,255,255,0.15)",
-            borderRadius: 24,
-            padding: 12,
-            color: sharing ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.75)",
-            fontSize: 12,
-            cursor: sharing ? "default" : "pointer",
-            marginBottom: 8,
-          }}
-        >
-          {sharing ? "공유 준비 중..." : "기타 공유 (DM·메시지·링크 복사)"}
         </button>
 
         {/* 지금 바로 듣기 CTA — A안 실험: 저장/공유 아래로 이동 (외부 이탈 전 체류 유도) */}

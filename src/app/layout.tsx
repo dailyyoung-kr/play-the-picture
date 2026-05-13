@@ -89,9 +89,9 @@ export default function RootLayout({
         </noscript>
 
         {/* Kakao JavaScript SDK v2 — Share Rich Card 용 (init은 lib/kakao-share.ts에서 lazy) */}
+        {/* integrity 생략 — 잘못된 hash 시 브라우저가 스크립트 차단해 window.Kakao undefined됨 */}
         <Script
           src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.5/kakao.min.js"
-          integrity="sha384-dok87au0gKqJdxs7msEdBPNnKSRT+/mhTVzq+qOhcL/lwYgmau9HJjmscaT00sm6"
           crossOrigin="anonymous"
           strategy="afterInteractive"
         />

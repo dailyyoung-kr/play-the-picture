@@ -18,18 +18,21 @@ function getJsKey(): string | null {
 export function initKakaoShare(): boolean {
   if (typeof window === "undefined") return false;
   if (!window.Kakao) {
-    console.warn("[kakao-share] SDK not loaded yet");
+    console.warn("[kakao-share] window.Kakao 없음 — SDK 스크립트 로드 실패 가능");
     return false;
   }
   if (initialized && window.Kakao.isInitialized()) return true;
   const key = getJsKey();
   if (!key) {
-    console.warn("[kakao-share] NEXT_PUBLIC_KAKAO_JS_KEY 미설정");
+    console.warn(
+      "[kakao-share] NEXT_PUBLIC_KAKAO_JS_KEY 미설정 — Vercel 환경변수 확인 (Production·Preview)",
+    );
     return false;
   }
   try {
     if (!window.Kakao.isInitialized()) {
       window.Kakao.init(key);
+      console.log("[kakao-share] init 완료, isInit=", window.Kakao.isInitialized());
     }
     initialized = true;
     return true;
