@@ -5,6 +5,14 @@
 
 ---
 
+## ℹ️ 정정 참조 (2026-05-09 추가)
+
+> 본 핸드오프는 RN 앱 작업 중심이라 직접 정정 사항 없음.
+> 단, 5/8 viral funnel 수치(별도 conversation에서 보고된 "share 5명·try_click 2"건 등)는 INTERNAL 미제거 상태였음 — 정정값은 [SESSION_HANDOFF_2026-05-09.md](./SESSION_HANDOFF_2026-05-09.md) §7 참조.
+> 5/8 외부 share completed = 3 device·외부 try_click = 0·외부 save_arch = 9 device.
+
+---
+
 ## 1. 한 줄 요약
 
 **Phase A2/A3/A4 (viral wedge — 미리듣기·entries INSERT·share URL) 완성** + **Phase A1 (음악앱 듣기 CTA + ListenSheet)·A5 (3단계 로딩)·A7 일부 (에러 분기) 완료**. RN 앱이 web 핵심 흐름 1:1 매칭. 남은 A6 (journal)만 미구현.

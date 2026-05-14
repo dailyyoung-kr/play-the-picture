@@ -5,6 +5,30 @@
 
 ---
 
+## ⚠️ 정정 박제 (2026-05-09 추가)
+
+> **이 핸드오프의 viral 수치 다수가 INTERNAL_DEVICE_IDS 미제거 상태로 박제됨이 5/9에 발견됨.**
+> 정정 source of truth: [SESSION_HANDOFF_2026-05-09.md](./SESSION_HANDOFF_2026-05-09.md)
+>
+> **무효 또는 재검토 대상 섹션**:
+> - **§3-3** (5/4 47% peak / 5/5-6 6-7%) → **무효**: 5/4 share completed 20건 100% internal, 5/5도 100% internal. 외부 5/4=0%, 5/5=0%, 5/6=2명만 외부
+> - **§5** (5/4 viral 광고 효율) → 같은 base, **무효**
+> - **§9-3** (New vs Returning 활동 강도) → 외부 only 재계산 필요
+> - **§10** ("Returning 11%가 share completed 50%") → base 14건 = 외부 6 + internal 30, **가설 base 자체 무효**
+> - **§11-2~5** (Satisfaction Score 80+ user 41명) → share success modifier 재계산 시 절대 인원 축소 (가설 방향성은 유효)
+>
+> **valid 그대로 유지**:
+> - §1·§2 (`android_instagram_inapp` 디버깅) — 데이터 무관
+> - §6 (14일 광고 fatigue) — 광고매니저 CSV 데이터, internal 영향 없음
+> - §7 (iOS vs Android funnel) — 외부 device 매핑 기반
+> - §9-1 (D7 retention 5.7%) — analyze_logs internal 1.8%만, 영향 미미
+>
+> **진짜 baseline (4/15~5/9 외부 only)**: 외부 share completed 6 device / 957 분석 device = **공유율 0.63%** (이 핸드오프 박제 6.3%의 1/10).
+>
+> 향후 viral funnel 분석은 **반드시 INTERNAL exclude 적용 후 인용**할 것.
+
+---
+
 ## 1. 한 줄 요약
 
 **`android_instagram_inapp` 0건 = 데이터 한계 + 트래픽 부재 (버그 X). 14일 광고 추세 = 25-34 fatigue cycle 진행 중 (CTR 3.36→1.32, -61%), 18-24 안정. iOS Story save 67% vs Android 15% = iOS 앱 결정 데이터 강화. 전체 기간 retention 분석 — D7 평균 5.7% 정상 카테고리, returning device-day 11%가 share completed 50% 만듦 = retention 강화 = 광고와 동등 viral ROI. Satisfaction Score Framework 시뮬레이션 — 전체 avg 39.8점, **unknown new 290명(74%)이 분석만 보고 떠나는 게 압도적 1순위 lever** (잠재 +14.9점).**

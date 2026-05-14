@@ -6,6 +6,21 @@
 
 ---
 
+## ⚠️ 정정 박제 (2026-05-09 추가)
+
+> **§3-2 5월 KPI 합의의 "공유율 6.3% baseline" 수치는 INTERNAL_DEVICE_IDS 미제거 상태로 계산된 것임이 5/9에 발견됨.**
+> 정정 source of truth: [SESSION_HANDOFF_2026-05-09.md](./SESSION_HANDOFF_2026-05-09.md)
+>
+> **진짜 baseline (외부 only, 4/15~5/9 누적)**: 분석 success device 957 중 외부 share completed device 6 = **공유율 0.63%** (박제값의 1/10).
+>
+> **5월 KPI 재합의 권고**: "공유율 12% 목표"는 base 부풀린 상태로 합의된 것. **save_arch 도달률 25% (현재 15.9%)**를 새 Primary KPI로 권고. 자세한 권고는 5/9 핸드오프 §11.
+>
+> **valid 그대로 유지**:
+> - §3-3 광고 운영 합의 (LPV·CAC 등 광고매니저 수치) — internal 영향 없음
+> - §4 추천 시스템 동적 한도 K=max(30,min(50,P×0.5)) — 데이터 무관
+
+---
+
 ## 1. 오늘 한 줄 요약
 
 **4월 회고 + 5월 KPI 합의(공유율 12% / CAC ₩300) + 추천 시스템 동적 한도 K=max(30,min(50,P×0.5)) production 배포**
