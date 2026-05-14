@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseWithDeviceId, Entry } from "@/lib/supabase";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
-import { Archive, Music } from "lucide-react";
+import { Archive, Music, ChevronDown } from "lucide-react";
 import { getDeviceId } from "@/lib/device";
 import { HamburgerMenu } from "@/components/header/HamburgerMenu";
 import { PreviewPlayer } from "@/components/PreviewPlayer";
@@ -34,6 +34,19 @@ function formatTime(isoString: string) {
   return `${ampm} ${hour}:${m}`;
 }
 
+// 캘린더 날짜용 — 기록 있는 날 표시 (작은 라벤더 8분음표)
+function EntryNote() {
+  return (
+    <svg width="14" height="16" viewBox="0 0 24 24" style={{ display: "block" }}>
+      <g fill="#5D4F8C">
+        <ellipse cx="7.5" cy="17.5" rx="4" ry="3.1" transform="rotate(-18 7.5 17.5)" />
+        <rect x="10.5" y="4" width="2" height="13.5" />
+        <path d="M12.5 4 Q 17.2 5.6 16.6 10.2 Q 15.2 7 12.5 6 Z" />
+      </g>
+    </svg>
+  );
+}
+
 export default function JournalPage() {
   const router = useRouter();
   const [today] = useState(new Date());
@@ -55,11 +68,9 @@ export default function JournalPage() {
     youtubeFallback: string;
   } | null>(null);
   const [loadingLinks, setLoadingLinks] = useState(false);
-  const [carouselIndices, setCarouselIndices] = useState<Record<string, number>>({});
   const [calendarView, setCalendarView] = useState<"week" | "month">("week");
   const [weekStartDate, setWeekStartDate] = useState(() => getMondayOf(new Date()));
   const [modalIndex, setModalIndex] = useState<number | null>(null);
-  const carouselRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const calendarTouchStartX = useRef(0);
 
   const showToast = (msg: string) => {
@@ -79,21 +90,14 @@ export default function JournalPage() {
       .finally(() => setLoadingLinks(false));
   };
 
-  const handleCarouselScroll = (entryId: string) => {
-    const el = carouselRefs.current[entryId];
-    if (!el) return;
-    const index = Math.round(el.scrollLeft / el.offsetWidth);
-    setCarouselIndices(prev => ({ ...prev, [entryId]: index }));
-  };
-
   const prevWeek = () => setWeekStartDate(prev => { const d = new Date(prev); d.setDate(d.getDate() - 7); return d; });
   const nextWeek = () => setWeekStartDate(prev => { const d = new Date(prev); d.setDate(d.getDate() + 7); return d; });
 
   const handleCalendarSwipeStart = (e: React.TouchEvent) => { calendarTouchStartX.current = e.touches[0].clientX; };
   const handleCalendarSwipeEnd = (e: React.TouchEvent) => {
     const diff = calendarTouchStartX.current - e.changedTouches[0].clientX;
-    if (diff > 50) nextWeek();
-    else if (diff < -50) prevWeek();
+    if (diff > 50) { if (calendarView === "week") nextWeek(); else nextMonth(); }
+    else if (diff < -50) { if (calendarView === "week") prevWeek(); else prevMonth(); }
   };
 
   const handleViewToggle = () => {
@@ -233,38 +237,45 @@ export default function JournalPage() {
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{ background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)", position: "relative" }}
+      style={{ background: "linear-gradient(180deg, #c5beda 0%, #b3acd2 45%, #c8c0e0 100%)", position: "relative" }}
     >
       <HamburgerMenu />
 
-      {/* 상단 */}
-      <div className="text-center pt-12 pb-1" style={{ fontSize: 15, letterSpacing: "0.2em", color: "#C4687A", fontFamily: "var(--font-dm-sans)", fontWeight: 300 }}>
-        Play the Picture
+      {/* 상단 앱 로고 */}
+      <div className="flex justify-center" style={{ paddingTop: 48, paddingBottom: 6 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/branding/play-the-picture-logo-one-line.png"
+          alt="Play the Picture"
+          style={{ height: 36, width: "auto" }}
+        />
       </div>
 
-      {/* 네비게이션 + 뷰 토글 */}
-      <div className="flex items-center justify-between px-5 py-3">
-        {calendarView === "week" ? (
-          <button onClick={prevWeek} style={{ fontSize: 20, color: "rgba(255,255,255,0.55)", background: "none", border: "none", cursor: "pointer" }}>←</button>
-        ) : (
-          <button onClick={prevMonth} style={{ fontSize: 20, color: "rgba(255,255,255,0.55)", background: "none", border: "none", cursor: "pointer" }}>←</button>
-        )}
-        <div className="flex flex-col items-center gap-1">
-          <span className="font-semibold" style={{ fontSize: 15, color: "#fff" }}>
-            {calendarView === "week" ? weekLabel : `${currentYear}년 ${currentMonth + 1}월`}
-          </span>
-          <button
-            onClick={handleViewToggle}
-            style={{ fontSize: 10, color: "rgba(255,255,255,0.40)", background: "rgba(255,255,255,0.07)", border: "none", borderRadius: 10, padding: "2px 8px", cursor: "pointer" }}
-          >
-            {calendarView === "week" ? "월간 보기" : "주간 보기"}
-          </button>
-        </div>
-        {calendarView === "week" ? (
-          <button onClick={nextWeek} style={{ fontSize: 20, color: "rgba(255,255,255,0.55)", background: "none", border: "none", cursor: "pointer" }}>→</button>
-        ) : (
-          <button onClick={nextMonth} style={{ fontSize: 20, color: "rgba(255,255,255,0.55)", background: "none", border: "none", cursor: "pointer" }}>→</button>
-        )}
+      {/* 주차/월 라벨 + 펼치기 토글 — 좌우 스와이프로 주차·월 이동 */}
+      <div
+        className="flex items-center justify-center px-5 py-3"
+        style={{ gap: 6 }}
+        onTouchStart={handleCalendarSwipeStart}
+        onTouchEnd={handleCalendarSwipeEnd}
+      >
+        <span className="font-semibold" style={{ fontSize: 15, color: "#2e2547" }}>
+          {calendarView === "week" ? weekLabel : `${currentYear}년 ${currentMonth + 1}월`}
+        </span>
+        <button
+          onClick={handleViewToggle}
+          aria-label={calendarView === "week" ? "월간 보기" : "주간 보기"}
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "rgba(93,79,140,0.1)", border: "none", borderRadius: 8,
+            width: 24, height: 24, cursor: "pointer", color: "#5D4F8C", flexShrink: 0,
+          }}
+        >
+          <ChevronDown
+            size={16}
+            strokeWidth={2}
+            style={{ transform: calendarView === "month" ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}
+          />
+        </button>
       </div>
 
       {calendarView === "week" ? (
@@ -291,38 +302,36 @@ export default function JournalPage() {
                 style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, background: "none", border: "none", cursor: "pointer", padding: "4px 0" }}
               >
                 {/* 요일 */}
-                <span style={{ fontSize: 10, color: isSunday ? "rgba(255,100,100,0.65)" : isSaturday ? "rgba(100,160,255,0.65)" : "rgba(255,255,255,0.35)" }}>
+                <span style={{ fontSize: 10, color: isSunday ? "#cf5a6e" : isSaturday ? "#5a7fc0" : "rgba(46,37,71,0.45)" }}>
                   {WEEK_DAYS[i]}
                 </span>
+                {/* 기록 있는 날 — 작은 라벤더 8분음표 (없으면 정렬용 placeholder) */}
+                {entryCount >= 1 ? (
+                  <EntryNote />
+                ) : (
+                  <span style={{ height: 16 }} />
+                )}
                 {/* 원형 날짜 */}
                 <div style={{
                   width: 34, height: 34, borderRadius: "50%",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  background: isSelected ? "#C4687A" : hasEntry ? "rgba(196,104,122,0.25)" : "transparent",
+                  background: isSelected ? "#5D4F8C" : hasEntry ? "rgba(93,79,140,0.18)" : "transparent",
                   border: isSelected ? "none"
-                    : isToday ? "1.5px solid rgba(255,255,255,0.65)"
-                    : hasEntry ? "1.5px solid rgba(196,104,122,0.7)"
-                    : "1px solid rgba(255,255,255,0.15)",
+                    : isToday ? "1.5px solid rgba(93,79,140,0.55)"
+                    : hasEntry ? "1.5px solid rgba(93,79,140,0.45)"
+                    : "1px solid rgba(93,79,140,0.2)",
                 }}>
                   <span style={{
                     fontSize: 14, fontWeight: hasEntry || isSelected ? 600 : 400,
                     color: isSelected ? "#fff"
-                      : hasEntry ? "#fff"
-                      : isSunday ? "rgba(255,100,100,0.65)"
-                      : isSaturday ? "rgba(100,160,255,0.65)"
-                      : "rgba(255,255,255,0.35)",
+                      : hasEntry ? "#2e2547"
+                      : isSunday ? "#cf5a6e"
+                      : isSaturday ? "#5a7fc0"
+                      : "rgba(46,37,71,0.5)",
                   }}>
                     {date.getDate()}
                   </span>
                 </div>
-                {/* 기록 개수 — 2개 이상일 때만 */}
-                {entryCount >= 2 ? (
-                  <span style={{ fontSize: 9, color: "rgba(196,104,122,0.9)", lineHeight: 1 }}>
-                    {entryCount}
-                  </span>
-                ) : (
-                  <span style={{ fontSize: 9, opacity: 0 }}>0</span>
-                )}
               </button>
             );
           })}
@@ -335,7 +344,7 @@ export default function JournalPage() {
             {DAYS.map((d, i) => (
               <div key={d} className="text-center" style={{
                 fontSize: 10,
-                color: i === 0 ? "rgba(255,100,100,0.65)" : i === 6 ? "rgba(100,160,255,0.65)" : "rgba(255,255,255,0.28)",
+                color: i === 0 ? "#cf5a6e" : i === 6 ? "#5a7fc0" : "rgba(46,37,71,0.4)",
                 padding: "3px 0",
               }}>
                 {d}
@@ -343,8 +352,13 @@ export default function JournalPage() {
             ))}
           </div>
 
-          {/* 날짜 그리드 */}
-          <div className="px-4 mb-3" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+          {/* 날짜 그리드 — 좌우 스와이프로 월 이동 */}
+          <div
+            className="px-4 mb-3"
+            style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}
+            onTouchStart={handleCalendarSwipeStart}
+            onTouchEnd={handleCalendarSwipeEnd}
+          >
             {calendarCells.map((day, i) => {
               if (!day) return <div key={`empty-${i}`} />;
               const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -376,26 +390,26 @@ export default function JournalPage() {
                   <div style={{
                     width: 28, height: 28, borderRadius: "50%",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    background: isSelected ? "#C4687A" : hasEntry ? "rgba(196,104,122,0.22)" : "transparent",
+                    background: isSelected ? "#5D4F8C" : hasEntry ? "rgba(93,79,140,0.18)" : "transparent",
                     border: isSelected ? "none"
-                      : isToday ? "1.5px solid rgba(255,255,255,0.60)"
-                      : hasEntry ? "1.5px solid rgba(196,104,122,0.6)"
-                      : "1.5px solid rgba(255,255,255,0.08)",
+                      : isToday ? "1.5px solid rgba(93,79,140,0.5)"
+                      : hasEntry ? "1.5px solid rgba(93,79,140,0.4)"
+                      : "1.5px solid rgba(93,79,140,0.12)",
                   }}>
                     <span style={{
                       fontSize: 12, fontWeight: hasEntry || isSelected ? 600 : 400,
                       color: isSelected ? "#fff"
-                        : hasEntry ? "#fff"
-                        : isSunday ? "rgba(255,100,100,0.65)"
-                        : isSaturday ? "rgba(100,160,255,0.65)"
-                        : "rgba(255,255,255,0.45)",
+                        : hasEntry ? "#2e2547"
+                        : isSunday ? "#cf5a6e"
+                        : isSaturday ? "#5a7fc0"
+                        : "rgba(46,37,71,0.5)",
                     }}>
                       {day}
                     </span>
                   </div>
                   {/* 기록 개수 — 2개 이상일 때만 */}
                   {entryCount >= 2 && (
-                    <span style={{ fontSize: 8, color: "rgba(196,104,122,0.9)", lineHeight: 1 }}>
+                    <span style={{ fontSize: 8, color: "#5D4F8C", lineHeight: 1 }}>
                       {entryCount}
                     </span>
                   )}
@@ -407,146 +421,88 @@ export default function JournalPage() {
       )}
 
       {/* 구분선 */}
-      <div style={{ height: "0.5px", background: "rgba(255,255,255,0.08)", margin: "0 0 16px" }} />
+      <div style={{ height: "0.5px", background: "rgba(46,37,71,0.12)", margin: "0 0 16px" }} />
 
       {/* 선택된 날짜 기록 목록 */}
       <div className="flex-1 px-5 overflow-y-auto" style={{ paddingTop: 16 }}>
         {selectedDate && (
           <>
             <div className="flex items-center gap-2 mb-3">
-              <span className="font-semibold" style={{ fontSize: 14, color: "#fff" }}>
+              <span className="font-semibold" style={{ fontSize: 14, color: "#2e2547" }}>
                 {selectedDateLabel}
               </span>
               {selectedEntries.length > 0 && (
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.40)" }}>
+                <span style={{ fontSize: 12, color: "rgba(46,37,71,0.5)" }}>
                   기록 {selectedEntries.length}개
                 </span>
               )}
             </div>
 
             {selectedEntries.length === 0 && (
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.28)", textAlign: "center", marginTop: 24, marginBottom: 8 }}>
+              <p style={{ fontSize: 13, color: "rgba(46,37,71,0.4)", textAlign: "center", marginTop: 24, marginBottom: 8 }}>
                 이 날의 기록이 없어요
               </p>
             )}
             {selectedEntries.length > 0 && (
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: selectedEntries.length === 1 ? "1fr" : "1fr 1fr",
-                gap: 12,
-              }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {selectedEntries.map((entry) => {
-                  const isGrid = selectedEntries.length > 1;
                   const photos = entry.photos ?? [];
-                  const hasCarousel = photos.length >= 2;
-                  const currentIdx = carouselIndices[entry.id] ?? 0;
                   return (
                     <div
                       key={entry.id}
+                      onClick={() => setSelectedEntry(entry)}
                       style={{
-                        background: "rgba(255,255,255,0.06)",
-                        border: "1px solid rgba(255,255,255,0.10)",
-                        borderRadius: 14,
-                        overflow: "hidden",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 14,
+                        background: "rgba(255,255,255,0.55)",
+                        border: "1px solid rgba(93,79,140,0.18)",
+                        borderRadius: 16,
+                        padding: 12,
+                        cursor: "pointer",
                         userSelect: "none",
                         WebkitUserSelect: "none",
-                        position: "relative",
                       }}
                     >
-                      {/* 사진 영역 — 캐러셀 or 단일. 탭 시 정보 영역과 동일하게 상세 모달 열기 */}
-                      <div
-                        style={{ position: "relative", cursor: "pointer" }}
-                        onClick={() => setSelectedEntry(entry)}
-                      >
-                        {hasCarousel ? (
-                          /* ── 캐러셀 ── */
-                          <div
-                            ref={(el) => { carouselRefs.current[entry.id] = el; }}
-                            onScroll={() => handleCarouselScroll(entry.id)}
-                            className="no-scrollbar"
-                            style={{
-                              display: "flex",
-                              overflowX: "auto",
-                              scrollSnapType: "x mandatory",
-                              scrollBehavior: "smooth",
-                              WebkitOverflowScrolling: "touch",
-                            } as React.CSSProperties}
-                          >
-                            {photos.map((src, i) => (
-                              <div
-                                key={i}
-                                style={{
-                                  width: "100%",
-                                  flexShrink: 0,
-                                  scrollSnapAlign: "start",
-                                  aspectRatio: "1/1",
-                                  overflow: "hidden",
-                                  background: "rgba(255,255,255,0.05)",
-                                }}
-                              >
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  src={src}
-                                  alt=""
-                                  loading="lazy"
-                                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                                />
-                              </div>
-                            ))}
-                          </div>
+                      {/* 사진 썸네일 — 대표 1장 + 장수 뱃지 */}
+                      <div style={{ position: "relative", width: 104, height: 104, borderRadius: 12, overflow: "hidden", flexShrink: 0, background: "rgba(93,79,140,0.08)" }}>
+                        {photos[0] ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={photos[0]} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                         ) : (
-                          /* ── 단일 사진 ── */
-                          <div style={{ aspectRatio: "1/1", overflow: "hidden", background: "rgba(255,255,255,0.05)" }}>
-                            {photos[0] ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={photos[0]} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                            ) : (
-                              <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                <span style={{ fontSize: 28, opacity: 0.25 }}>♪</span>
-                              </div>
-                            )}
+                          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <span style={{ fontSize: 28, opacity: 0.4, color: "#5D4F8C" }}>♪</span>
                           </div>
                         )}
-
-                        {/* 사진 인디케이터 — 1장도 1/1로 통일 표시 */}
-                        {photos.length > 0 && (
+                        {photos.length > 1 && (
                           <div style={{
-                            position: "absolute", top: 8, right: 8,
-                            background: "rgba(0,0,0,0.45)",
-                            borderRadius: 10, padding: "2px 7px",
+                            position: "absolute", top: 6, right: 6,
+                            background: "rgba(46,37,71,0.6)",
+                            borderRadius: 8, padding: "2px 7px",
                             fontSize: 10, color: "#fff", fontWeight: 500,
                             pointerEvents: "none",
                           }}>
-                            {currentIdx + 1}/{photos.length}
+                            {photos.length}장
                           </div>
                         )}
-
                       </div>
 
-                      {/* 정보 영역 — 탭 시 상세 모달 */}
-                      <div
-                        style={{ padding: isGrid ? 10 : 14, cursor: "pointer" }}
-                        onClick={() => setSelectedEntry(entry)}
-                      >
-                        {/* 캐릭터 + 시간 */}
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
-                          <span style={{ fontSize: isGrid ? 10 : 12, color: "rgba(255,255,255,0.45)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, marginRight: 4 }}>
+                      {/* 정보 */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                          <span style={{ fontSize: 12.5, color: "rgba(46,37,71,0.55)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, marginRight: 6 }}>
                             {entry.vibe_type ?? ""}
                           </span>
-                          <span style={{ fontSize: 10, color: "rgba(255,255,255,0.30)", flexShrink: 0 }}>
+                          <span style={{ fontSize: 11, color: "rgba(46,37,71,0.4)", flexShrink: 0 }}>
                             {formatTime(entry.created_at)}
                           </span>
                         </div>
-
-                        {/* 곡명·아티스트 — 카드 클릭 시 모달에서 미리듣기·외부 듣기 */}
-                        <div style={{ minWidth: 0 }}>
-                          <p style={{ fontWeight: 700, fontSize: isGrid ? 13 : 16, color: "#fff", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {entry.song}
-                          </p>
-                          <p style={{ fontSize: isGrid ? 11 : 13, color: "rgba(255,255,255,0.55)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {entry.artist}
-                          </p>
-                        </div>
+                        <p style={{ fontWeight: 700, fontSize: 17, color: "#2e2547", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {entry.song}
+                        </p>
+                        <p style={{ fontSize: 13.5, color: "rgba(46,37,71,0.55)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {entry.artist}
+                        </p>
                       </div>
                     </div>
                   );
@@ -560,17 +516,17 @@ export default function JournalPage() {
               style={{
                 width: "100%",
                 marginTop: 10,
-                background: "rgba(255,255,255,0.03)",
-                border: "1px dashed rgba(255,255,255,0.15)",
+                background: "rgba(255,255,255,0.4)",
+                border: "1px dashed rgba(93,79,140,0.35)",
                 borderRadius: 14,
                 padding: 16,
                 textAlign: "center",
                 cursor: "pointer",
-                color: "rgba(255,255,255,0.4)",
+                color: "rgba(46,37,71,0.6)",
                 fontSize: 14,
               }}
             >
-              오늘의 다른 순간도 담아보기 →
+              새로운 노래 찾으러 가기 →
             </button>
           </>
         )}
@@ -623,12 +579,12 @@ export default function JournalPage() {
       )}
 
       {/* 하단 네비게이션 */}
-      <div style={{ background: "rgba(0,0,0,0.45)", borderTop: "0.5px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-around", padding: "12px 0 28px", flexShrink: 0 }}>
-        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "#fff", cursor: "pointer" }} onClick={() => router.push("/journal")}>
+      <div style={{ background: "rgba(255,255,255,0.7)", borderTop: "0.5px solid rgba(46,37,71,0.12)", display: "flex", justifyContent: "space-around", padding: "12px 0 28px", flexShrink: 0 }}>
+        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "#2e2547", cursor: "pointer" }} onClick={() => router.push("/journal")}>
           <Archive size={22} strokeWidth={1.5} />
           아카이브
         </div>
-        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", cursor: "pointer" }} onClick={() => router.push("/")}>
+        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(46,37,71,0.55)", cursor: "pointer" }} onClick={() => router.push("/")}>
           <Music size={22} strokeWidth={1.5} />
           노래 추천받기
         </div>
@@ -642,13 +598,13 @@ export default function JournalPage() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ margin: "40px 16px 40px", background: "linear-gradient(158deg, #0d1a10 0%, #1a0d18 100%)", borderRadius: 20, padding: "20px 16px", border: "1px solid rgba(255,255,255,0.1)" }}
+            style={{ margin: "40px 16px 40px", background: "linear-gradient(180deg, #c8c1e2 0%, #c2bade 100%)", borderRadius: 20, padding: "20px 16px", border: "1px solid rgba(93,79,140,0.2)" }}
           >
             <div className="flex justify-between items-center mb-4">
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
+              <span style={{ fontSize: 12, color: "rgba(46,37,71,0.5)" }}>
                 {selectedEntry.date} · {formatTime(selectedEntry.created_at)}
               </span>
-              <button onClick={() => setSelectedEntry(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 18, cursor: "pointer" }}>✕</button>
+              <button onClick={() => setSelectedEntry(null)} style={{ background: "none", border: "none", color: "#5D4F8C", fontSize: 18, cursor: "pointer" }}>✕</button>
             </div>
 
             {/* 섹션 1: 사진 */}
@@ -662,7 +618,7 @@ export default function JournalPage() {
                     <div
                       key={i}
                       onClick={(e) => { e.stopPropagation(); setModalIndex(i); }}
-                      style={{ width: slotSize, height: slotSize, borderRadius: 14, overflow: "hidden", border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0, cursor: "pointer" }}
+                      style={{ width: slotSize, height: slotSize, borderRadius: 14, overflow: "hidden", border: "1px solid rgba(93,79,140,0.18)", flexShrink: 0, cursor: "pointer" }}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
@@ -676,15 +632,16 @@ export default function JournalPage() {
             {selectedEntry.vibe_type && (
               <div style={{
                 width: "100%", marginBottom: 10,
-                background: "rgba(255,255,255,0.05)", borderRadius: 14, padding: "12px 14px",
+                background: "rgba(255,255,255,0.55)", border: "1px solid rgba(93,79,140,0.18)",
+                borderRadius: 14, padding: "12px 14px",
                 textAlign: "center",
               }}>
-                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", marginBottom: 5 }}>오늘의 당신은</p>
-                <p className="font-medium" style={{ fontSize: 16, color: "#fff", marginBottom: 5, lineHeight: 1.35 }}>
+                <p style={{ fontSize: 10, color: "rgba(46,37,71,0.55)", marginBottom: 5 }}>오늘의 당신은</p>
+                <p className="font-medium" style={{ fontSize: 16, color: "#2e2547", marginBottom: 5, lineHeight: 1.35 }}>
                   {selectedEntry.vibe_type}
                 </p>
                 {selectedEntry.vibe_description && (
-                  <p style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>
+                  <p style={{ fontSize: 11, color: "rgba(46,37,71,0.6)", lineHeight: 1.5 }}>
                     {selectedEntry.vibe_description}
                   </p>
                 )}
@@ -693,15 +650,15 @@ export default function JournalPage() {
 
             {/* 섹션 4: 곡 정보 */}
             <div style={{ marginBottom: 10, textAlign: "center" }}>
-              <h2 className="font-semibold" style={{ fontSize: 22, color: "#fff", letterSpacing: "-0.5px", marginBottom: 4 }}>
+              <h2 className="font-semibold" style={{ fontSize: 22, color: "#2e2547", letterSpacing: "-0.5px", marginBottom: 4 }}>
                 {selectedEntry.song}
               </h2>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.48)", marginBottom: 8 }}>
+              <p style={{ fontSize: 13, color: "rgba(46,37,71,0.55)", marginBottom: 8 }}>
                 {selectedEntry.artist}
               </p>
               <div className="flex gap-2 justify-center flex-wrap">
                 {selectedEntry.tags?.map((tag) => (
-                  <span key={tag} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 20, border: "1px solid rgba(255,255,255,0.22)", color: "rgba(255,255,255,0.78)" }}>
+                  <span key={tag} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 20, border: "1px solid rgba(93,79,140,0.3)", color: "rgba(46,37,71,0.7)" }}>
                     #{tag.replace(/^#+/, "")}
                   </span>
                 ))}
@@ -716,20 +673,20 @@ export default function JournalPage() {
             />
 
             {/* 섹션 5: 플더픽이 추천한 이유 */}
-            <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "12px 16px", marginBottom: 16 }}>
-              <p className="font-medium" style={{ fontSize: 10, color: "#f0d080", letterSpacing: "0.05em", marginBottom: 6 }}>
+            <div style={{ background: "rgba(255,255,255,0.55)", border: "1px solid rgba(93,79,140,0.18)", borderRadius: 12, padding: "12px 16px", marginBottom: 16 }}>
+              <p className="font-medium" style={{ fontSize: 10, color: "#5D4F8C", letterSpacing: "0.05em", marginBottom: 6 }}>
                 플더픽이 추천한 이유
               </p>
-              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.8 }}>{selectedEntry.reason}</p>
+              <p style={{ fontSize: 12, color: "rgba(46,37,71,0.7)", lineHeight: 1.8 }}>{selectedEntry.reason}</p>
             </div>
 
             {/* 음악앱에서 듣기 — result 페이지와 라벨 통일 */}
             <button
               onClick={() => handleListenClick(selectedEntry)}
               style={{
-                width: "100%", background: "#fff", border: "none",
+                width: "100%", background: "#5D4F8C", border: "none",
                 borderRadius: 24, padding: 14,
-                color: "#0d1218", fontSize: 14, fontWeight: 600,
+                color: "#fff", fontSize: 14, fontWeight: 600,
                 cursor: "pointer",
               }}
             >
@@ -741,7 +698,7 @@ export default function JournalPage() {
               onClick={() => setDeleteTarget(selectedEntry)}
               style={{
                 textAlign: "center", fontSize: 12,
-                color: "rgba(255,255,255,0.35)",
+                color: "rgba(46,37,71,0.45)",
                 marginTop: 12, cursor: "pointer",
               }}
             >

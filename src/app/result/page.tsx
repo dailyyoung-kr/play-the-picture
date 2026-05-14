@@ -192,7 +192,7 @@ export default function ResultPage() {
 
       setIsSaved(true);
       showToast(
-        <span>아카이브에 보관됐어요 · <span style={{ color: "#C4687A" }}>모아보기 →</span></span>,
+        <span>아카이브에 보관됐어요 · <span style={{ color: "#5D4F8C", fontWeight: 600 }}>모아보기 →</span></span>,
         () => router.push("/journal")
       );
     } catch (e) {
@@ -669,11 +669,11 @@ export default function ResultPage() {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)" }}
+        style={{ background: "linear-gradient(180deg, #c5beda 0%, #b3acd2 45%, #c8c0e0 100%)" }}
       >
         <div className="text-center">
           <div style={{ fontSize: 32, marginBottom: 16 }}>✦</div>
-          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14 }}>결과를 불러오는 중...</p>
+          <p style={{ color: "rgba(46,37,71,0.6)", fontSize: 14 }}>결과를 불러오는 중...</p>
         </div>
       </div>
     );
@@ -702,7 +702,7 @@ export default function ResultPage() {
               pointerEvents: "none",
             }}
           />
-          {/* 레이어 2: 전체 앨범아트 표시 */}
+          {/* 레이어 2: cover + 중블러 — RN 버전과 동일하게 형태감 부드럽게 */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={result.albumArt}
@@ -711,9 +711,9 @@ export default function ResultPage() {
             style={{
               position: "absolute", inset: 0,
               width: "100%", height: "100%",
-              objectFit: "contain",
-              objectPosition: "center 25%",
-              filter: "blur(6px) brightness(0.9)",
+              objectFit: "cover",
+              objectPosition: "center",
+              filter: "blur(12px) brightness(0.9)",
               pointerEvents: "none",
             }}
           />
@@ -731,14 +731,14 @@ export default function ResultPage() {
     >
       <div>
 
-      {/* 상단 앱 이름 + 서브 문구 */}
-      <div className="text-center" style={{ paddingTop: 20, paddingBottom: 6 }}>
-        <div style={{ fontSize: 11, letterSpacing: "0.2em", color: "#C4687A", fontFamily: "var(--font-dm-sans)", fontWeight: 300, marginBottom: 4 }}>
-          Play the Picture
-        </div>
-        <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: "0.08em", margin: 0 }}>
-          플더픽의 추천곡
-        </p>
+      {/* 상단 앱 로고 */}
+      <div className="flex justify-center" style={{ paddingTop: 22, paddingBottom: 8 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/branding/play-the-picture-logo-one-line.png"
+          alt="Play the Picture"
+          style={{ height: 40, width: "auto", filter: "invert(1)", opacity: 0.92 }}
+        />
       </div>
 
       <div className="flex-1 flex flex-col px-5 overflow-y-auto" style={{ paddingTop: 16 }}>
@@ -784,11 +784,12 @@ export default function ResultPage() {
               {/* 캐릭터 섹션: 가운데 정렬 */}
               <div style={{
                 width: "100%", marginTop: 12,
-                background: "rgba(255,255,255,0.05)", borderRadius: 14, padding: "12px 14px",
+                background: "rgba(255,255,255,0.05)",
+                borderRadius: 14, padding: "12px 14px",
                 display: "flex", flexDirection: "column", justifyContent: "center",
                 textAlign: "center",
               }}>
-                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", marginBottom: 5 }}>오늘의 당신은</p>
+                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 5 }}>오늘의 당신은</p>
                 <p className="font-medium" style={{ fontSize: 16, color: "#fff", marginBottom: 5, lineHeight: 1.35 }}>
                   {result.vibeType ?? result.vibe_type}
                 </p>
@@ -821,7 +822,7 @@ export default function ResultPage() {
 
         {/* ── 섹션 4: 추천 이유 ── */}
         <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "12px 16px", marginBottom: 10 }}>
-          <p className="font-medium" style={{ fontSize: 10, color: "#f0d080", letterSpacing: "0.05em", marginBottom: 6 }}>
+          <p className="font-medium" style={{ fontSize: 10, color: "#d6cff2", letterSpacing: "0.05em", marginBottom: 6 }}>
             플더픽이 추천한 이유
           </p>
           <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.8 }}>
@@ -849,10 +850,10 @@ export default function ResultPage() {
             disabled={saving || isSaved}
             style={{
               flex: 1,
-              background: isSaved ? "rgba(196,104,122,0.15)" : "rgba(255,255,255,0.14)",
-              border: `1px solid ${isSaved ? "rgba(196,104,122,0.4)" : "rgba(255,255,255,0.28)"}`,
+              background: isSaved ? "rgba(93,79,140,0.22)" : "rgba(255,255,255,0.14)",
+              border: `1px solid ${isSaved ? "rgba(123,108,176,0.6)" : "rgba(255,255,255,0.4)"}`,
               borderRadius: 24, padding: 14,
-              color: isSaved ? "#C4687A" : (saving ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.95)"),
+              color: isSaved ? "#d8d0ec" : (saving ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.95)"),
               fontSize: 13, cursor: (saving || isSaved) ? "default" : "pointer",
             }}
           >
@@ -874,7 +875,7 @@ export default function ResultPage() {
             style={{
               flex: 1,
               background: "rgba(255,255,255,0.14)",
-              border: "1px solid rgba(255,255,255,0.28)",
+              border: "1px solid rgba(255,255,255,0.4)",
               borderRadius: 24, padding: 14,
               color: savingStory ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.95)",
               fontSize: 13, cursor: savingStory ? "default" : "pointer",
@@ -897,8 +898,8 @@ export default function ResultPage() {
           disabled={sharing}
           style={{
             width: "100%",
-            background: "rgba(196,104,122,0.18)",
-            border: "1px solid rgba(196,104,122,0.5)",
+            background: "rgba(93,79,140,0.28)",
+            border: "1px solid rgba(123,108,176,0.65)",
             borderRadius: 24,
             padding: 14,
             color: sharing ? "rgba(255,255,255,0.4)" : "#fff",
@@ -921,7 +922,7 @@ export default function ResultPage() {
           className="w-full font-medium"
           onClick={handleListenClick}
           style={{
-            background: "#C4687A",
+            background: "#5D4F8C",
             border: "none",
             borderRadius: 24, padding: 14,
             color: "#fff",
@@ -1168,9 +1169,10 @@ export default function ResultPage() {
             bottom: 100,
             left: "50%",
             transform: "translateX(-50%)",
-            background: "rgba(30,30,30,0.95)",
-            border: "1px solid rgba(255,255,255,0.15)",
-            color: "#fff",
+            background: "rgba(255,255,255,0.96)",
+            border: "1px solid rgba(93,79,140,0.2)",
+            boxShadow: "0 4px 16px rgba(46,37,71,0.18)",
+            color: "#2e2547",
             fontSize: 13,
             padding: "12px 16px",
             borderRadius: 18,
@@ -1187,12 +1189,12 @@ export default function ResultPage() {
       )}
 
       {/* 하단 네비게이션 */}
-      <div style={{ background: "rgba(0,0,0,0.45)", borderTop: "0.5px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-around", padding: "12px 0 28px", flexShrink: 0 }}>
-        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", cursor: "pointer" }} onClick={() => router.push("/journal")}>
+      <div style={{ background: "rgba(255,255,255,0.7)", borderTop: "0.5px solid rgba(46,37,71,0.12)", display: "flex", justifyContent: "space-around", padding: "12px 0 28px", flexShrink: 0 }}>
+        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(46,37,71,0.55)", cursor: "pointer" }} onClick={() => router.push("/journal")}>
           <Archive size={22} strokeWidth={1.5} />
           아카이브
         </div>
-        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "#fff", cursor: "pointer" }} onClick={() => router.push("/")}>
+        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "#2e2547", cursor: "pointer" }} onClick={() => router.push("/")}>
           <Music size={22} strokeWidth={1.5} />
           노래 추천받기
         </div>

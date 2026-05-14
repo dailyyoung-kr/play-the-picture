@@ -377,7 +377,7 @@ export default function UploadPage() {
             </svg>
             {photos.length === 0
               ? "오늘 사진을 기다리는 중..."
-              : "이제 음악 찾아볼까?"}
+              : "이제 노래 찾으러 가자!"}
           </div>
         </div>
 
@@ -472,7 +472,7 @@ export default function UploadPage() {
                   border: "1px solid rgba(93,79,140,0.35)",
                   verticalAlign: "middle",
                   margin: "0 1px",
-                }}>노래 찾으러 가기</span>{" "}
+                }}>노래 추천받기</span>{" "}
                 버튼을 눌러주세요
                 <div style={{ fontSize: 12, color: "rgba(46,37,71,0.55)", marginTop: 3 }}>
                   픽터가 분위기를 읽고 딱 맞는 한 곡을 골라드려요
@@ -481,7 +481,7 @@ export default function UploadPage() {
             </div>
           </div>
 
-        {/* 메인 CTA — 노래 찾으러 가기 (사진 있을 때만 표시) */}
+        {/* 메인 CTA — 노래 추천받기 (사진 있을 때만 표시) */}
         {photos.length > 0 && (
           <button
             onClick={handleNext}
@@ -500,7 +500,7 @@ export default function UploadPage() {
               marginBottom: 8,
             }}
           >
-            노래 찾으러 가기
+            노래 추천받기
           </button>
         )}
 
