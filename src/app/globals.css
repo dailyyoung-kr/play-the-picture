@@ -43,3 +43,20 @@ body {
   font-family: var(--font-gaegu), 'Gaegu', cursive;
   letter-spacing: 0;
 }
+
+/* CTA pulse 애니메이션 — 5/5 완료 시 "노래 찾으러 가기" 광원 펄스 + 살짝 확대
+   scale 1.02 + box-shadow 광원 퍼짐, 3회 후 자동 정지 */
+@keyframes ctaPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(93, 79, 140, 0.45);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(93, 79, 140, 0);
+    transform: scale(1.02);
+  }
+}
+
+.cta-pulse {
+  animation: ctaPulse 1.6s ease-out 3;
+}
