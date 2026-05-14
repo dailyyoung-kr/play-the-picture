@@ -30,7 +30,7 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
     logAuthEvent("google_login_start", { source });
     const deviceId = getDeviceId();
     const supabase = createSupabaseBrowserClient();
-    const callbackUrl = `${window.location.origin}/auth/callback?device_id=${encodeURIComponent(deviceId)}`;
+    const callbackUrl = `${window.location.origin}/auth/callback?device_id=${encodeURIComponent(deviceId)}&attempted=google`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: callbackUrl },
@@ -45,7 +45,7 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
     logAuthEvent("apple_login_start", { source });
     const deviceId = getDeviceId();
     const supabase = createSupabaseBrowserClient();
-    const callbackUrl = `${window.location.origin}/auth/callback?device_id=${encodeURIComponent(deviceId)}`;
+    const callbackUrl = `${window.location.origin}/auth/callback?device_id=${encodeURIComponent(deviceId)}&attempted=apple`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "apple",
       options: { redirectTo: callbackUrl },

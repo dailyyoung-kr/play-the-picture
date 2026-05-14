@@ -48,7 +48,7 @@ function AuthErrorHandler({
   onConflict,
 }: {
   onError: (msg: string) => void;
-  onConflict: () => void;
+  onConflict: (provider: string | null) => void;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -57,8 +57,8 @@ function AuthErrorHandler({
     if (!err) return;
 
     if (err === "email_conflict") {
-      // 모달로 처리 → URL은 모달 닫힐 때 정리
-      onConflict();
+      // 모달로 처리 → URL은 모달 닫힐 때 정리. provider = 충돌난(시도한) provider
+      onConflict(searchParams.get("provider"));
     } else {
       onError(`로그인 실패: ${err}`);
       router.replace("/");
@@ -126,6 +126,7 @@ export default function UploadPage() {
   const [toast, setToast] = useState("");
   const [loginGateOpen, setLoginGateOpen] = useState(false);
   const [conflictModalOpen, setConflictModalOpen] = useState(false);
+  const [conflictProvider, setConflictProvider] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const maxPhotos = 5;
 
@@ -562,7 +563,7 @@ export default function UploadPage() {
       <Suspense fallback={null}>
         <AuthErrorHandler
           onError={showToast}
-          onConflict={() => setConflictModalOpen(true)}
+          onConflict={(p) => { setConflictProvider(p); setConflictModalOpen(true); }}
         />
         <AuthSuccessHandler onWelcome={(nick) => showToast(`${nick}님, 환영해요!`)} />
         <MergeSuccessHandler onSuccess={() => showToast("기존 계정으로 로그인됐어요!")} />
@@ -570,6 +571,7 @@ export default function UploadPage() {
 
       <AccountConflictModal
         isOpen={conflictModalOpen}
+        provider={conflictProvider}
         onClose={() => {
           setConflictModalOpen(false);
           // URL의 auth_error 정리

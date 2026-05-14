@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
   const deviceId = searchParams.get("device_id");
   const mergeFrom = searchParams.get("merge_from"); // anon → google merge 케이스
   const native = searchParams.get("native") === "1"; // iOS/Android 앱 deep link 모드
+  const attempted = searchParams.get("attempted"); // 시도한 provider (google|apple) — 충돌 모달이 사용
   const NATIVE_DEEP_LINK_SCHEME = "playthepicture";
 
   // OAuth 에러 응답 — 이메일 충돌 vs 기타로 분류
@@ -53,7 +54,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${NATIVE_DEEP_LINK_SCHEME}://auth/callback?auth_error=${err}`);
     }
     if (isConflict) {
-      return NextResponse.redirect(`${origin}/?auth_error=email_conflict`);
+      const provParam = attempted ? `&provider=${encodeURIComponent(attempted)}` : "";
+      return NextResponse.redirect(`${origin}/?auth_error=email_conflict${provParam}`);
     }
     return NextResponse.redirect(
       `${origin}/?auth_error=${encodeURIComponent(errorDescription || errorCode || "unknown")}`,

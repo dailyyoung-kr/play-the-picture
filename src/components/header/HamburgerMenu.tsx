@@ -84,7 +84,7 @@ export function HamburgerMenu() {
     const { error } = await supabase.auth.linkIdentity({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?device_id=${encodeURIComponent(deviceId)}`,
+        redirectTo: `${window.location.origin}/auth/callback?device_id=${encodeURIComponent(deviceId)}&attempted=google`,
       },
     });
     if (error) {
@@ -101,7 +101,7 @@ export function HamburgerMenu() {
     const { error } = await supabase.auth.linkIdentity({
       provider: "apple",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?device_id=${encodeURIComponent(deviceId)}`,
+        redirectTo: `${window.location.origin}/auth/callback?device_id=${encodeURIComponent(deviceId)}&attempted=apple`,
       },
     });
     if (error) {
@@ -210,6 +210,11 @@ export function HamburgerMenu() {
                         <path d="M9 18c2.43 0 4.47-.81 5.96-2.18l-2.92-2.27c-.81.54-1.85.86-3.04.86-2.34 0-4.32-1.58-5.03-3.71H.96v2.33A9 9 0 009 18z" fill="#34A853" />
                         <path d="M3.97 10.7a5.4 5.4 0 010-3.4V4.97H.96a9 9 0 000 8.06l3.01-2.33z" fill="#FBBC05" />
                         <path d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.59A9 9 0 009 0a9 9 0 00-8.04 4.97l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" fill="#EA4335" />
+                      </svg>
+                    )}
+                    {!isAnonymous && provider === "apple" && (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="#2e2547" aria-hidden style={{ flexShrink: 0 }}>
+                        <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
                       </svg>
                     )}
                     <span>{nickname}</span>

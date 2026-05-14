@@ -7,12 +7,18 @@ import { getDeviceId } from "@/lib/supabase";
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  // 충돌난 provider(= 시도한 provider). "google" | "apple". 미지정 시 google (구버전 호환)
+  provider?: string | null;
 }
 
-export function AccountConflictModal({ isOpen, onClose }: Props) {
+export function AccountConflictModal({ isOpen, onClose, provider }: Props) {
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
+
+  // 충돌은 항상 "시도한 provider의 identity"에 대한 것 → 해당 provider로 로그인하면 기존 계정에 접속됨
+  const oauthProvider: "google" | "apple" = provider === "apple" ? "apple" : "google";
+  const providerLabel = oauthProvider === "apple" ? "Apple" : "Google";
 
   const handleLoginAndMerge = async () => {
     if (loading) return;
@@ -29,14 +35,14 @@ export function AccountConflictModal({ isOpen, onClose }: Props) {
       return;
     }
 
-    // anon 세션 종료 → Google OAuth (이번엔 link 아닌 새 sign-in, merge_from 파라미터 포함)
+    // anon 세션 종료 → 기존 계정 provider로 새 sign-in (link 아님, merge_from 포함)
     await supabase.auth.signOut();
 
     const deviceId = getDeviceId();
     const redirectTo = `${window.location.origin}/auth/callback?merge_from=${encodeURIComponent(anonUserId)}&device_id=${encodeURIComponent(deviceId)}`;
 
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
+      provider: oauthProvider,
       options: { redirectTo },
     });
 
@@ -76,7 +82,7 @@ export function AccountConflictModal({ isOpen, onClose }: Props) {
         }}
       >
         <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 12, lineHeight: 1.4 }}>
-          이미 Google 계정으로 가입한 이력이 있어요
+          이미 {providerLabel} 계정으로 가입한 이력이 있어요
         </h2>
         <p style={{ fontSize: 14, color: "rgba(46,37,71,0.7)", marginBottom: 14, lineHeight: 1.5 }}>
           해당 계정으로 로그인할까요?
