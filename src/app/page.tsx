@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Archive, Music } from "lucide-react";
 import { supabase, getDeviceId } from "@/lib/supabase";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
@@ -443,7 +444,13 @@ export default function UploadPage() {
                 }}>+</span>{" "}
                 버튼으로 사진을 추가해주세요
                 <div style={{ fontSize: 12, color: "rgba(46,37,71,0.55)", marginTop: 3 }}>
-                  최대 5장 · 노래 추천에만 사용돼요
+                  최대 5장 · 노래 추천에만 사용돼요{" "}
+                  <Link
+                    href="/privacy"
+                    style={{ color: "#5D4F8C", textDecoration: "underline", fontWeight: 500 }}
+                  >
+                    자세히
+                  </Link>
                 </div>
               </div>
             </div>
