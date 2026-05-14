@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 .spotify-tokens.json
 backup_*.sql
+
+# local agent / CLI working dirs
+.claude/worktrees/
+supabase/.temp/

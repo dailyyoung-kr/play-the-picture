@@ -2,7 +2,8 @@
 
 import { useRef, useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Archive, Music, ArrowRight } from "lucide-react";
+import Link from "next/link";
+import { Archive, Music } from "lucide-react";
 import { supabase, getDeviceId } from "@/lib/supabase";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { pixelInitiateCheckout } from "@/lib/fpixel";
@@ -198,7 +199,7 @@ export default function UploadPage() {
     <div
       className="min-h-screen flex flex-col"
       style={{
-        background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)",
+        background: "linear-gradient(180deg, #c5beda 0%, #b3acd2 45%, #c8c0e0 100%)",
         position: "relative",
       }}
     >
@@ -218,194 +219,298 @@ export default function UploadPage() {
       {/* 메인 콘텐츠 — 세로 중앙 정렬 */}
       <div className="flex-1 flex flex-col justify-center">
 
-      {/* 상단 앱 이름 */}
-      <div
-        className="text-center pb-7"
-        style={{ fontSize: 15, letterSpacing: "0.2em", color: "#C4687A", fontFamily: "var(--font-dm-sans)", fontWeight: 300 }}
-      >
-        Play the Picture
+      {/* 상단 앱 로고 */}
+      <div className="flex justify-center pb-7">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/branding/play-the-picture-logo-one-line.png"
+          alt="Play the Picture"
+          style={{ height: 64, width: "auto" }}
+        />
       </div>
 
       {/* 본문 */}
       <div className="flex flex-col px-5">
-        {/* 헤드라인 */}
+        {/* 헤드라인 — 가운데 정렬 */}
         <h1
-          className="font-semibold mb-3"
-          style={{ fontSize: 26, color: "#fff", lineHeight: 1.35, letterSpacing: "-0.5px" }}
+          className="font-semibold text-center"
+          style={{ fontSize: 22, color: "#2e2547", lineHeight: 1.4, letterSpacing: "-0.3px" }}
         >
-          오늘 찍은 사진에<br />어떤 노래가 어울릴까?
+          사진에 딱 맞는 노래를 골라줄게!
         </h1>
 
-        {/* 부제목 */}
-        <p
-          className="mb-7"
-          style={{ fontSize: 14, color: "rgba(255,255,255,0.52)", lineHeight: 1.7 }}
-        >
-          AI가 사진 분위기를 읽고, 딱 맞는 한 곡을 골라줘요
-        </p>
-
-        {/* 섹션 타이틀 + 카운트 배지 */}
-        <div className="flex justify-between items-center mb-3">
-          <div style={{ position: "relative", paddingBottom: 5 }}>
-            <span className="font-semibold" style={{ fontSize: 16, color: "#fff" }}>
-              사진 추가
-            </span>
-            <div
-              style={{
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-                width: 32,
-                height: 2,
-                background: "#C4687A",
-                borderRadius: 2,
-              }}
+        {/* 캐릭터 마스코트 — 픽터 (메인 hero) + 머리 위 썸네일 부채꼴 */}
+        <div className="flex justify-center" style={{ marginTop: 24, marginBottom: -70, position: "relative" }}>
+          <div style={{ position: "relative", width: 320, height: 320 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/characters/pikter/welcome.png"
+              alt=""
+              className="pixel-art"
+              style={{ width: 320, height: 320 }}
             />
-          </div>
-          <span
-            className="font-medium"
-            style={{
-              background: "#C4687A",
-              color: "#fff",
-              fontSize: 11,
-              padding: "3px 10px",
-              borderRadius: 20,
-            }}
-          >
-            {photos.length} / {maxPhotos}
-          </span>
-        </div>
-
-        {/* 사진 슬롯 — 가로 스크롤 */}
-        <div style={{ position: "relative", marginBottom: 8 }}>
-        <div className="no-scrollbar" style={{ display: "flex", flexDirection: "row", gap: 8, overflowX: "auto", paddingRight: photos.length >= 3 ? 40 : 0 }}>
-          {photos.map((src, i) => (
-            <div
-              key={i}
-              style={{
-                width: 100, height: 124, borderRadius: 10,
-                overflow: "hidden", position: "relative", flexShrink: 0,
-              }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={src}
-                alt={`사진 ${i + 1}`}
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-              />
-              <button
-                onClick={() => removePhoto(i)}
+            {/* 머리 위 썸네일 — 카드 패처럼 펼친 역 U자 + X 버튼 (개별 삭제 가능) */}
+            {photos.length > 0 && (
+              <div
                 style={{
-                  position: "absolute", top: 5, right: 5,
-                  width: 18, height: 18,
-                  background: "rgba(0,0,0,0.6)", borderRadius: "50%",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 9, color: "#fff", cursor: "pointer", border: "none",
+                  position: "absolute",
+                  top: 12,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  display: "flex",
+                  alignItems: "flex-end",
+                  gap: 4,
+                  zIndex: 5,
                 }}
               >
-                ✕
-              </button>
-            </div>
-          ))}
-
-          {/* + 슬롯 (5장 미만일 때만) */}
-          {photos.length < maxPhotos && (
-            <label
-              htmlFor="photo-input"
-              style={{
-                width: 100, height: 124, borderRadius: 10, flexShrink: 0,
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.04)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 18, color: "rgba(255,255,255,0.3)",
-                cursor: "pointer",
-              }}
-            >
-              +
-            </label>
-          )}
+                {photos.map((src, i) => {
+                  const center = (photos.length - 1) / 2;
+                  const offset = i - center;
+                  const rotation = offset * 6; // 완만한 회전
+                  const yDown = Math.abs(offset) * 5; // 역 U자
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        position: "relative",
+                        width: 58,
+                        height: 58,
+                        marginLeft: i === 0 ? 0 : -10, // 카드 살짝 겹침
+                        transform: `translateY(${yDown}px) rotate(${rotation}deg)`,
+                        transformOrigin: "50% 100%",
+                        flexShrink: 0,
+                        // 가운데 카드일수록 위로 (X 버튼 클릭 가독성)
+                        zIndex: 10 - Math.abs(offset),
+                      }}
+                    >
+                      {/* 사진 카드 */}
+                      <div
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          borderRadius: 10,
+                          overflow: "hidden",
+                          border: "2.5px solid #fff",
+                          boxShadow: "0 2px 8px rgba(46,37,71,0.25)",
+                          background: "#fff",
+                        }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={src}
+                          alt=""
+                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                        />
+                      </div>
+                      {/* X 버튼 — 우상단 */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removePhoto(i);
+                        }}
+                        style={{
+                          position: "absolute",
+                          top: -6,
+                          right: -6,
+                          width: 20,
+                          height: 20,
+                          borderRadius: "50%",
+                          background: "rgba(46,37,71,0.85)",
+                          color: "#fff",
+                          border: "1.5px solid #fff",
+                          fontSize: 11,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          padding: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          // X는 카드와 함께 회전 (시각적 일관)
+                          boxShadow: "0 1px 3px rgba(46,37,71,0.3)",
+                        }}
+                        aria-label={`사진 ${i + 1} 삭제`}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
-          {/* 오른쪽 페이드 그라데이션 — 3장 이상일 때만 */}
-          {photos.length >= 3 && (
-            <div style={{
-              position: "absolute", top: 0, right: 0,
-              width: 60, height: "100%",
-              background: "linear-gradient(to right, transparent 0%, #0d1218 100%)",
-              pointerEvents: "none",
-            }} />
-          )}
-        </div>
 
-        {/* 안내 문구 */}
-        <p className="text-right" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", marginTop: 12 }}>
-          최대 5장까지 추가할 수 있어요
-        </p>
-        <p className="text-right" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", marginBottom: 20 }}>
-          사진은 노래 추천에만 사용돼요 ·{" "}
-          <a
-            href="/privacy"
-            style={{ color: "rgba(196,104,122,0.7)", textDecoration: "none" }}
-          >
-            자세히
-          </a>
-        </p>
-
-        {/* 단일 CTA — 상태별 전환 */}
-        {photos.length === 0 ? (
-          <label
-            htmlFor="photo-input"
-            className="w-full mb-2"
+        {/* 픽터 말풍선 — 픽터가 말하는 듯한 효과 (반투명 그레이톤) */}
+        <div className="flex justify-center" style={{ marginBottom: 18 }}>
+          <div
+            className="font-handwritten"
             style={{
-              display: "block",
-              background: "#C4687A",
-              border: "none",
-              borderRadius: 24,
-              padding: 14,
-              color: "#fff",
-              fontSize: 14,
-              fontWeight: 500,
+              position: "relative",
+              background: "rgba(255,255,255,0.55)",
+              borderRadius: 18,
+              padding: "10px 20px",
+              border: "1px solid rgba(93,79,140,0.18)",
+              fontSize: 16,
+              color: "rgba(46,37,71,0.9)",
+              fontWeight: 700,
+              maxWidth: "85%",
               textAlign: "center",
-              cursor: "pointer",
             }}
           >
-            사진 추가하기
-          </label>
-        ) : (
+            {/* 말풍선 꼬리 — SVG 단일 fill (보더 없음, 알파 겹침 X) */}
+            <svg
+              width="14"
+              height="8"
+              viewBox="0 0 14 8"
+              style={{
+                position: "absolute",
+                top: -8,
+                left: "50%",
+                transform: "translateX(-50%)",
+                display: "block",
+              }}
+            >
+              <path
+                d="M 0 8 L 7 0 L 14 8 Z"
+                fill="rgba(255,255,255,0.55)"
+              />
+            </svg>
+            {photos.length === 0
+              ? "오늘 사진을 기다리는 중..."
+              : "이제 노래 찾으러 가자!"}
+          </div>
+        </div>
+
+        {/* + 버튼 — 페블 스타일 (보라 그라데이션 + 깊이감) — 5장 미만일 때만 표시 */}
+        {photos.length < maxPhotos && (
+        <div className="flex justify-center" style={{ marginBottom: 28 }}>
           <button
-            className="w-full font-medium mb-2"
-            onClick={handleNext}
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
             style={{
-              background: "#C4687A",
-              border: "none",
-              borderRadius: 24,
-              padding: 14,
-              color: "#fff",
-              fontSize: 14,
-              cursor: "pointer",
+              padding: "11px 28px",
+              borderRadius: 16,
+              background: "linear-gradient(180deg, #7B6CB0 0%, #5D4F8C 55%, #4A3F73 100%)",
+              color: "#ffffff",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 6,
+              fontSize: 24,
+              fontWeight: 500,
+              cursor: "pointer",
+              border: "none",
+              lineHeight: 1,
+              boxShadow: "0 6px 14px rgba(46,37,71,0.28), 0 2px 4px rgba(46,37,71,0.18), inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -1px 0 rgba(0,0,0,0.1)",
+              textShadow: "0 1px 2px rgba(0,0,0,0.15)",
+            }}
+            aria-label="사진 추가"
+          >
+            +
+          </button>
+        </div>
+        )}
+
+        {/* 안내 스텝 — + 버튼 아래 (SETLOG 스타일 — 큰 번호 + 인라인 UI 참조) */}
+        <div style={{ marginBottom: 24, maxWidth: 320, marginLeft: "auto", marginRight: "auto" }}>
+            {/* Step 1 */}
+            <div className="flex items-start gap-3 mb-4">
+              <div style={{
+                flexShrink: 0,
+                width: 28, height: 28, borderRadius: "50%",
+                background: "#ffffff", color: "#5D4F8C",
+                border: "2px solid #5D4F8C",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 14, fontWeight: 700,
+                marginTop: -1,
+              }}>1</div>
+              <div style={{ fontSize: 14, color: "rgba(46,37,71,0.85)", lineHeight: 1.6 }}>
+                위의{" "}
+                <span style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 22, height: 22,
+                  borderRadius: 7,
+                  background: "linear-gradient(180deg, #7B6CB0 0%, #5D4F8C 55%, #4A3F73 100%)",
+                  color: "#ffffff",
+                  border: "none",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  verticalAlign: "middle",
+                  lineHeight: 1,
+                  margin: "0 2px",
+                  boxShadow: "0 2px 4px rgba(46,37,71,0.22), inset 0 1px 0 rgba(255,255,255,0.25)",
+                }}>+</span>{" "}
+                버튼으로 사진을 추가해주세요
+                <div style={{ fontSize: 12, color: "rgba(46,37,71,0.55)", marginTop: 3 }}>
+                  최대 5장 · 노래 추천에만 사용돼요{" "}
+                  <Link
+                    href="/privacy"
+                    style={{ color: "#5D4F8C", textDecoration: "underline", fontWeight: 500 }}
+                  >
+                    자세히
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 2 */}
+            <div className="flex items-start gap-3">
+              <div style={{
+                flexShrink: 0,
+                width: 28, height: 28, borderRadius: "50%",
+                background: "#ffffff", color: "#5D4F8C",
+                border: "2px solid #5D4F8C",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 14, fontWeight: 700,
+                marginTop: -1,
+              }}>2</div>
+              <div style={{ fontSize: 14, color: "rgba(46,37,71,0.85)", lineHeight: 1.6 }}>
+                아래{" "}
+                <span style={{
+                  display: "inline-block",
+                  padding: "2px 9px",
+                  borderRadius: 10,
+                  background: "rgba(93,79,140,0.12)",
+                  color: "#5D4F8C",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  border: "1px solid rgba(93,79,140,0.35)",
+                  verticalAlign: "middle",
+                  margin: "0 1px",
+                }}>노래 추천받기</span>{" "}
+                버튼을 눌러주세요
+                <div style={{ fontSize: 12, color: "rgba(46,37,71,0.55)", marginTop: 3 }}>
+                  픽터가 분위기를 읽고 딱 맞는 한 곡을 골라드려요
+                </div>
+              </div>
+            </div>
+          </div>
+
+        {/* 메인 CTA — 노래 추천받기 (사진 있을 때만 표시) */}
+        {photos.length > 0 && (
+          <button
+            onClick={handleNext}
+            className={photos.length >= maxPhotos ? "cta-pulse" : ""}
+            style={{
+              width: "100%",
+              padding: 14,
+              borderRadius: 24,
+              background: "#5D4F8C",
+              color: "#fff",
+              fontSize: 14,
+              fontWeight: 500,
+              cursor: "pointer",
+              border: "none",
+              marginTop: 16,
+              marginBottom: 8,
             }}
           >
-            다음 <ArrowRight size={16} strokeWidth={2} />
+            노래 추천받기
           </button>
         )}
 
-        {/* 스텝 점 3개 */}
-        <div className="flex gap-2 justify-center py-3">
-          {[true, false, false].map((active, i) => (
-            <div
-              key={i}
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: active ? "#fff" : "rgba(255,255,255,0.25)",
-              }}
-            />
-          ))}
-        </div>
       </div>
       </div>{/* 메인 콘텐츠 wrapper 끝 */}
 
@@ -430,12 +535,12 @@ export default function UploadPage() {
       )}
 
       {/* 하단 네비게이션 */}
-      <div style={{ background: "rgba(0,0,0,0.45)", borderTop: "0.5px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-around", padding: "12px 0 28px" }}>
-        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", cursor: "pointer" }} onClick={() => router.push("/journal")}>
+      <div style={{ background: "rgba(255,255,255,0.7)", borderTop: "0.5px solid rgba(46,37,71,0.12)", display: "flex", justifyContent: "space-around", padding: "12px 0 28px" }}>
+        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(46,37,71,0.55)", cursor: "pointer" }} onClick={() => router.push("/journal")}>
           <Archive size={22} strokeWidth={1.5} />
           아카이브
         </div>
-        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "#fff", cursor: "pointer" }} onClick={() => router.push("/")}>
+        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "#2e2547", cursor: "pointer" }} onClick={() => router.push("/")}>
           <Music size={22} strokeWidth={1.5} />
           노래 추천받기
         </div>

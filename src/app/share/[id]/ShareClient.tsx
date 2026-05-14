@@ -211,17 +211,17 @@ export default function ShareClient({ id }: { id: string }) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)" }}
+        style={{ background: "linear-gradient(180deg, #c5beda 0%, #b3acd2 45%, #c8c0e0 100%)" }}
       >
         <div className="text-center px-8">
           <div style={{ fontSize: 32, marginBottom: 16 }}>✦</div>
-          <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 15, marginBottom: 8 }}>결과를 찾을 수 없어요</p>
-          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13, marginBottom: 32 }}>링크가 만료됐거나 잘못됐어요</p>
+          <p style={{ color: "#2e2547", fontSize: 15, marginBottom: 8 }}>결과를 찾을 수 없어요</p>
+          <p style={{ color: "rgba(46,37,71,0.55)", fontSize: 13, marginBottom: 32 }}>링크가 만료됐거나 잘못됐어요</p>
           <button
             onClick={handleTryClick}
-            style={{ background: "#C4687A", border: "none", borderRadius: 24, padding: "12px 32px", color: "#fff", fontSize: 14, cursor: "pointer" }}
+            style={{ background: "#5D4F8C", border: "none", borderRadius: 24, padding: "12px 32px", color: "#fff", fontSize: 14, cursor: "pointer" }}
           >
-            내 사진으로 해보기 <span style={{ fontSize: 17 }}>✦</span>
+            나도 해보기
           </button>
         </div>
       </div>
@@ -232,11 +232,10 @@ export default function ShareClient({ id }: { id: string }) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)" }}
+        style={{ background: "linear-gradient(180deg, #c5beda 0%, #b3acd2 45%, #c8c0e0 100%)" }}
       >
         <div className="text-center">
-          <div style={{ fontSize: 32, marginBottom: 16 }}>✦</div>
-          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14 }}>불러오는 중...</p>
+          <p style={{ color: "rgba(46,37,71,0.6)", fontSize: 14 }}>불러오는 중...</p>
         </div>
       </div>
     );
@@ -261,7 +260,7 @@ export default function ShareClient({ id }: { id: string }) {
           />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={entry.album_art} alt="" aria-hidden="true"
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", objectPosition: "center 25%", filter: "blur(6px) brightness(0.9)", pointerEvents: "none" }}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", filter: "blur(12px) brightness(0.9)", pointerEvents: "none" }}
           />
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.75) 100%)" }} />
         </>
@@ -269,14 +268,14 @@ export default function ShareClient({ id }: { id: string }) {
 
       <div className="min-h-screen flex flex-col" style={{ position: "relative", zIndex: 1, background: entry.album_art ? "transparent" : "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)" }}>
 
-        {/* 상단 앱 이름 + 서브 문구 — result 페이지와 동일 패턴 */}
-        <div className="text-center" style={{ paddingTop: 20, paddingBottom: 6 }}>
-          <div style={{ fontSize: 11, letterSpacing: "0.2em", color: "#C4687A", fontFamily: "var(--font-dm-sans)", fontWeight: 300, marginBottom: 4 }}>
-            Play the Picture
-          </div>
-          <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: "0.08em", margin: 0 }}>
-            플더픽의 추천곡
-          </p>
+        {/* 상단 앱 로고 — result 페이지와 동일 */}
+        <div className="flex justify-center" style={{ paddingTop: 22, paddingBottom: 8 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/branding/play-the-picture-logo-one-line.png"
+            alt="Play the Picture"
+            style={{ height: 40, width: "auto", filter: "invert(1)", opacity: 0.92 }}
+          />
         </div>
 
         <div className="flex-1 flex flex-col px-5 overflow-y-auto" style={{ paddingTop: 16, paddingBottom: 90 }}>
@@ -316,7 +315,7 @@ export default function ShareClient({ id }: { id: string }) {
           {/* 오늘의 당신은 */}
           {entry.vibe_type && (
             <div style={{ width: "100%", marginBottom: 12, background: "rgba(255,255,255,0.05)", borderRadius: 14, padding: "12px 14px", textAlign: "center" }}>
-              <p style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", marginBottom: 5 }}>오늘의 당신은</p>
+              <p style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 5 }}>오늘의 당신은</p>
               <p className="font-medium" style={{ fontSize: 16, color: "#fff", marginBottom: 5, lineHeight: 1.35 }}>
                 {entry.vibe_type}
               </p>
@@ -374,7 +373,7 @@ export default function ShareClient({ id }: { id: string }) {
                   display: "flex", alignItems: "center", gap: 12,
                   padding: "10px 14px",
                   marginTop: 12,
-                  background: "linear-gradient(180deg, rgba(196,104,122,0.16) 0%, rgba(196,104,122,0.06) 100%)",
+                  background: "linear-gradient(180deg, rgba(93,79,140,0.16) 0%, rgba(93,79,140,0.06) 100%)",
                   border: "1px solid rgba(255,255,255,0.06)",
                   borderRadius: 24,
                   boxShadow: "inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 6px rgba(0,0,0,0.12)",
@@ -412,7 +411,7 @@ export default function ShareClient({ id }: { id: string }) {
                       transform: "translateY(-50%)",
                       width: `${previewProgress * 100}%`,
                       height: 3, borderRadius: 2,
-                      background: "#C4687A",
+                      background: "#5D4F8C",
                     }} />
                     <div style={{
                       position: "absolute", top: "50%",
@@ -436,7 +435,7 @@ export default function ShareClient({ id }: { id: string }) {
           })()}
 
           <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "14px 16px", marginTop: 12, marginBottom: 20 }}>
-            <p className="font-medium mb-2" style={{ fontSize: 10, color: "#f0d080", letterSpacing: "0.05em" }}>플더픽이 추천한 이유</p>
+            <p className="font-medium mb-2" style={{ fontSize: 10, color: "#d6cff2", letterSpacing: "0.05em" }}>플더픽이 추천한 이유</p>
             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.8 }}>{entry.reason}</p>
           </div>
         </div>
@@ -458,9 +457,9 @@ export default function ShareClient({ id }: { id: string }) {
           <button
             className="w-full font-medium"
             onClick={handleTryClick}
-            style={{ background: "#C4687A", border: "none", borderRadius: 24, padding: 14, color: "#fff", fontSize: 14, cursor: "pointer" }}
+            style={{ background: "#5D4F8C", border: "none", borderRadius: 24, padding: 14, color: "#fff", fontSize: 14, cursor: "pointer" }}
           >
-            내 사진으로 해보기 <span style={{ fontSize: 17 }}>✦</span>
+            나도 해보기
           </button>
         </div>
       </div>

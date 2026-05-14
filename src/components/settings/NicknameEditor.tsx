@@ -95,11 +95,11 @@ export function NicknameEditor() {
       <div
         style={{
           minHeight: "100vh",
-          background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)",
+          background: "linear-gradient(180deg, #c5beda 0%, #b3acd2 45%, #c8c0e0 100%)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "rgba(255,255,255,0.5)",
+          color: "rgba(46,37,71,0.6)",
           fontSize: 14,
         }}
       >
@@ -112,8 +112,8 @@ export function NicknameEditor() {
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)",
-        color: "#fff",
+        background: "linear-gradient(180deg, #c5beda 0%, #b3acd2 45%, #c8c0e0 100%)",
+        color: "#2e2547",
       }}
     >
       {/* 상단 헤더 — 뒤로가기 + 타이틀 */}
@@ -136,7 +136,7 @@ export function NicknameEditor() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: "rgba(255,255,255,0.85)",
+            color: "#5D4F8C",
             cursor: "pointer",
           }}
         >
@@ -151,7 +151,7 @@ export function NicknameEditor() {
           style={{
             display: "block",
             fontSize: 13,
-            color: "rgba(255,255,255,0.55)",
+            color: "rgba(46,37,71,0.55)",
             marginBottom: 8,
           }}
         >
@@ -167,10 +167,10 @@ export function NicknameEditor() {
           style={{
             width: "100%",
             padding: "14px 16px",
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)",
+            background: "rgba(255,255,255,0.6)",
+            border: "1px solid rgba(93,79,140,0.25)",
             borderRadius: 12,
-            color: "#fff",
+            color: "#2e2547",
             fontSize: 16,
             outline: "none",
           }}
@@ -180,7 +180,7 @@ export function NicknameEditor() {
           style={{
             textAlign: "right",
             fontSize: 11,
-            color: "rgba(255,255,255,0.4)",
+            color: "rgba(46,37,71,0.4)",
             marginTop: 6,
             marginBottom: 28,
           }}
@@ -194,7 +194,7 @@ export function NicknameEditor() {
           style={{
             width: "100%",
             padding: "14px 16px",
-            background: hasChange ? "#C4687A" : "rgba(196,104,122,0.25)",
+            background: hasChange ? "#5D4F8C" : "rgba(93,79,140,0.3)",
             border: "none",
             borderRadius: 12,
             color: "#fff",
@@ -216,12 +216,13 @@ export function NicknameEditor() {
             bottom: 32,
             left: "50%",
             transform: "translateX(-50%)",
-            background: "rgba(20,20,28,0.95)",
-            color: "#fff",
+            background: "rgba(255,255,255,0.96)",
+            color: "#2e2547",
             padding: "12px 20px",
             borderRadius: 10,
             fontSize: 13,
-            border: "1px solid rgba(255,255,255,0.1)",
+            border: "1px solid rgba(93,79,140,0.2)",
+            boxShadow: "0 4px 16px rgba(46,37,71,0.18)",
             zIndex: 100,
             whiteSpace: "nowrap",
             maxWidth: "90vw",

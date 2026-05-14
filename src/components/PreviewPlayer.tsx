@@ -205,7 +205,7 @@ export function PreviewPlayer({ song, artist, pageContext }: Props) {
           gap: 12,
           padding: "10px 14px",
           marginBottom: 8,
-          background: "linear-gradient(180deg, rgba(196,104,122,0.16) 0%, rgba(196,104,122,0.06) 100%)",
+          background: "linear-gradient(180deg, rgba(93,79,140,0.16) 0%, rgba(93,79,140,0.06) 100%)",
           border: "1px solid rgba(255,255,255,0.06)",
           borderRadius: 24,
           boxShadow: "inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 6px rgba(0,0,0,0.12)",
@@ -313,7 +313,7 @@ export function PreviewPlayer({ song, artist, pageContext }: Props) {
                 width: `${visualProgress * 100}%`,
                 height: 3,
                 borderRadius: 2,
-                background: "#C4687A",
+                background: "#5D4F8C",
               }}
             />
             <div

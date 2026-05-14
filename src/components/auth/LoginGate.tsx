@@ -97,7 +97,7 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.7)",
+        background: "rgba(0,0,0,0.5)",
         backdropFilter: "blur(8px)",
         display: "flex",
         alignItems: "flex-end",
@@ -111,11 +111,11 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
         style={{
           width: "100%",
           maxWidth: 440,
-          background: "linear-gradient(180deg, #1a1820 0%, #0d1218 100%)",
+          background: "linear-gradient(180deg, #c8c1e2 0%, #c2bade 100%)",
           borderRadius: "20px 20px 0 0",
           padding: "28px 24px 32px",
-          color: "#fff",
-          boxShadow: "0 -10px 40px rgba(0,0,0,0.5)",
+          color: "#2e2547",
+          boxShadow: "0 -10px 40px rgba(46,37,71,0.3)",
           animation: "slideUp 0.3s ease-out",
         }}
       >
@@ -124,7 +124,7 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
           @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         `}</style>
 
-        <div style={{ width: 40, height: 4, background: "rgba(255,255,255,0.2)", borderRadius: 2, margin: "0 auto 24px" }} />
+        <div style={{ width: 40, height: 4, background: "rgba(46,37,71,0.2)", borderRadius: 2, margin: "0 auto 24px" }} />
 
         <button
           onClick={handleKakaoLogin}
@@ -180,9 +180,9 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
         </button>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
-          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>또는</span>
-          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
+          <div style={{ flex: 1, height: 1, background: "rgba(46,37,71,0.15)" }} />
+          <span style={{ fontSize: 11, color: "rgba(46,37,71,0.45)" }}>또는</span>
+          <div style={{ flex: 1, height: 1, background: "rgba(46,37,71,0.15)" }} />
         </div>
 
         <button
@@ -192,9 +192,9 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
             width: "100%",
             padding: "12px 16px",
             background: "transparent",
-            border: "1px solid rgba(255,255,255,0.15)",
+            border: "1px solid rgba(93,79,140,0.3)",
             borderRadius: 12,
-            color: guestLoading ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.7)",
+            color: guestLoading ? "rgba(46,37,71,0.4)" : "rgba(46,37,71,0.65)",
             fontSize: 14,
             cursor: guestLoading ? "wait" : "pointer",
           }}
@@ -207,7 +207,7 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
           style={{
             marginTop: 16,
             fontSize: 11,
-            color: "rgba(255,255,255,0.4)",
+            color: "rgba(46,37,71,0.45)",
             lineHeight: 1.6,
             textAlign: "center",
           }}
@@ -217,7 +217,7 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
             href="/terms"
             target="_blank"
             rel="noopener noreferrer"
-            style={{ color: "rgba(255,255,255,0.65)", textDecoration: "underline" }}
+            style={{ color: "#5D4F8C", textDecoration: "underline" }}
           >
             이용약관
           </a>
@@ -226,7 +226,7 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
             href="/privacy"
             target="_blank"
             rel="noopener noreferrer"
-            style={{ color: "rgba(255,255,255,0.65)", textDecoration: "underline" }}
+            style={{ color: "#5D4F8C", textDecoration: "underline" }}
           >
             개인정보 처리방침
           </a>

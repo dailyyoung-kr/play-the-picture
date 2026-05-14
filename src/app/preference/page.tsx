@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, Music, Music2, SlidersHorizontal } from "lucide-react";
+import { Archive, Music } from "lucide-react";
 import { trackEvent } from "@/lib/gtag";
 import { supabase, getDeviceId } from "@/lib/supabase";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
@@ -28,12 +28,6 @@ const ENERGY_OPTIONS = [
   { value: 5, label: "파워풀" },
 ];
 
-const VIBE_AXES = [
-  { left: "차분함", right: "에너제틱" },
-  { left: "쿨함",   right: "따뜻함" },
-  { left: "혼자",   right: "함께" },
-  { left: "일상적", right: "특별함" },
-];
 const WAVE_BARS = [
   { delay: 0,    duration: 0.72, anim: "wave1" },
   { delay: 0.18, duration: 0.88, anim: "wave2" },
@@ -43,12 +37,12 @@ const WAVE_BARS = [
   { delay: 0.04, duration: 0.92, anim: "wave3" },
 ];
 const PHASE3_TEXTS = [
-  "딱 맞는 한 곡을 고르고 있어요",
-  "거의 다 골랐어요",
-  "플더픽이 플레이리스트를 뒤적이는 중...",
-  "다른 곡과 한번 더 비교하는 중",
-  "한 곡인 만큼 신중하게",
-  "마지막으로 한번 더 확인해볼게요",
+  "딱 맞는 한 곡을 고르고 있어",
+  "거의 다 골랐어",
+  "픽터가 플레이리스트를 뒤적이는 중...",
+  "다른 곡이랑 한번 더 비교하는 중",
+  "한 곡인 만큼 신중하게 고를게",
+  "마지막으로 한번 더 확인해볼게",
 ];
 
 export default function PreferencePage() {
@@ -62,8 +56,6 @@ export default function PreferencePage() {
   const [loadingPhase, setLoadingPhase] = useState(0);
   const [loadingPhotos, setLoadingPhotos] = useState<string[]>([]);
   const [photosFadeIn, setPhotosFadeIn] = useState(false);
-  const [gaugeTargets, setGaugeTargets] = useState<number[]>([0, 0, 0, 0]);
-  const [gaugeAnimated, setGaugeAnimated] = useState(false);
 
   // 3단계 텍스트 순환 상태
   const [phase3TextIndex, setPhase3TextIndex] = useState(0);
@@ -73,7 +65,6 @@ export default function PreferencePage() {
     if (!loading) {
       setLoadingPhase(0);
       setPhotosFadeIn(false);
-      setGaugeAnimated(false);
       return;
     }
 
@@ -81,23 +72,11 @@ export default function PreferencePage() {
     const photos: string[] = photosRaw ? JSON.parse(photosRaw) : [];
     setLoadingPhotos(photos);
 
-    setGaugeTargets([
-      Math.floor(Math.random() * 60) + 20,  // 차분함 ↔ 에너제틱
-      Math.floor(Math.random() * 60) + 20,  // 쿨함 ↔ 따뜻함
-      Math.floor(Math.random() * 60) + 20,  // 혼자 ↔ 함께
-      Math.floor(Math.random() * 60) + 20,  // 일상적 ↔ 특별함
-      Math.floor(Math.random() * 26) + 54,
-    ]);
-
     setLoadingPhase(0);
     setPhotosFadeIn(false);
-    setGaugeAnimated(false);
 
     const tFade = setTimeout(() => setPhotosFadeIn(true), 150);
-    const t1 = setTimeout(() => {
-      setLoadingPhase(1);
-      setTimeout(() => setGaugeAnimated(true), 120);
-    }, 3000);
+    const t1 = setTimeout(() => setLoadingPhase(1), 3000);
     const t2 = setTimeout(() => setLoadingPhase(2), 6000);
 
     return () => {
@@ -253,34 +232,66 @@ export default function PreferencePage() {
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{ background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)", position: "relative" }}
+      style={{ background: "linear-gradient(180deg, #c5beda 0%, #b3acd2 45%, #c8c0e0 100%)", position: "relative" }}
     >
       <HamburgerMenu />
 
-      {/* 상단 바 */}
-      <div className="flex items-center justify-between px-5 pt-12 pb-5">
+      {/* 상단 바 — 뒤로가기만 */}
+      <div className="flex items-center px-5 pt-12 pb-3">
         <button
           onClick={() => router.back()}
-          style={{ fontSize: 20, color: "rgba(255,255,255,0.65)", background: "none", border: "none", cursor: "pointer" }}
+          style={{ fontSize: 20, color: "#5D4F8C", background: "none", border: "none", cursor: "pointer" }}
         >
           ←
         </button>
-        <span className="font-medium" style={{ fontSize: 15, color: "#fff" }}>
-          오늘의 취향
-        </span>
-        <span style={{ fontSize: 20, visibility: "hidden" }}>←</span>
       </div>
 
-      <p className="text-center mb-5" style={{ fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
-        정확한 추천을 위해 두 가지만 알려주세요
-      </p>
+      {/* 픽터 hero + 말풍선 (말풍선이 픽터 위) */}
+      <div className="flex flex-col items-center" style={{ marginBottom: 14 }}>
+        {/* 말풍선 — 픽터 위, 꼬리는 아래로 */}
+        <div
+          className="font-handwritten"
+          style={{
+            position: "relative",
+            background: "rgba(255,255,255,0.7)",
+            borderRadius: 18,
+            padding: "10px 22px",
+            border: "1px solid rgba(93,79,140,0.18)",
+            boxShadow: "0 2px 8px rgba(46,37,71,0.08)",
+            fontSize: 16,
+            color: "rgba(46,37,71,0.9)",
+            fontWeight: 700,
+            maxWidth: "88%",
+            textAlign: "center",
+            zIndex: 2,
+          }}
+        >
+          {/* 말풍선 꼬리 — SVG, 아래로 향함 */}
+          <svg
+            width="14"
+            height="8"
+            viewBox="0 0 14 8"
+            style={{ position: "absolute", bottom: -8, left: "50%", transform: "translateX(-50%)", display: "block" }}
+          >
+            <path d="M 0 0 L 7 8 L 14 0 Z" fill="rgba(255,255,255,0.7)" />
+          </svg>
+          두 가지만 더 알려줘!
+        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/characters/pikter/vibe-groove.png"
+          alt=""
+          className="pixel-art"
+          style={{ width: 200, height: 200, marginTop: -10 }}
+        />
+      </div>
 
       <div className="flex-1 flex flex-col px-5 overflow-y-auto">
 
         {/* 카드 1: 장르 */}
-        <div className="mb-4 p-5" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14 }}>
-          <p className="mb-3 font-medium" style={{ fontSize: 13, color: "rgba(255,255,255,0.90)", display: "flex", alignItems: "center", gap: 6 }}>
-            <Music2 size={14} strokeWidth={1.8} /> 어떤 음악이 끌려요?
+        <div className="mb-4 p-5" style={{ background: "rgba(255,255,255,0.55)", border: "1px solid rgba(93,79,140,0.18)", borderRadius: 14 }}>
+          <p className="mb-3 font-semibold" style={{ fontSize: 15, color: "#2e2547" }}>
+            어떤 음악이 끌려?
           </p>
           <div className="flex flex-wrap gap-2">
             {GENRE_OPTIONS.map((g) => (
@@ -288,13 +299,19 @@ export default function PreferencePage() {
                 key={g.value}
                 onClick={() => setSelectedGenre(g.value)}
                 style={{
-                  background: selectedGenre === g.value ? "#C4687A" : "rgba(255,255,255,0.07)",
-                  border: selectedGenre === g.value ? "none" : "1px solid rgba(255,255,255,0.16)",
-                  color: selectedGenre === g.value ? "#fff" : "rgba(255,255,255,0.62)",
+                  background: selectedGenre === g.value
+                    ? "rgba(93,79,140,0.18)"
+                    : "rgba(93,79,140,0.06)",
+                  border: selectedGenre === g.value
+                    ? "1.5px solid #5D4F8C"
+                    : "1px solid rgba(93,79,140,0.22)",
+                  color: selectedGenre === g.value ? "#2e2547" : "rgba(46,37,71,0.5)",
                   borderRadius: 20,
                   padding: "6px 14px",
                   fontSize: 12,
+                  fontWeight: selectedGenre === g.value ? 600 : 400,
                   cursor: "pointer",
+                  transition: "all 0.15s",
                 }}
               >
                 {g.label}
@@ -304,9 +321,9 @@ export default function PreferencePage() {
         </div>
 
         {/* 카드 2: 분위기 (에너지 스펙트럼) */}
-        <div className="mb-4 p-5" style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14 }}>
-          <p className="mb-4 font-medium" style={{ fontSize: 13, color: "rgba(255,255,255,0.90)", display: "flex", alignItems: "center", gap: 6 }}>
-            <SlidersHorizontal size={14} strokeWidth={1.8} /> 어떤 바이브로 듣고 싶어요?
+        <div className="mb-4 p-5" style={{ background: "rgba(255,255,255,0.55)", border: "1px solid rgba(93,79,140,0.18)", borderRadius: 14 }}>
+          <p className="mb-4 font-semibold" style={{ fontSize: 15, color: "#2e2547" }}>
+            어떤 바이브로 들을래?
           </p>
 
           {/* 스펙트럼 바 */}
@@ -322,13 +339,13 @@ export default function PreferencePage() {
                   alignItems: "center",
                   justifyContent: "center",
                   background: selectedEnergy === opt.value
-                    ? "rgba(196,104,122,0.30)"
-                    : "rgba(255,255,255,0.07)",
+                    ? "rgba(93,79,140,0.18)"
+                    : "rgba(93,79,140,0.06)",
                   border: selectedEnergy === opt.value
-                    ? "1.5px solid #C4687A"
-                    : "1px solid rgba(255,255,255,0.13)",
+                    ? "1.5px solid #5D4F8C"
+                    : "1px solid rgba(93,79,140,0.22)",
                   borderRadius: 10,
-                  color: selectedEnergy === opt.value ? "#fff" : "rgba(255,255,255,0.45)",
+                  color: selectedEnergy === opt.value ? "#2e2547" : "rgba(46,37,71,0.5)",
                   fontSize: 11,
                   fontWeight: selectedEnergy === opt.value ? 600 : 400,
                   cursor: "pointer",
@@ -343,27 +360,26 @@ export default function PreferencePage() {
 
         </div>
 
-        <div className="flex-1" />
-
         {/* 오류 메시지 */}
         {error && (
-          <p className="text-center mb-2" style={{ fontSize: 12, color: "#f0a0a0" }}>
+          <p className="text-center mb-2" style={{ fontSize: 12, color: "#b03050" }}>
             {error}
           </p>
         )}
 
-        {/* AI 분석 시작 버튼 */}
+        {/* AI 분석 시작 버튼 — 페블 스타일 */}
         <button
           className="w-full font-medium mb-2"
           onClick={handleAnalyze}
           disabled={loading}
           style={{
-            background: loading ? "rgba(196,104,122,0.5)" : "#C4687A",
+            background: loading ? "rgba(93,79,140,0.5)" : "#5D4F8C",
             border: "none",
             borderRadius: 24,
             padding: 14,
             color: "#fff",
             fontSize: 14,
+            fontWeight: 500,
             cursor: loading ? "default" : "pointer",
             display: "flex",
             alignItems: "center",
@@ -380,7 +396,7 @@ export default function PreferencePage() {
             "분석 시작하기"
           )}
         </button>
-        <p className="text-center mb-2" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)" }}>
+        <p className="text-center mb-2" style={{ fontSize: 11, color: "rgba(46,37,71,0.5)" }}>
           10초면 추천곡을 받아볼 수 있어요
         </p>
         <div className="flex gap-2 justify-center py-3">
@@ -391,7 +407,7 @@ export default function PreferencePage() {
                 width: 6,
                 height: 6,
                 borderRadius: "50%",
-                background: active ? "#fff" : "rgba(255,255,255,0.25)",
+                background: active ? "#2e2547" : "rgba(46,37,71,0.25)",
               }}
             />
           ))}
@@ -404,7 +420,7 @@ export default function PreferencePage() {
           style={{
             position: "fixed",
             inset: 0,
-            background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 55%, #1a1408 100%)",
+            background: "linear-gradient(180deg, #c5beda 0%, #b3acd2 50%, #c8c0e0 100%)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -432,7 +448,7 @@ export default function PreferencePage() {
                           width: sz, height: sz,
                           objectFit: "cover",
                           borderRadius: 14,
-                          border: "1.5px solid rgba(255,255,255,0.18)",
+                          border: "2px solid rgba(255,255,255,0.7)",
                           opacity: photosFadeIn ? 1.0 : 0.35,
                           transition: "opacity 2.6s ease",
                           flexShrink: 0,
@@ -440,16 +456,23 @@ export default function PreferencePage() {
                       />
                     ))}
                     {loadingPhotos.length === 0 && (
-                      <div style={{ width: 88, height: 88, borderRadius: 14, background: "rgba(255,255,255,0.07)", border: "1.5px solid rgba(255,255,255,0.12)" }} />
+                      <div style={{ width: 88, height: 88, borderRadius: 14, background: "rgba(255,255,255,0.4)", border: "2px solid rgba(255,255,255,0.6)" }} />
                     )}
                   </div>
                 );
               })()}
-              <p style={{ color: "#fff", fontSize: 17, fontWeight: 500, textAlign: "center", letterSpacing: "-0.3px" }}>
-                사진 속 오늘을 읽고 있어요 🔍
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/characters/pikter/analyzing.png"
+                alt=""
+                className="pixel-art"
+                style={{ width: 140, height: 140, marginBottom: 4, animation: "float 2.8s ease-in-out infinite" }}
+              />
+              <p style={{ color: "#2e2547", fontSize: 17, fontWeight: 600, textAlign: "center", letterSpacing: "-0.3px" }}>
+                사진 속 오늘을 읽고 있어
               </p>
-              <p style={{ color: "rgba(255,255,255,0.38)", fontSize: 13, marginTop: 10, textAlign: "center" }}>
-                사진의 분위기를 분석하는 중이에요
+              <p style={{ color: "rgba(46,37,71,0.55)", fontSize: 13, marginTop: 10, textAlign: "center" }}>
+                사진의 분위기를 분석하는 중
               </p>
             </>
           )}
@@ -459,47 +482,30 @@ export default function PreferencePage() {
             <>
               {(() => {
                 const n = loadingPhotos.length;
-                const sz = n === 1 ? 72 : n === 2 ? 64 : n === 3 ? 58 : n === 4 ? 52 : 46;
+                const sz = n === 1 ? 100 : n === 2 ? 88 : n === 3 ? 80 : n === 4 ? 72 : 64;
                 const gap = n <= 3 ? 6 : 5;
                 return (
-                  <div style={{ display: "flex", gap, justifyContent: "center", flexWrap: "wrap", marginBottom: 24 }}>
+                  <div style={{ display: "flex", gap, justifyContent: "center", flexWrap: "wrap", marginBottom: 36 }}>
                     {loadingPhotos.map((src, i) => (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img key={i} src={src} alt="" style={{ width: sz, height: sz, objectFit: "cover", borderRadius: 14, border: "1.5px solid rgba(255,255,255,0.14)", opacity: 0.65, flexShrink: 0 }} />
+                      <img key={i} src={src} alt="" style={{ width: sz, height: sz, objectFit: "cover", borderRadius: 14, border: "2px solid rgba(255,255,255,0.6)", opacity: 0.65, flexShrink: 0 }} />
                     ))}
                     {loadingPhotos.length === 0 && (
-                      <div style={{ width: 72, height: 72, borderRadius: 14, background: "rgba(255,255,255,0.06)", border: "1.5px solid rgba(255,255,255,0.1)" }} />
+                      <div style={{ width: 88, height: 88, borderRadius: 14, background: "rgba(255,255,255,0.4)", border: "2px solid rgba(255,255,255,0.55)" }} />
                     )}
                   </div>
                 );
               })()}
-              <p style={{ color: "#C4687A", fontSize: 13, marginBottom: 28, textAlign: "center", letterSpacing: "0.04em" }}>
-                사진 속 오늘을 읽었어요 ✦
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/characters/pikter/music-picking.png"
+                alt=""
+                className="pixel-art"
+                style={{ width: 140, height: 140, marginBottom: 4, animation: "float 2.8s ease-in-out infinite" }}
+              />
+              <p style={{ color: "#2e2547", fontSize: 17, fontWeight: 600, textAlign: "center", letterSpacing: "-0.3px" }}>
+                사진 속 오늘을 다 읽었어
               </p>
-              <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 20 }}>
-                {VIBE_AXES.map(({ left, right }, i) => (
-                  <div key={left}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 7 }}>
-                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{left}</span>
-                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{right}</span>
-                    </div>
-                    <div style={{ position: "relative", height: 6, background: "rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden" }}>
-                      {/* 중앙에서 양방향으로 채워지는 막대 */}
-                      <div style={{
-                        position: "absolute",
-                        left: gaugeAnimated ? `${Math.min(50, gaugeTargets[i])}%` : "50%",
-                        top: 0,
-                        width: gaugeAnimated ? `${Math.abs(gaugeTargets[i] - 50)}%` : "0%",
-                        height: "100%",
-                        background: "#C4687A",
-                        borderRadius: 3,
-                        boxShadow: "0 0 8px rgba(196,104,122,0.5)",
-                        transition: `left ${0.75 + i * 0.12}s cubic-bezier(0.4, 0, 0.2, 1) ${i * 0.1}s, width ${0.75 + i * 0.12}s cubic-bezier(0.4, 0, 0.2, 1) ${i * 0.1}s`,
-                      }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
             </>
           )}
 
@@ -508,20 +514,27 @@ export default function PreferencePage() {
             <>
               {(() => {
                 const n = loadingPhotos.length;
-                const sz = n === 1 ? 72 : n === 2 ? 64 : n === 3 ? 58 : n === 4 ? 52 : 46;
+                const sz = n === 1 ? 100 : n === 2 ? 88 : n === 3 ? 80 : n === 4 ? 72 : 64;
                 const gap = n <= 3 ? 6 : 5;
                 return (
-                  <div style={{ display: "flex", gap, justifyContent: "center", flexWrap: "wrap", marginBottom: 28 }}>
+                  <div style={{ display: "flex", gap, justifyContent: "center", flexWrap: "wrap", marginBottom: 36 }}>
                     {loadingPhotos.map((src, i) => (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img key={i} src={src} alt="" style={{ width: sz, height: sz, objectFit: "cover", borderRadius: 14, border: "1.5px solid rgba(255,255,255,0.14)", opacity: 0.5, flexShrink: 0 }} />
+                      <img key={i} src={src} alt="" style={{ width: sz, height: sz, objectFit: "cover", borderRadius: 14, border: "2px solid rgba(255,255,255,0.6)", opacity: 0.5, flexShrink: 0 }} />
                     ))}
                     {loadingPhotos.length === 0 && (
-                      <div style={{ width: 72, height: 72, borderRadius: 14, background: "rgba(255,255,255,0.06)", border: "1.5px solid rgba(255,255,255,0.1)" }} />
+                      <div style={{ width: 88, height: 88, borderRadius: 14, background: "rgba(255,255,255,0.4)", border: "2px solid rgba(255,255,255,0.55)" }} />
                     )}
                   </div>
                 );
               })()}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/characters/pikter/vibe-groove.png"
+                alt=""
+                className="pixel-art"
+                style={{ width: 112, height: 112, marginBottom: 4, animation: "float 2.8s ease-in-out infinite" }}
+              />
               <div
                 style={{
                   position: "relative",
@@ -540,9 +553,9 @@ export default function PreferencePage() {
                       left: 0,
                       top: 0,
                       margin: 0,
-                      color: "#fff",
+                      color: "#2e2547",
                       fontSize: 17,
-                      fontWeight: 500,
+                      fontWeight: 600,
                       letterSpacing: "-0.3px",
                       lineHeight: 1.55,
                       opacity: i === phase3TextIndex && phase3TextVisible ? 1 : 0,
@@ -569,7 +582,7 @@ export default function PreferencePage() {
                     style={{
                       width: 4,
                       borderRadius: 2,
-                      background: "#C4687A",
+                      background: "#5D4F8C",
                       animation: `${bar.anim} ${bar.duration}s ease-in-out ${bar.delay}s infinite`,
                     }}
                   />
@@ -586,7 +599,7 @@ export default function PreferencePage() {
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(13,18,24,0.92)",
+            background: "rgba(197,190,218,0.95)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -597,14 +610,14 @@ export default function PreferencePage() {
           }}
         >
           <div style={{ fontSize: 36 }}>🙏</div>
-          <p style={{ color: "#fff", fontSize: 15, fontWeight: 500, textAlign: "center", lineHeight: 1.6 }}>
+          <p style={{ color: "#2e2547", fontSize: 15, fontWeight: 600, textAlign: "center", lineHeight: 1.6 }}>
             {error}
           </p>
           <button
             onClick={() => setError("")}
             style={{
               marginTop: 8,
-              background: "#C4687A",
+              background: "#5D4F8C",
               border: "none",
               borderRadius: 24,
               padding: "12px 32px",
@@ -620,12 +633,12 @@ export default function PreferencePage() {
       )}
 
       {/* 하단 네비게이션 */}
-      <div style={{ background: "rgba(0,0,0,0.45)", borderTop: "0.5px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-around", padding: "12px 0 28px" }}>
-        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", cursor: "pointer" }} onClick={() => router.push("/journal")}>
+      <div style={{ background: "rgba(255,255,255,0.7)", borderTop: "0.5px solid rgba(46,37,71,0.12)", display: "flex", justifyContent: "space-around", padding: "12px 0 28px" }}>
+        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(46,37,71,0.55)", cursor: "pointer" }} onClick={() => router.push("/journal")}>
           <Archive size={22} strokeWidth={1.5} />
           아카이브
         </div>
-        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "#fff", cursor: "pointer" }} onClick={() => router.push("/")}>
+        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "#2e2547", cursor: "pointer" }} onClick={() => router.push("/")}>
           <Music size={22} strokeWidth={1.5} />
           노래 추천받기
         </div>
@@ -637,6 +650,7 @@ export default function PreferencePage() {
         @keyframes wave1 { 0%, 100% { height: 6px; } 50% { height: 22px; } }
         @keyframes wave2 { 0%, 100% { height: 10px; } 50% { height: 32px; } }
         @keyframes wave3 { 0%, 100% { height: 4px; } 50% { height: 16px; } }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
       `}</style>
     </div>
   );

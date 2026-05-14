@@ -14,8 +14,8 @@ export default function TermsPage() {
     <div
       className="min-h-screen flex flex-col"
       style={{
-        background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)",
-        color: "#fff",
+        background: "linear-gradient(180deg, #c5beda 0%, #b3acd2 45%, #c8c0e0 100%)",
+        color: "#2e2547",
       }}
     >
       {/* 상단 헤더 */}
@@ -25,14 +25,14 @@ export default function TermsPage() {
           paddingBottom: 24,
           paddingLeft: 20,
           paddingRight: 20,
-          borderBottom: "0.5px solid rgba(255,255,255,0.08)",
+          borderBottom: "0.5px solid rgba(46,37,71,0.12)",
         }}
       >
         <Link
           href="/"
           style={{
             fontSize: 13,
-            color: "rgba(255,255,255,0.5)",
+            color: "#5D4F8C",
             textDecoration: "none",
             display: "inline-block",
             marginBottom: 12,
@@ -44,14 +44,14 @@ export default function TermsPage() {
           style={{
             fontSize: 22,
             fontWeight: 600,
-            color: "#fff",
+            color: "#2e2547",
             letterSpacing: -0.5,
             marginBottom: 6,
           }}
         >
           이용약관
         </h1>
-        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
+        <p style={{ fontSize: 12, color: "rgba(46,37,71,0.5)" }}>
           시행일자: 2026년 5월 12일
         </p>
       </div>
@@ -69,7 +69,7 @@ export default function TermsPage() {
         <p
           style={{
             fontSize: 13,
-            color: "rgba(255,255,255,0.7)",
+            color: "rgba(46,37,71,0.75)",
             lineHeight: 1.8,
             marginBottom: 32,
           }}
@@ -177,13 +177,13 @@ export default function TermsPage() {
         <Section title="회사 정보">
           <div
             style={{
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.1)",
+              background: "rgba(255,255,255,0.5)",
+              border: "1px solid rgba(93,79,140,0.18)",
               borderRadius: 12,
               padding: "16px 18px",
               marginTop: 8,
               fontSize: 13,
-              color: "rgba(255,255,255,0.7)",
+              color: "rgba(46,37,71,0.75)",
               lineHeight: 1.9,
             }}
           >
@@ -195,14 +195,14 @@ export default function TermsPage() {
             <br />· 이메일:{" "}
             <a
               href="mailto:dailyyoung@linareen.com"
-              style={{ color: "#C4687A", textDecoration: "none" }}
+              style={{ color: "#5D4F8C", textDecoration: "none" }}
             >
               dailyyoung@linareen.com
             </a>
           </div>
         </Section>
 
-        <p style={{ marginTop: 24, fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
+        <p style={{ marginTop: 24, fontSize: 12, color: "rgba(46,37,71,0.5)" }}>
           시행일자: 2026년 5월 12일
         </p>
       </div>
@@ -218,14 +218,14 @@ function Section({ title, children }: { title: string; children: React.ReactNode
         style={{
           fontSize: 15,
           fontWeight: 600,
-          color: "#C4687A",
+          color: "#5D4F8C",
           marginBottom: 10,
           letterSpacing: -0.3,
         }}
       >
         {title}
       </h2>
-      <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.85 }}>
+      <div style={{ fontSize: 13, color: "rgba(46,37,71,0.75)", lineHeight: 1.85 }}>
         {children}
       </div>
     </section>
@@ -250,7 +250,7 @@ function List({ items }: { items: string[] }) {
               position: "absolute",
               left: 0,
               top: 0,
-              color: "rgba(196,104,122,0.6)",
+              color: "rgba(93,79,140,0.6)",
             }}
           >
             ·

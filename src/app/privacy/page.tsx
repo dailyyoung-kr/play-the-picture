@@ -14,8 +14,8 @@ export default function PrivacyPage() {
     <div
       className="min-h-screen flex flex-col"
       style={{
-        background: "linear-gradient(158deg, #0d1a10 0%, #0d1218 50%, #1a1408 100%)",
-        color: "#fff",
+        background: "linear-gradient(180deg, #c5beda 0%, #b3acd2 45%, #c8c0e0 100%)",
+        color: "#2e2547",
       }}
     >
       {/* 상단 헤더 */}
@@ -25,14 +25,14 @@ export default function PrivacyPage() {
           paddingBottom: 24,
           paddingLeft: 20,
           paddingRight: 20,
-          borderBottom: "0.5px solid rgba(255,255,255,0.08)",
+          borderBottom: "0.5px solid rgba(46,37,71,0.12)",
         }}
       >
         <Link
           href="/"
           style={{
             fontSize: 13,
-            color: "rgba(255,255,255,0.5)",
+            color: "#5D4F8C",
             textDecoration: "none",
             display: "inline-block",
             marginBottom: 12,
@@ -44,14 +44,14 @@ export default function PrivacyPage() {
           style={{
             fontSize: 22,
             fontWeight: 600,
-            color: "#fff",
+            color: "#2e2547",
             letterSpacing: -0.5,
             marginBottom: 6,
           }}
         >
           개인정보 처리방침
         </h1>
-        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
+        <p style={{ fontSize: 12, color: "rgba(46,37,71,0.5)" }}>
           시행일자: 2026년 5월 12일
         </p>
       </div>
@@ -69,7 +69,7 @@ export default function PrivacyPage() {
         <p
           style={{
             fontSize: 13,
-            color: "rgba(255,255,255,0.7)",
+            color: "rgba(46,37,71,0.75)",
             lineHeight: 1.8,
             marginBottom: 32,
           }}
@@ -92,7 +92,7 @@ export default function PrivacyPage() {
               "가입 정보 (OAuth 가입 시): Google·Apple·카카오 계정에서 받는 이메일·닉네임·프로필 사진·회원번호 (제공자 측 동의 항목에 따름)",
             ]}
           />
-          <p style={{ marginTop: 12, fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
+          <p style={{ marginTop: 12, fontSize: 12, color: "rgba(46,37,71,0.55)" }}>
             ※ 전화번호·실명·주소·금융정보는 수집하지 않습니다. 가입 정보는 사용자가 OAuth
             제공자에서 동의한 항목에 한해 받으며, 비회원으로 이용 시에는 익명 기기 식별자만
             사용됩니다.
@@ -146,7 +146,7 @@ export default function PrivacyPage() {
               "앱 내 '기록 삭제' 기능으로 즉시 삭제",
             ]}
           />
-          <p style={{ marginTop: 12, fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
+          <p style={{ marginTop: 12, fontSize: 12, color: "rgba(46,37,71,0.55)" }}>
             요청은 아래 보호책임자 연락처로 보내주시면 지체 없이 조치합니다.
           </p>
         </Section>
@@ -181,8 +181,8 @@ export default function PrivacyPage() {
         <Section title="9. 개인정보 보호책임자 및 회사 정보">
           <div
             style={{
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.1)",
+              background: "rgba(255,255,255,0.5)",
+              border: "1px solid rgba(93,79,140,0.18)",
               borderRadius: 12,
               padding: "16px 18px",
               marginTop: 8,
@@ -191,18 +191,18 @@ export default function PrivacyPage() {
             <p style={{ fontWeight: 500, marginBottom: 6 }}>
               개인정보 보호책임자
             </p>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.9 }}>
+            <p style={{ fontSize: 13, color: "rgba(46,37,71,0.75)", lineHeight: 1.9 }}>
               · 이름: 박찬영
               <br />· 이메일:{" "}
               <a
                 href="mailto:dailyyoung@linareen.com"
-                style={{ color: "#C4687A", textDecoration: "none" }}
+                style={{ color: "#5D4F8C", textDecoration: "none" }}
               >
                 dailyyoung@linareen.com
               </a>
             </p>
             <p style={{ fontWeight: 500, marginBottom: 6, marginTop: 14 }}>회사 정보</p>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.9 }}>
+            <p style={{ fontSize: 13, color: "rgba(46,37,71,0.75)", lineHeight: 1.9 }}>
               · 상호: 리나린
               <br />· 대표자: 박찬영, 김판준
               <br />· 사업자등록번호: 501-31-30511
@@ -228,7 +228,7 @@ export default function PrivacyPage() {
             법령·서비스 변경에 따라 처리방침이 변경될 수 있으며, 변경 시 본 페이지를
             통해 사전 고지합니다.
           </p>
-          <p style={{ marginTop: 12, fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
+          <p style={{ marginTop: 12, fontSize: 12, color: "rgba(46,37,71,0.55)" }}>
             · 시행일자: 2026년 5월 12일 (직전 개정: 2026년 5월 8일)
           </p>
         </Section>
@@ -251,7 +251,7 @@ function Section({
         style={{
           fontSize: 15,
           fontWeight: 600,
-          color: "#C4687A",
+          color: "#5D4F8C",
           marginBottom: 10,
           letterSpacing: -0.3,
         }}
@@ -261,7 +261,7 @@ function Section({
       <div
         style={{
           fontSize: 13,
-          color: "rgba(255,255,255,0.7)",
+          color: "rgba(46,37,71,0.75)",
           lineHeight: 1.85,
         }}
       >
@@ -289,7 +289,7 @@ function List({ items }: { items: string[] }) {
               position: "absolute",
               left: 0,
               top: 0,
-              color: "rgba(196,104,122,0.6)",
+              color: "rgba(93,79,140,0.6)",
             }}
           >
             ·
