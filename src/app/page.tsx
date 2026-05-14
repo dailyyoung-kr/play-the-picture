@@ -216,11 +216,12 @@ export default function UploadPage() {
         onChange={handleFileSelect}
       />
 
-      {/* 메인 콘텐츠 — 세로 중앙 정렬 */}
-      <div className="flex-1 flex flex-col justify-center">
+      {/* 메인 콘텐츠 — 세로 중앙 정렬 (내용이 길면 스크롤 → 안드로이드 CTA 잘림 방지) */}
+      <div className="flex-1 overflow-y-auto">
+      <div className="min-h-full flex flex-col justify-center" style={{ paddingTop: 16, paddingBottom: 16 }}>
 
       {/* 상단 앱 로고 */}
-      <div className="flex justify-center pb-7">
+      <div className="flex justify-center pb-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/branding/play-the-picture-logo-one-line.png"
@@ -511,6 +512,7 @@ export default function UploadPage() {
           </button>
         )}
 
+      </div>
       </div>
       </div>{/* 메인 콘텐츠 wrapper 끝 */}
 
