@@ -53,8 +53,8 @@ export default function RootLayout({
   return (
     <html lang="ko" className={`${notoSansKR.variable} ${dmSans.variable} ${gaegu.variable} h-full`}>
       <head>
-        <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
+        <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#c5beda" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
