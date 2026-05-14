@@ -1000,23 +1000,24 @@ export default function ResultPage() {
             />
             <div style={{
               position: "fixed", bottom: 0, left: 0, right: 0,
-              background: "rgba(13,18,24,0.98)",
+              background: "linear-gradient(180deg, #c8c1e2 0%, #c2bade 100%)",
               borderRadius: "20px 20px 0 0",
               padding: "12px 20px 40px",
               zIndex: 61,
-              border: "1px solid rgba(255,255,255,0.08)",
+              border: "1px solid rgba(93,79,140,0.2)",
+              boxShadow: "0 -10px 40px rgba(46,37,71,0.3)",
             }}>
-              <div style={{ width: 36, height: 4, background: "rgba(255,255,255,0.25)", borderRadius: 2, margin: "0 auto 20px" }} />
+              <div style={{ width: 36, height: 4, background: "rgba(46,37,71,0.2)", borderRadius: 2, margin: "0 auto 20px" }} />
 
-              <p className="font-medium text-center" style={{ fontSize: 16, color: "#fff", marginBottom: 10 }}>
+              <p className="font-medium text-center" style={{ fontSize: 16, color: "#2e2547", marginBottom: 10 }}>
                 어디서 들을까요?
               </p>
 
               <div className="flex justify-center mb-5">
                 <span style={{
-                  background: "rgba(196,104,122,0.18)",
-                  border: "1px solid rgba(196,104,122,0.4)",
-                  color: "#C4687A",
+                  background: "rgba(93,79,140,0.15)",
+                  border: "1px solid rgba(93,79,140,0.35)",
+                  color: "#5D4F8C",
                   fontSize: 12,
                   padding: "4px 14px",
                   borderRadius: 20,
@@ -1026,7 +1027,7 @@ export default function ResultPage() {
               </div>
 
               {loadingLinks && !result.spotifyTrackId && (
-                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 12, marginBottom: 12 }}>
+                <div style={{ textAlign: "center", color: "rgba(46,37,71,0.5)", fontSize: 12, marginBottom: 12 }}>
                   🎵 링크 찾는 중...
                 </div>
               )}
@@ -1044,7 +1045,8 @@ export default function ResultPage() {
                       alignItems: "center",
                       gap: 14,
                       height: 60,
-                      background: "rgba(255,255,255,0.06)",
+                      background: "rgba(255,255,255,0.55)",
+                      border: "1px solid rgba(93,79,140,0.18)",
                       borderRadius: 12,
                       padding: "0 16px",
                       textDecoration: "none",
@@ -1060,25 +1062,25 @@ export default function ResultPage() {
                       {p.icon}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <span style={{ fontSize: 14, color: "#fff", display: "block" }}>{p.name}</span>
+                      <span style={{ fontSize: 14, color: "#2e2547", display: "block" }}>{p.name}</span>
                       {(!loadingLinks || result.spotifyTrackId) && (
-                        <span style={{ fontSize: 10, color: p.isDirect ? "rgba(100,200,100,0.7)" : "rgba(255,255,255,0.3)" }}>
+                        <span style={{ fontSize: 10, color: p.isDirect ? "#3a8c5a" : "rgba(46,37,71,0.4)" }}>
                           {p.isDirect ? "▶ 바로 재생" : "검색 화면으로 이동"}
                         </span>
                       )}
                     </div>
-                    <span style={{ fontSize: 18, color: "rgba(255,255,255,0.35)" }}>›</span>
+                    <span style={{ fontSize: 18, color: "rgba(46,37,71,0.35)" }}>›</span>
                   </a>
                 ))}
               </div>
 
               <div style={{
                 display: "flex", alignItems: "center", gap: 8,
-                background: "rgba(255,255,255,0.05)",
+                background: "rgba(255,255,255,0.4)",
                 borderRadius: 10, padding: "10px 14px", marginBottom: 14,
               }}>
                 <span style={{ fontSize: 16, flexShrink: 0 }}>🎵</span>
-                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.6, margin: 0 }}>
+                <p style={{ fontSize: 12, color: "rgba(46,37,71,0.6)", lineHeight: 1.6, margin: 0 }}>
                   앱이 설치·로그인되어 있으면<br />추천 곡이 바로 재생돼요
                 </p>
               </div>
@@ -1087,10 +1089,10 @@ export default function ResultPage() {
                 onClick={() => setShowListenSheet(false)}
                 style={{
                   width: "100%", cursor: "pointer",
-                  background: "rgba(255,255,255,0.07)",
-                  border: "1px solid rgba(255,255,255,0.15)",
+                  background: "rgba(255,255,255,0.4)",
+                  border: "1px solid rgba(93,79,140,0.25)",
                   borderRadius: 24, padding: "12px 0",
-                  fontSize: 14, color: "rgba(255,255,255,0.55)",
+                  fontSize: 14, color: "rgba(46,37,71,0.6)",
                   textAlign: "center",
                 }}
               >
@@ -1113,25 +1115,27 @@ export default function ResultPage() {
             onClick={(e) => e.stopPropagation()}
             style={{
               width: "100%",
-              background: "#1a1f2b",
+              background: "linear-gradient(180deg, #c8c1e2 0%, #c2bade 100%)",
               borderRadius: "20px 20px 0 0",
               padding: "20px 20px 40px",
-              border: "1px solid rgba(255,255,255,0.1)",
+              border: "1px solid rgba(93,79,140,0.2)",
+              boxShadow: "0 -10px 40px rgba(46,37,71,0.3)",
             }}
           >
-            <div style={{ width: 36, height: 4, background: "rgba(255,255,255,0.25)", borderRadius: 2, margin: "0 auto 20px" }} />
-            <p style={{ fontSize: 15, color: "#fff", fontWeight: 600, marginBottom: 6 }}>잠깐! 아래 단계로 공유해주세요</p>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 14, lineHeight: 1.8 }}>
+            <div style={{ width: 36, height: 4, background: "rgba(46,37,71,0.2)", borderRadius: 2, margin: "0 auto 20px" }} />
+            <p style={{ fontSize: 15, color: "#2e2547", fontWeight: 600, marginBottom: 6 }}>잠깐! 아래 단계로 공유해주세요</p>
+            <div style={{ fontSize: 12, color: "rgba(46,37,71,0.65)", marginBottom: 14, lineHeight: 1.8 }}>
               <div>1️⃣  아래 [링크 복사하기] 버튼 누르기</div>
               <div>2️⃣  메신저 열고 채팅창 들어가기</div>
               <div>3️⃣  채팅창에 붙여넣기</div>
             </div>
             <div style={{
-              background: "rgba(255,255,255,0.08)",
+              background: "rgba(255,255,255,0.55)",
+              border: "1px solid rgba(93,79,140,0.18)",
               borderRadius: 10,
               padding: "12px 14px",
               fontSize: 12,
-              color: "rgba(255,255,255,0.7)",
+              color: "rgba(46,37,71,0.7)",
               wordBreak: "break-all",
               lineHeight: 1.6,
               marginBottom: 16,
@@ -1150,7 +1154,7 @@ export default function ResultPage() {
                 }
               }}
               style={{
-                width: "100%", background: "#C4687A", border: "none",
+                width: "100%", background: "#5D4F8C", border: "none",
                 borderRadius: 24, padding: 14, color: "#fff", fontSize: 14, cursor: "pointer",
               }}
             >

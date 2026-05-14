@@ -53,7 +53,7 @@ export function AccountConflictModal({ isOpen, onClose }: Props) {
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.7)",
+        background: "rgba(0,0,0,0.5)",
         backdropFilter: "blur(8px)",
         display: "flex",
         alignItems: "center",
@@ -67,29 +67,29 @@ export function AccountConflictModal({ isOpen, onClose }: Props) {
         style={{
           width: "100%",
           maxWidth: 380,
-          background: "linear-gradient(180deg, #1a1820 0%, #0d1218 100%)",
+          background: "linear-gradient(180deg, #c8c1e2 0%, #c2bade 100%)",
           borderRadius: 20,
           padding: "28px 24px",
-          color: "#fff",
-          border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+          color: "#2e2547",
+          border: "1px solid rgba(93,79,140,0.2)",
+          boxShadow: "0 20px 60px rgba(46,37,71,0.3)",
         }}
       >
         <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 12, lineHeight: 1.4 }}>
           이미 Google 계정으로 가입한 이력이 있어요
         </h2>
-        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", marginBottom: 14, lineHeight: 1.5 }}>
+        <p style={{ fontSize: 14, color: "rgba(46,37,71,0.7)", marginBottom: 14, lineHeight: 1.5 }}>
           해당 계정으로 로그인할까요?
         </p>
         <div
           style={{
-            background: "rgba(196,104,122,0.1)",
-            border: "1px solid rgba(196,104,122,0.25)",
+            background: "rgba(93,79,140,0.1)",
+            border: "1px solid rgba(93,79,140,0.25)",
             borderRadius: 10,
             padding: "10px 12px",
             marginBottom: 22,
             fontSize: 12,
-            color: "rgba(255,255,255,0.7)",
+            color: "rgba(46,37,71,0.7)",
             lineHeight: 1.5,
           }}
         >
@@ -102,7 +102,7 @@ export function AccountConflictModal({ isOpen, onClose }: Props) {
           style={{
             width: "100%",
             padding: "13px 16px",
-            background: "#C4687A",
+            background: "#5D4F8C",
             border: "none",
             borderRadius: 12,
             color: "#fff",
@@ -122,9 +122,9 @@ export function AccountConflictModal({ isOpen, onClose }: Props) {
             width: "100%",
             padding: "12px 16px",
             background: "transparent",
-            border: "1px solid rgba(255,255,255,0.15)",
+            border: "1px solid rgba(93,79,140,0.3)",
             borderRadius: 12,
-            color: "rgba(255,255,255,0.7)",
+            color: "rgba(46,37,71,0.65)",
             fontSize: 14,
             cursor: "pointer",
           }}

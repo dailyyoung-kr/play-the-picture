@@ -547,23 +547,23 @@ export default function JournalPage() {
       {/* 삭제 확인 다이얼로그 */}
       {deleteTarget && (
         <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 32px" }}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 32px" }}
           onClick={() => setDeleteTarget(null)}
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ background: "#1a1a2a", borderRadius: 18, padding: "24px 20px", width: "100%", border: "1px solid rgba(255,255,255,0.12)" }}
+            style={{ background: "linear-gradient(180deg, #c8c1e2 0%, #c2bade 100%)", borderRadius: 18, padding: "24px 20px", width: "100%", border: "1px solid rgba(93,79,140,0.2)", boxShadow: "0 20px 60px rgba(46,37,71,0.3)" }}
           >
-            <p className="font-semibold text-center" style={{ fontSize: 15, color: "#fff", marginBottom: 8 }}>
+            <p className="font-semibold text-center" style={{ fontSize: 15, color: "#2e2547", marginBottom: 8 }}>
               이 기록을 삭제할까요?
             </p>
-            <p className="text-center" style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 20 }}>
+            <p className="text-center" style={{ fontSize: 12, color: "rgba(46,37,71,0.5)", marginBottom: 20 }}>
               {deleteTarget.song} · {formatTime(deleteTarget.created_at)}
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteTarget(null)}
-                style={{ flex: 1, padding: "12px", borderRadius: 12, background: "transparent", border: "1px solid rgba(255,255,255,0.25)", color: "rgba(255,255,255,0.75)", fontSize: 14, cursor: "pointer" }}
+                style={{ flex: 1, padding: "12px", borderRadius: 12, background: "transparent", border: "1px solid rgba(93,79,140,0.3)", color: "rgba(46,37,71,0.65)", fontSize: 14, cursor: "pointer" }}
               >
                 취소
               </button>
@@ -735,21 +735,22 @@ export default function JournalPage() {
             />
             <div style={{
               position: "fixed", bottom: 0, left: 0, right: 0,
-              background: "rgba(13,18,24,0.98)",
+              background: "linear-gradient(180deg, #c8c1e2 0%, #c2bade 100%)",
               borderRadius: "20px 20px 0 0",
               padding: "12px 20px 40px",
               zIndex: 111,
-              border: "1px solid rgba(255,255,255,0.08)",
+              border: "1px solid rgba(93,79,140,0.2)",
+              boxShadow: "0 -10px 40px rgba(46,37,71,0.3)",
             }}>
-              <div style={{ width: 36, height: 4, background: "rgba(255,255,255,0.25)", borderRadius: 2, margin: "0 auto 20px" }} />
+              <div style={{ width: 36, height: 4, background: "rgba(46,37,71,0.2)", borderRadius: 2, margin: "0 auto 20px" }} />
 
-              <p className="font-medium text-center" style={{ fontSize: 16, color: "#fff", marginBottom: 10 }}>어디서 들을까요?</p>
+              <p className="font-medium text-center" style={{ fontSize: 16, color: "#2e2547", marginBottom: 10 }}>어디서 들을까요?</p>
 
               <div className="flex justify-center mb-5">
                 <span style={{
-                  background: "rgba(196,104,122,0.18)",
-                  border: "1px solid rgba(196,104,122,0.4)",
-                  color: "#C4687A", fontSize: 12,
+                  background: "rgba(93,79,140,0.15)",
+                  border: "1px solid rgba(93,79,140,0.35)",
+                  color: "#5D4F8C", fontSize: 12,
                   padding: "4px 14px", borderRadius: 20,
                 }}>
                   {listeningEntry.song}{listeningEntry.artist ? ` — ${listeningEntry.artist}` : ""}
@@ -757,7 +758,7 @@ export default function JournalPage() {
               </div>
 
               {loadingLinks && (
-                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 12, marginBottom: 12 }}>
+                <div style={{ textAlign: "center", color: "rgba(46,37,71,0.5)", fontSize: 12, marginBottom: 12 }}>
                   🎵 링크 찾는 중...
                 </div>
               )}
@@ -767,7 +768,8 @@ export default function JournalPage() {
                   <a key={p.name} href={p.url} target="_blank" rel="noopener noreferrer"
                     style={{
                       display: "flex", alignItems: "center", gap: 14,
-                      height: 60, background: "rgba(255,255,255,0.06)",
+                      height: 60, background: "rgba(255,255,255,0.55)",
+                      border: "1px solid rgba(93,79,140,0.18)",
                       borderRadius: 12, padding: "0 16px",
                       textDecoration: "none",
                       opacity: loadingLinks ? 0.5 : 1,
@@ -777,25 +779,25 @@ export default function JournalPage() {
                       {p.icon}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <span style={{ fontSize: 14, color: "#fff", display: "block" }}>{p.name}</span>
+                      <span style={{ fontSize: 14, color: "#2e2547", display: "block" }}>{p.name}</span>
                       {!loadingLinks && (
-                        <span style={{ fontSize: 10, color: p.isDirect ? "rgba(100,200,100,0.7)" : "rgba(255,255,255,0.3)" }}>
+                        <span style={{ fontSize: 10, color: p.isDirect ? "#3a8c5a" : "rgba(46,37,71,0.4)" }}>
                           {p.isDirect ? "▶ 바로 재생" : "검색 화면으로 이동"}
                         </span>
                       )}
                     </div>
-                    <span style={{ fontSize: 18, color: "rgba(255,255,255,0.35)" }}>›</span>
+                    <span style={{ fontSize: 18, color: "rgba(46,37,71,0.35)" }}>›</span>
                   </a>
                 ))}
               </div>
 
               <div style={{
                 display: "flex", alignItems: "center", gap: 8,
-                background: "rgba(255,255,255,0.05)",
+                background: "rgba(255,255,255,0.4)",
                 borderRadius: 10, padding: "10px 14px", marginBottom: 14,
               }}>
                 <span style={{ fontSize: 16, flexShrink: 0 }}>🎵</span>
-                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.6, margin: 0 }}>
+                <p style={{ fontSize: 12, color: "rgba(46,37,71,0.6)", lineHeight: 1.6, margin: 0 }}>
                   앱이 설치·로그인되어 있으면<br />추천 곡이 바로 재생돼요
                 </p>
               </div>
@@ -804,10 +806,10 @@ export default function JournalPage() {
                 onClick={() => setShowListenSheet(false)}
                 style={{
                   width: "100%", cursor: "pointer",
-                  background: "rgba(255,255,255,0.07)",
-                  border: "1px solid rgba(255,255,255,0.15)",
+                  background: "rgba(255,255,255,0.4)",
+                  border: "1px solid rgba(93,79,140,0.25)",
                   borderRadius: 24, padding: "12px 0",
-                  fontSize: 14, color: "rgba(255,255,255,0.55)",
+                  fontSize: 14, color: "rgba(46,37,71,0.6)",
                   textAlign: "center",
                 }}
               >
