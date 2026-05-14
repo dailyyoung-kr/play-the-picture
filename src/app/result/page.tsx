@@ -1406,22 +1406,16 @@ export default function ResultPage() {
           boxSizing: "border-box",
         }}
       >
-        {/* ── 상단 앱 이름 + 서브 문구 (result 패턴) ── */}
-        <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <div
-            style={{
-              fontSize: 30,
-              letterSpacing: "0.2em",
-              color: "#C4687A",
-              fontWeight: 300,
-              marginBottom: 10,
-            }}
-          >
-            Play the Picture
-          </div>
-          <div style={{ fontSize: 26, color: "rgba(255,255,255,0.4)", letterSpacing: "0.08em" }}>
-            플더픽의 추천곡
-          </div>
+        {/* ── 상단 앱 로고 (result 패턴 — html2canvas는 CSS filter 미지원이라 흰색 로고 PNG 직접 사용) ── */}
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 40 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/branding/play-the-picture-logo-one-line-white.png"
+            alt="Play the Picture"
+            decoding="sync"
+            loading="eager"
+            style={{ height: 84, width: "auto", opacity: 0.92 }}
+          />
         </div>
 
         {/* ── 사진 영역 — slot 모두 동일 정사각형, 사진은 가운데 1:1 cover (확대 X) ── */}
@@ -1523,7 +1517,7 @@ export default function ResultPage() {
               marginBottom: 36,
             }}
           >
-            <div style={{ fontSize: 28, color: "rgba(255,255,255,0.38)", marginBottom: 18, lineHeight: 1 }}>
+            <div style={{ fontSize: 28, color: "rgba(255,255,255,0.5)", marginBottom: 18, lineHeight: 1 }}>
               오늘의 당신은
             </div>
             <div
@@ -1586,7 +1580,7 @@ export default function ResultPage() {
             <div
               style={{
                 fontSize: 28,
-                color: "#f0d080",
+                color: "#d6cff2",
                 letterSpacing: "0.05em",
                 fontWeight: 500,
                 marginBottom: 18,
