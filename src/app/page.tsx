@@ -496,7 +496,7 @@ export default function UploadPage() {
             style={{
               width: "100%",
               padding: 14,
-              borderRadius: 24,
+              borderRadius: 14,
               background: "#5D4F8C",
               color: "#fff",
               fontSize: 14,

@@ -37,12 +37,12 @@ const WAVE_BARS = [
   { delay: 0.04, duration: 0.92, anim: "wave3" },
 ];
 const PHASE3_TEXTS = [
-  "딱 맞는 한 곡을 고르고 있어",
-  "거의 다 골랐어",
-  "픽터가 플레이리스트를 뒤적이는 중...",
-  "다른 곡이랑 한번 더 비교하는 중",
-  "한 곡인 만큼 신중하게 고를게",
-  "마지막으로 한번 더 확인해볼게",
+  "딱 맞는 한 곡을 고르고 있어요",
+  "거의 다 골랐어요",
+  "플더픽이 플레이리스트를 뒤적이는 중...",
+  "다른 곡과 한번 더 비교하는 중",
+  "한 곡인 만큼 신중하게",
+  "마지막으로 한번 더 확인해볼게요",
 ];
 
 export default function PreferencePage() {
@@ -375,7 +375,7 @@ export default function PreferencePage() {
           style={{
             background: loading ? "rgba(93,79,140,0.5)" : "#5D4F8C",
             border: "none",
-            borderRadius: 24,
+            borderRadius: 14,
             padding: 14,
             color: "#fff",
             fontSize: 14,
@@ -469,10 +469,10 @@ export default function PreferencePage() {
                 style={{ width: 140, height: 140, marginBottom: 4, animation: "float 2.8s ease-in-out infinite" }}
               />
               <p style={{ color: "#2e2547", fontSize: 17, fontWeight: 600, textAlign: "center", letterSpacing: "-0.3px" }}>
-                사진 속 오늘을 읽고 있어
+                사진 속 오늘을 읽고 있어요
               </p>
               <p style={{ color: "rgba(46,37,71,0.55)", fontSize: 13, marginTop: 10, textAlign: "center" }}>
-                사진의 분위기를 분석하는 중
+                사진의 분위기를 분석하는 중이에요
               </p>
             </>
           )}
@@ -504,7 +504,7 @@ export default function PreferencePage() {
                 style={{ width: 140, height: 140, marginBottom: 4, animation: "float 2.8s ease-in-out infinite" }}
               />
               <p style={{ color: "#2e2547", fontSize: 17, fontWeight: 600, textAlign: "center", letterSpacing: "-0.3px" }}>
-                사진 속 오늘을 다 읽었어
+                사진 속 오늘을 다 읽었어요
               </p>
             </>
           )}

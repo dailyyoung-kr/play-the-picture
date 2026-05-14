@@ -121,7 +121,7 @@ export function HamburgerMenu() {
             height: 40,
             background: "rgba(255,255,255,0.6)",
             border: "none",
-            borderRadius: "50%",
+            borderRadius: 12,
             padding: 0,
             display: "flex",
             alignItems: "center",
