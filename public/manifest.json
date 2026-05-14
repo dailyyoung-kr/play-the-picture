@@ -4,8 +4,8 @@
   "description": "오늘 찍은 사진으로 AI가 딱 맞는 한 곡을 추천해드려요",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0d1218",
-  "theme_color": "#0d1218",
+  "background_color": "#c5beda",
+  "theme_color": "#c5beda",
   "orientation": "portrait",
   "icons": [
     {

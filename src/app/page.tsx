@@ -216,19 +216,19 @@ export default function UploadPage() {
         onChange={handleFileSelect}
       />
 
-      {/* 메인 콘텐츠 — 세로 중앙 정렬 (내용이 길면 스크롤 → 안드로이드 CTA 잘림 방지) */}
-      <div className="flex-1 overflow-y-auto">
-      <div className="min-h-full flex flex-col justify-center" style={{ paddingTop: 16, paddingBottom: 16 }}>
-
-      {/* 상단 앱 로고 */}
-      <div className="flex justify-center pb-4">
+      {/* 상단 앱 로고 — 우측 메뉴 버튼(top:16, h:40 → 중심 y36)과 세로 중심 정렬 */}
+      <div className="flex justify-center" style={{ paddingTop: 12, flexShrink: 0 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/branding/play-the-picture-logo-one-line.png"
           alt="Play the Picture"
-          style={{ height: 64, width: "auto" }}
+          style={{ height: 48, width: "auto" }}
         />
       </div>
+
+      {/* 메인 콘텐츠 — 세로 중앙 정렬 (내용이 길면 스크롤 → 안드로이드 CTA 잘림 방지) */}
+      <div className="flex-1 overflow-y-auto">
+      <div className="min-h-full flex flex-col justify-center" style={{ paddingTop: 8, paddingBottom: 16 }}>
 
       {/* 본문 */}
       <div className="flex flex-col px-5">
@@ -445,7 +445,7 @@ export default function UploadPage() {
                 }}>+</span>{" "}
                 버튼으로 사진을 추가해주세요
                 <div style={{ fontSize: 12, color: "rgba(46,37,71,0.55)", marginTop: 3 }}>
-                  최대 5장 · 노래 추천에만 사용돼요{" "}
+                  <span className={photos.length >= maxPhotos ? "text-pulse" : ""}>최대 5장</span> · 노래 추천에만 사용돼요{" "}
                   <Link
                     href="/privacy"
                     style={{ color: "#5D4F8C", textDecoration: "underline", fontWeight: 500 }}

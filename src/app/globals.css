@@ -60,3 +60,15 @@ body {
 .cta-pulse {
   animation: ctaPulse 1.6s ease-out 3;
 }
+
+/* "최대 5장" 강조 펄스 — 5/5 도달 시 (스케일만, box-shadow 링 없음 — 인라인 텍스트용) */
+@keyframes textPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+.text-pulse {
+  display: inline-block;
+  animation: textPulse 1.6s ease-out 3;
+  color: #5D4F8C;
+  font-weight: 700;
+}
