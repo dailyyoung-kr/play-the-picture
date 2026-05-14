@@ -40,6 +40,21 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
     }
   };
 
+  const handleAppleLogin = async () => {
+    // 로깅 fire-and-forget — redirect 지연 X
+    logAuthEvent("apple_login_start", { source });
+    const deviceId = getDeviceId();
+    const supabase = createSupabaseBrowserClient();
+    const callbackUrl = `${window.location.origin}/auth/callback?device_id=${encodeURIComponent(deviceId)}`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "apple",
+      options: { redirectTo: callbackUrl },
+    });
+    if (error) {
+      console.error("[LoginGate] Apple OAuth 시작 실패:", error.message);
+    }
+  };
+
   const handleKakaoLogin = () => {
     // 로깅 fire-and-forget — 즉시 redirect
     logAuthEvent("kakao_login_start", { source });
@@ -149,6 +164,31 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
             <path d="M12 3C6.477 3 2 6.477 2 10.8c0 2.766 1.836 5.197 4.604 6.617L5.4 21l4.34-2.86c.74.092 1.494.14 2.26.14 5.523 0 10-3.477 10-7.78S17.523 3 12 3z" fill="#3C1E1E"/>
           </svg>
           카카오로 로그인
+        </button>
+
+        <button
+          onClick={handleAppleLogin}
+          style={{
+            width: "100%",
+            padding: "14px 16px",
+            marginBottom: 10,
+            background: "#000",
+            border: "none",
+            borderRadius: 12,
+            color: "#fff",
+            fontSize: 15,
+            fontWeight: 500,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" aria-hidden>
+            <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+          </svg>
+          Apple로 로그인
         </button>
 
         <button

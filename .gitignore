@@ -45,3 +45,6 @@ backup_*.sql
 # local agent / CLI working dirs
 .claude/worktrees/
 supabase/.temp/
+
+# 비밀 키 (Apple Sign in 등)
+*.p8
