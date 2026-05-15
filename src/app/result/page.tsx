@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseWithDeviceId } from "@/lib/supabase";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
-import { Archive, Music, Play, Bookmark, RotateCcw, Check } from "lucide-react";
+import { Archive, Music, Play, Bookmark, RotateCcw, Check, X } from "lucide-react";
 import { PreviewPlayer } from "@/components/PreviewPlayer";
 
 // Instagram 아이콘 — lucide-react가 브랜드 트레이드마크 이슈로 제거함, inline SVG로 대체
@@ -1015,6 +1015,20 @@ export default function ResultPage() {
               border: "1px solid rgba(93,79,140,0.2)",
               boxShadow: "0 -10px 40px rgba(46,37,71,0.3)",
             }}>
+              {/* 우상단 X 버튼 — 명시적 닫기 (backdrop 클릭도 동일 동작) */}
+              <button
+                onClick={() => setShowListenSheet(false)}
+                aria-label="닫기"
+                style={{
+                  position: "absolute", top: 12, right: 12,
+                  width: 32, height: 32, borderRadius: "50%",
+                  background: "rgba(46,37,71,0.08)", border: "none",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "rgba(46,37,71,0.55)", cursor: "pointer",
+                }}
+              >
+                <X size={16} strokeWidth={2.2} />
+              </button>
               <div style={{ width: 36, height: 4, background: "rgba(46,37,71,0.2)", borderRadius: 2, margin: "0 auto 20px" }} />
 
               <p className="font-medium text-center" style={{ fontSize: 16, color: "#2e2547", marginBottom: 10 }}>
@@ -1081,30 +1095,6 @@ export default function ResultPage() {
                 ))}
               </div>
 
-              <div style={{
-                display: "flex", alignItems: "center", gap: 8,
-                background: "rgba(255,255,255,0.4)",
-                borderRadius: 10, padding: "10px 14px", marginBottom: 14,
-              }}>
-                <span style={{ fontSize: 16, flexShrink: 0 }}>🎵</span>
-                <p style={{ fontSize: 12, color: "rgba(46,37,71,0.6)", lineHeight: 1.6, margin: 0 }}>
-                  앱이 설치·로그인되어 있으면<br />추천 곡이 바로 재생돼요
-                </p>
-              </div>
-
-              <button
-                onClick={() => setShowListenSheet(false)}
-                style={{
-                  width: "100%", cursor: "pointer",
-                  background: "rgba(255,255,255,0.4)",
-                  border: "1px solid rgba(93,79,140,0.25)",
-                  borderRadius: 24, padding: "12px 0",
-                  fontSize: 14, color: "rgba(46,37,71,0.6)",
-                  textAlign: "center",
-                }}
-              >
-                나중에 듣기
-              </button>
             </div>
           </>
         );
