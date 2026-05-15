@@ -236,14 +236,24 @@ export default function PreferencePage() {
     >
       <HamburgerMenu />
 
-      {/* 상단 바 — 뒤로가기만 */}
-      <div className="flex items-center px-5 pt-12 pb-3">
-        <button
-          onClick={() => router.back()}
-          style={{ fontSize: 20, color: "#5D4F8C", background: "none", border: "none", cursor: "pointer" }}
-        >
-          ←
-        </button>
+      {/* 뒤로가기 — 좌상단 (HamburgerMenu와 같은 top band) */}
+      <button
+        onClick={() => router.back()}
+        aria-label="뒤로"
+        style={{ position: "absolute", top: 16, left: 16, fontSize: 22, color: "#5D4F8C", background: "none", border: "none", cursor: "pointer", zIndex: 50, lineHeight: 1 }}
+      >
+        ←
+      </button>
+
+      {/* 상단 앱 로고 — 랜딩 페이지와 동일 */}
+      <div className="flex justify-center" style={{ paddingTop: 12, flexShrink: 0 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/branding/play-the-picture-logo-one-line.png"
+          alt="Play the Picture"
+          onClick={() => router.push("/")}
+          style={{ height: 48, width: "auto", cursor: "pointer" }}
+        />
       </div>
 
       {/* 픽터 hero + 말풍선 (말풍선이 픽터 위) */}
@@ -466,7 +476,7 @@ export default function PreferencePage() {
                 src="/characters/pikter/analyzing.png"
                 alt=""
                 className="pixel-art"
-                style={{ width: 140, height: 140, marginBottom: 4, animation: "float 2.8s ease-in-out infinite" }}
+                style={{ width: 112, height: 112, marginBottom: 4, animation: "float 2.8s ease-in-out infinite" }}
               />
               <p style={{ color: "#2e2547", fontSize: 17, fontWeight: 600, textAlign: "center", letterSpacing: "-0.3px" }}>
                 사진 속 오늘을 읽고 있어요
@@ -488,7 +498,7 @@ export default function PreferencePage() {
                   <div style={{ display: "flex", gap, justifyContent: "center", flexWrap: "wrap", marginBottom: 36 }}>
                     {loadingPhotos.map((src, i) => (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img key={i} src={src} alt="" style={{ width: sz, height: sz, objectFit: "cover", borderRadius: 14, border: "2px solid rgba(255,255,255,0.6)", opacity: 0.65, flexShrink: 0 }} />
+                      <img key={i} src={src} alt="" style={{ width: sz, height: sz, objectFit: "cover", borderRadius: 14, border: "2px solid rgba(255,255,255,0.6)", opacity: 1, flexShrink: 0 }} />
                     ))}
                     {loadingPhotos.length === 0 && (
                       <div style={{ width: 88, height: 88, borderRadius: 14, background: "rgba(255,255,255,0.4)", border: "2px solid rgba(255,255,255,0.55)" }} />
@@ -498,10 +508,10 @@ export default function PreferencePage() {
               })()}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/characters/pikter/music-picking.png"
+                src="/characters/pikter/found.png"
                 alt=""
                 className="pixel-art"
-                style={{ width: 140, height: 140, marginBottom: 4, animation: "float 2.8s ease-in-out infinite" }}
+                style={{ width: 112, height: 112, marginBottom: 4, animation: "float 2.8s ease-in-out infinite" }}
               />
               <p style={{ color: "#2e2547", fontSize: 17, fontWeight: 600, textAlign: "center", letterSpacing: "-0.3px" }}>
                 사진 속 오늘을 다 읽었어요
@@ -520,7 +530,7 @@ export default function PreferencePage() {
                   <div style={{ display: "flex", gap, justifyContent: "center", flexWrap: "wrap", marginBottom: 36 }}>
                     {loadingPhotos.map((src, i) => (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img key={i} src={src} alt="" style={{ width: sz, height: sz, objectFit: "cover", borderRadius: 14, border: "2px solid rgba(255,255,255,0.6)", opacity: 0.5, flexShrink: 0 }} />
+                      <img key={i} src={src} alt="" style={{ width: sz, height: sz, objectFit: "cover", borderRadius: 14, border: "2px solid rgba(255,255,255,0.6)", opacity: 1, flexShrink: 0 }} />
                     ))}
                     {loadingPhotos.length === 0 && (
                       <div style={{ width: 88, height: 88, borderRadius: 14, background: "rgba(255,255,255,0.4)", border: "2px solid rgba(255,255,255,0.55)" }} />
@@ -530,7 +540,7 @@ export default function PreferencePage() {
               })()}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/characters/pikter/vibe-groove.png"
+                src="/characters/pikter/music-picking.png"
                 alt=""
                 className="pixel-art"
                 style={{ width: 112, height: 112, marginBottom: 4, animation: "float 2.8s ease-in-out infinite" }}

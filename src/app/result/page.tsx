@@ -731,13 +731,14 @@ export default function ResultPage() {
     >
       <div>
 
-      {/* 상단 앱 로고 */}
-      <div className="flex justify-center" style={{ paddingTop: 22, paddingBottom: 8 }}>
+      {/* 상단 앱 로고 — 랜딩 페이지와 동일 (다크 배경이라 invert) */}
+      <div className="flex justify-center" style={{ paddingTop: 12, flexShrink: 0 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/branding/play-the-picture-logo-one-line.png"
           alt="Play the Picture"
-          style={{ height: 40, width: "auto", filter: "invert(1)", opacity: 0.92 }}
+          onClick={() => router.push("/")}
+          style={{ height: 48, width: "auto", filter: "invert(1)", opacity: 0.92, cursor: "pointer" }}
         />
       </div>
 
@@ -1418,7 +1419,7 @@ export default function ResultPage() {
             alt="Play the Picture"
             decoding="sync"
             loading="eager"
-            style={{ height: 84, width: "auto", opacity: 0.92 }}
+            style={{ height: 130, width: "auto", opacity: 0.92 }}
           />
         </div>
 

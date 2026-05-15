@@ -223,7 +223,8 @@ export default function UploadPage() {
         <img
           src="/branding/play-the-picture-logo-one-line.png"
           alt="Play the Picture"
-          style={{ height: 48, width: "auto" }}
+          onClick={() => router.push("/")}
+          style={{ height: 48, width: "auto", cursor: "pointer" }}
         />
       </div>
 

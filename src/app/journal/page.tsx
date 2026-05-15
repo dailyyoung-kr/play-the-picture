@@ -241,13 +241,14 @@ export default function JournalPage() {
     >
       <HamburgerMenu />
 
-      {/* 상단 앱 로고 */}
-      <div className="flex justify-center" style={{ paddingTop: 48, paddingBottom: 6 }}>
+      {/* 상단 앱 로고 — 랜딩 페이지와 동일 */}
+      <div className="flex justify-center" style={{ paddingTop: 12, flexShrink: 0 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/branding/play-the-picture-logo-one-line.png"
           alt="Play the Picture"
-          style={{ height: 36, width: "auto" }}
+          onClick={() => router.push("/")}
+          style={{ height: 48, width: "auto", cursor: "pointer" }}
         />
       </div>
 
