@@ -137,15 +137,16 @@ export default function PreferencePage() {
       }).catch(() => {});
     }
 
-    // 분석 시작 로그
+    // 분석 시작 로그 — 서버 API 경유 (analyze_logs RLS anon DENY)
     let logId: string | null = null;
     if (isAnalyticsEnabled()) {
       try {
         const utm = getUtm();
         const { data: { user } } = await createSupabaseBrowserClient().auth.getUser();
-        const { data: logData } = await supabase
-          .from("analyze_logs")
-          .insert({
+        const r = await fetch("/api/analyze-logs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
             device_id: deviceId,
             user_id: user?.id ?? null,
             status: "start",
@@ -154,10 +155,12 @@ export default function PreferencePage() {
             utm_campaign: utm.utm_campaign ?? null,
             utm_content: utm.utm_content ?? null,
             utm_term: utm.utm_term ?? null,
-          })
-          .select("id")
-          .single();
-        logId = logData?.id ?? null;
+          }),
+        });
+        if (r.ok) {
+          const { id } = await r.json();
+          logId = id ?? null;
+        }
       } catch { /* ignore */ }
     }
 
@@ -181,12 +184,19 @@ export default function PreferencePage() {
       const responseTimeMs = Date.now() - startTime;
 
       if (!res.ok) {
-        if (logId) await supabase.from("analyze_logs").update({
-          status: "fail",
-          response_time_ms: responseTimeMs,
-          error_reason: data.error ?? "unknown",
-          error_code: data.error_code ?? "unknown",
-        }).eq("id", logId);
+        if (logId) {
+          await fetch("/api/analyze-logs", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: logId,
+              status: "fail",
+              response_time_ms: responseTimeMs,
+              error_reason: data.error ?? "unknown",
+              error_code: data.error_code ?? "unknown",
+            }),
+          }).catch(() => {});
+        }
         throw new Error(data.error || "분석에 실패했어요.");
       }
 
@@ -195,16 +205,21 @@ export default function PreferencePage() {
         const dashIdx = songStr.indexOf(" - ");
         const logSong = dashIdx >= 0 ? songStr.slice(0, dashIdx).trim() : songStr.trim();
         const logArtist = dashIdx >= 0 ? songStr.slice(dashIdx + 3).trim() : "";
-        await supabase.from("analyze_logs").update({
-          status: "success",
-          response_time_ms: responseTimeMs,
-          song: logSong,
-          artist: logArtist,
-          spotify_status: data.spotifyTrackId ? "found" : "not_found",
-          perf_db_ms: (data.perfDbMs as number | undefined) ?? null,
-          perf_claude_ms: (data.perfClaudeMs as number | undefined) ?? null,
-          photo_count: (data.photoCount as number | undefined) ?? photos.length,
-        }).eq("id", logId);
+        await fetch("/api/analyze-logs", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: logId,
+            status: "success",
+            response_time_ms: responseTimeMs,
+            song: logSong,
+            artist: logArtist,
+            spotify_status: data.spotifyTrackId ? "found" : "not_found",
+            perf_db_ms: (data.perfDbMs as number | undefined) ?? null,
+            perf_claude_ms: (data.perfClaudeMs as number | undefined) ?? null,
+            photo_count: (data.photoCount as number | undefined) ?? photos.length,
+          }),
+        }).catch(() => {});
       }
 
       localStorage.setItem("ptp_result", JSON.stringify(data));
@@ -215,12 +230,17 @@ export default function PreferencePage() {
       // fetch 자체가 throw된 네트워크 오류 케이스 — 이때는 위 !res.ok 로깅이 안 탔으므로 여기서 보정
       if (logId && (e instanceof TypeError || /fetch|network|failed to fetch/i.test(msg))) {
         try {
-          await supabase.from("analyze_logs").update({
-            status: "fail",
-            response_time_ms: Date.now() - startTime,
-            error_reason: msg,
-            error_code: "network_error",
-          }).eq("id", logId);
+          await fetch("/api/analyze-logs", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: logId,
+              status: "fail",
+              response_time_ms: Date.now() - startTime,
+              error_reason: msg,
+              error_code: "network_error",
+            }),
+          });
         } catch { /* ignore */ }
       }
       setError(msg);

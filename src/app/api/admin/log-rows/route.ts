@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
       return all;
     }
 
-    const [viewsRes, tryRes, itunesData, storySaveRes, shareRes, previewRes, authRes] = await Promise.all([
+    const [viewsRes, tryRes, itunesData, storySaveRes, shareRes, previewRes, authRes, analyzeRes] = await Promise.all([
       supabaseAdmin
         .from("share_views")
         .select("id, created_at, device_id, entry_id")
@@ -60,6 +60,11 @@ export async function GET(req: NextRequest) {
         .from("auth_logs")
         .select("id, created_at, device_id, user_id, event, metadata")
         .order("created_at", { ascending: false }),
+      // analyze_logs — RLS 전환 후 admin 조회는 여기로 (admin/page.tsx의 client 직접 호출 대체)
+      supabaseAdmin
+        .from("analyze_logs")
+        .select("id, created_at, status, response_time_ms, song, artist, device_id, utm_source")
+        .order("created_at", { ascending: false }),
     ]);
 
     if (viewsRes.error) console.error("[admin/log-rows] share_views:", viewsRes.error.message);
@@ -68,6 +73,7 @@ export async function GET(req: NextRequest) {
     if (shareRes.error) console.error("[admin/log-rows] share_logs:", shareRes.error.message);
     if (previewRes.error) console.error("[admin/log-rows] preview_logs:", previewRes.error.message);
     if (authRes.error) console.error("[admin/log-rows] auth_logs:", authRes.error.message);
+    if (analyzeRes.error) console.error("[admin/log-rows] analyze_logs:", analyzeRes.error.message);
 
     return NextResponse.json({
       shareViews: viewsRes.data ?? [],
@@ -77,9 +83,10 @@ export async function GET(req: NextRequest) {
       shareLogs: shareRes.data ?? [],
       previewLogs: previewRes.data ?? [],
       authLogs: authRes.data ?? [],
+      analyzeLogs: analyzeRes.data ?? [],
     });
   } catch (e) {
     console.error("[admin/log-rows] 오류:", e);
-    return NextResponse.json({ shareViews: [], tryClicks: [], itunes: [], storySaveLogs: [], shareLogs: [], previewLogs: [], authLogs: [] }, { status: 500 });
+    return NextResponse.json({ shareViews: [], tryClicks: [], itunes: [], storySaveLogs: [], shareLogs: [], previewLogs: [], authLogs: [], analyzeLogs: [] }, { status: 500 });
   }
 }
