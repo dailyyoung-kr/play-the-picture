@@ -64,6 +64,7 @@ export default function JournalPage() {
   const [musicLinks, setMusicLinks] = useState<{
     spotifyUrl: string | null;
     youtubeUrl: string | null;
+    appleMusicUrl: string | null;
     spotifyFallback: string;
     youtubeFallback: string;
   } | null>(null);
@@ -83,10 +84,23 @@ export default function JournalPage() {
     setMusicLinks(null);
     setShowListenSheet(true);
     setLoadingLinks(true);
-    fetch(`/api/music-search?${new URLSearchParams({ song: entry.song, artist: entry.artist })}`)
-      .then((r) => r.json())
-      .then((data) => setMusicLinks(data))
-      .catch(() => setMusicLinks(null))
+    // Spotify·YouTube는 /api/music-search, Apple Music은 /api/itunes-preview에서 trackViewUrl 가져옴
+    const musicParams = new URLSearchParams({ song: entry.song, artist: entry.artist });
+    const itunesParams = new URLSearchParams({ title: entry.song, artist: entry.artist });
+    Promise.all([
+      fetch(`/api/music-search?${musicParams}`).then((r) => r.json()).catch(() => null),
+      fetch(`/api/itunes-preview?${itunesParams}`).then((r) => r.json()).catch(() => null),
+    ])
+      .then(([musicData, itunesData]) => {
+        if (!musicData) {
+          setMusicLinks(null);
+          return;
+        }
+        setMusicLinks({
+          ...musicData,
+          appleMusicUrl: itunesData?.trackViewUrl ?? null,
+        });
+      })
       .finally(() => setLoadingLinks(false));
   };
 
@@ -714,8 +728,9 @@ export default function JournalPage() {
         const platforms = [
           {
             name: "Apple Music에서 듣기",
-            url: `https://music.apple.com/kr/search?term=${encodeURIComponent(`${listeningEntry.song} ${listeningEntry.artist}`)}`,
-            isDirect: false,
+            url: musicLinks?.appleMusicUrl
+              ?? `https://music.apple.com/kr/search?term=${encodeURIComponent(`${listeningEntry.song} ${listeningEntry.artist}`)}`,
+            isDirect: !!musicLinks?.appleMusicUrl,
             iconImage: "/badges/apple-music-icon.svg",
           },
           {

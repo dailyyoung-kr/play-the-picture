@@ -73,6 +73,7 @@ function scoreMatch(
 // iTunes API 호출 + 점수 매김
 type ItunesResult = {
   previewUrl: string | null;
+  trackViewUrl: string | null;
   matchedTrackName: string | null;
   matchedArtistName: string | null;
   matchScore: number | null;
@@ -92,15 +93,15 @@ async function fetchFromItunes(title: string, artist: string): Promise<ItunesRes
     clearTimeout(timeout);
 
     if (!res.ok) {
-      return { previewUrl: null, matchedTrackName: null, matchedArtistName: null, matchScore: null, candidatesCount: 0, status: "error" };
+      return { previewUrl: null, trackViewUrl: null, matchedTrackName: null, matchedArtistName: null, matchScore: null, candidatesCount: 0, status: "error" };
     }
 
     const data = await res.json();
     if (!data.results || data.results.length === 0) {
-      return { previewUrl: null, matchedTrackName: null, matchedArtistName: null, matchScore: null, candidatesCount: 0, status: "no_results" };
+      return { previewUrl: null, trackViewUrl: null, matchedTrackName: null, matchedArtistName: null, matchScore: null, candidatesCount: 0, status: "no_results" };
     }
 
-    type Candidate = { trackName: string; artistName: string; previewUrl?: string };
+    type Candidate = { trackName: string; artistName: string; previewUrl?: string; trackViewUrl?: string };
     const scored = (data.results as Candidate[])
       .map((r) => ({ r, score: scoreMatch(title, artist, r.trackName, r.artistName) }))
       .sort((a, b) => b.score - a.score);
@@ -111,6 +112,7 @@ async function fetchFromItunes(title: string, artist: string): Promise<ItunesRes
     if (!best || best.score < 60 || !best.r.previewUrl) {
       return {
         previewUrl: null,
+        trackViewUrl: null,
         matchedTrackName: best?.r.trackName ?? null,
         matchedArtistName: best?.r.artistName ?? null,
         matchScore: best?.score ?? null,
@@ -121,6 +123,7 @@ async function fetchFromItunes(title: string, artist: string): Promise<ItunesRes
 
     return {
       previewUrl: best.r.previewUrl,
+      trackViewUrl: best.r.trackViewUrl ?? null,
       matchedTrackName: best.r.trackName,
       matchedArtistName: best.r.artistName,
       matchScore: best.score,
@@ -128,7 +131,7 @@ async function fetchFromItunes(title: string, artist: string): Promise<ItunesRes
       status: "matched",
     };
   } catch {
-    return { previewUrl: null, matchedTrackName: null, matchedArtistName: null, matchScore: null, candidatesCount: 0, status: "error" };
+    return { previewUrl: null, trackViewUrl: null, matchedTrackName: null, matchedArtistName: null, matchScore: null, candidatesCount: 0, status: "error" };
   }
 }
 
@@ -148,6 +151,7 @@ export async function GET(req: NextRequest) {
     attempts: number | null;
     status: string;
     preview_url: string | null;
+    track_view_url: string | null;
     matched_track_name: string | null;
     matched_artist_name: string | null;
     match_score: number | null;
@@ -157,7 +161,7 @@ export async function GET(req: NextRequest) {
   try {
     const { data } = await supabaseAdmin
       .from("itunes_preview_cache")
-      .select("attempts, status, preview_url, matched_track_name, matched_artist_name, match_score, last_attempted_at")
+      .select("attempts, status, preview_url, track_view_url, matched_track_name, matched_artist_name, match_score, last_attempted_at")
       .eq("track_key", trackKey)
       .maybeSingle();
     cached = data as CachedRow | null;
@@ -165,11 +169,15 @@ export async function GET(req: NextRequest) {
     if (cached) {
       const ageMs = Date.now() - new Date(cached.last_attempted_at).getTime();
       const isMatched = cached.status === "matched" && cached.preview_url;
-      const canSkipRetry = isMatched || ageMs < RETRY_AFTER_MS;
+      // track_view_url이 비어있는 매칭곡은 lazy backfill 대상 — 재호출 허용
+      // (migration_019 이전에 캐시된 1163곡 자연스럽게 채워지도록)
+      const hasTrackViewUrl = !!cached.track_view_url;
+      const canSkipRetry = (isMatched && hasTrackViewUrl) || (!isMatched && ageMs < RETRY_AFTER_MS);
 
       if (canSkipRetry) {
         return NextResponse.json({
           previewUrl: cached.preview_url ?? null,
+          trackViewUrl: cached.track_view_url ?? null,
           trackName: cached.matched_track_name,
           artistName: cached.matched_artist_name,
           score: cached.match_score,
@@ -195,6 +203,7 @@ export async function GET(req: NextRequest) {
         song: title,
         artist: artist,
         preview_url: result.previewUrl,
+        track_view_url: result.trackViewUrl,
         matched_track_name: result.matchedTrackName,
         matched_artist_name: result.matchedArtistName,
         match_score: result.matchScore,
@@ -214,6 +223,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     previewUrl: result.previewUrl,
+    trackViewUrl: result.trackViewUrl,
     trackName: result.matchedTrackName,
     artistName: result.matchedArtistName,
     score: result.matchScore,

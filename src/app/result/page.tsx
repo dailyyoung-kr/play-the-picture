@@ -86,6 +86,7 @@ export default function ResultPage() {
   const [musicLinks, setMusicLinks] = useState<{
     spotifyUrl: string | null;
     youtubeUrl: string | null;
+    appleMusicUrl: string | null;
     spotifyFallback: string;
     youtubeFallback: string;
   } | null>(null);
@@ -487,10 +488,19 @@ export default function ResultPage() {
   const fetchMusicLinks = async (song: string, artist: string) => {
     setLoadingLinks(true);
     try {
+      // Spotify·YouTube는 /api/music-search (songs 테이블 캐시),
+      // Apple Music은 /api/itunes-preview (itunes_preview_cache, PreviewPlayer가 이미 워밍업했을 가능성 높음)
       const params = new URLSearchParams({ song, artist });
-      const res = await fetch(`/api/music-search?${params}`);
-      const data = await res.json();
-      setMusicLinks(data);
+      const itunesParams = new URLSearchParams({ title: song, artist });
+      const [musicRes, itunesRes] = await Promise.all([
+        fetch(`/api/music-search?${params}`),
+        fetch(`/api/itunes-preview?${itunesParams}`),
+      ]);
+      const [musicData, itunesData] = await Promise.all([musicRes.json(), itunesRes.json()]);
+      setMusicLinks({
+        ...musicData,
+        appleMusicUrl: itunesData?.trackViewUrl ?? null,
+      });
     } catch {
       setMusicLinks(null);
     } finally {
@@ -969,8 +979,9 @@ export default function ResultPage() {
         const platforms = [
           {
             name: "Apple Music에서 듣기",
-            url: `https://music.apple.com/kr/search?term=${encodeURIComponent(`${songName} ${artistName}`)}`,
-            isDirect: false,
+            url: musicLinks?.appleMusicUrl
+              ?? `https://music.apple.com/kr/search?term=${encodeURIComponent(`${songName} ${artistName}`)}`,
+            isDirect: !!musicLinks?.appleMusicUrl,
             iconImage: "/badges/apple-music-icon.svg",
           },
           {
