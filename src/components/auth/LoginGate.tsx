@@ -142,31 +142,6 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
         <div style={{ width: 40, height: 4, background: "rgba(46,37,71,0.2)", borderRadius: 2, margin: "0 auto 24px" }} />
 
         <button
-          onClick={handleKakaoLogin}
-          style={{
-            width: "100%",
-            padding: "14px 16px",
-            marginBottom: 10,
-            background: "#FEE500",
-            border: "none",
-            borderRadius: 12,
-            color: "#1a1a1a",
-            fontSize: 15,
-            fontWeight: 500,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-          }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M12 3C6.477 3 2 6.477 2 10.8c0 2.766 1.836 5.197 4.604 6.617L5.4 21l4.34-2.86c.74.092 1.494.14 2.26.14 5.523 0 10-3.477 10-7.78S17.523 3 12 3z" fill="#3C1E1E"/>
-          </svg>
-          카카오로 로그인
-        </button>
-
-        <button
           onClick={handleAppleLogin}
           style={{
             width: "100%",
@@ -196,7 +171,7 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
           style={{
             width: "100%",
             padding: "14px 16px",
-            marginBottom: 16,
+            marginBottom: 10,
             background: "#fff",
             border: "none",
             borderRadius: 12,
@@ -217,6 +192,31 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
             <path d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.59A9 9 0 009 0a9 9 0 00-8.04 4.97l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" fill="#EA4335"/>
           </svg>
           Google로 로그인
+        </button>
+
+        <button
+          onClick={handleKakaoLogin}
+          style={{
+            width: "100%",
+            padding: "14px 16px",
+            marginBottom: 16,
+            background: "#FEE500",
+            border: "none",
+            borderRadius: 12,
+            color: "#1a1a1a",
+            fontSize: 15,
+            fontWeight: 500,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M12 3C6.477 3 2 6.477 2 10.8c0 2.766 1.836 5.197 4.604 6.617L5.4 21l4.34-2.86c.74.092 1.494.14 2.26.14 5.523 0 10-3.477 10-7.78S17.523 3 12 3z" fill="#3C1E1E"/>
+          </svg>
+          카카오로 로그인
         </button>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>

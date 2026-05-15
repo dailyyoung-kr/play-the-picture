@@ -243,14 +243,6 @@ export function HamburgerMenu() {
                       정식 계정으로 전환
                     </div>
 
-                    {/* 카카오 계정 연동 — 한국 18-24 여성 친숙도 ↑ */}
-                    <button onClick={handleLinkKakao} style={{ ...oauthButtonStyle, background: "#FEE500", color: "#1a1a1a", borderColor: "#FEE500" } as React.CSSProperties}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden style={{ flexShrink: 0 }}>
-                        <path d="M12 3C6.477 3 2 6.477 2 10.8c0 2.766 1.836 5.197 4.604 6.617L5.4 21l4.34-2.86c.74.092 1.494.14 2.26.14 5.523 0 10-3.477 10-7.78S17.523 3 12 3z" fill="#3C1E1E"/>
-                      </svg>
-                      <span style={{ flex: 1, textAlign: "left" }}>카카오 계정 연동</span>
-                    </button>
-
                     {/* Apple 계정 연동 */}
                     <button onClick={handleLinkApple} style={{ ...oauthButtonStyle, background: "#000", color: "#fff", borderColor: "#000" } as React.CSSProperties}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff" aria-hidden style={{ flexShrink: 0 }}>
@@ -268,6 +260,14 @@ export function HamburgerMenu() {
                         <path d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.59A9 9 0 009 0a9 9 0 00-8.04 4.97l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" fill="#EA4335" />
                       </svg>
                       <span style={{ flex: 1, textAlign: "left" }}>Google 계정 연동</span>
+                    </button>
+
+                    {/* 카카오 계정 연동 */}
+                    <button onClick={handleLinkKakao} style={{ ...oauthButtonStyle, background: "#FEE500", color: "#1a1a1a", borderColor: "#FEE500" } as React.CSSProperties}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+                        <path d="M12 3C6.477 3 2 6.477 2 10.8c0 2.766 1.836 5.197 4.604 6.617L5.4 21l4.34-2.86c.74.092 1.494.14 2.26.14 5.523 0 10-3.477 10-7.78S17.523 3 12 3z" fill="#3C1E1E"/>
+                      </svg>
+                      <span style={{ flex: 1, textAlign: "left" }}>카카오 계정 연동</span>
                     </button>
 
                     <div style={{ height: 1, background: "rgba(46,37,71,0.1)", margin: "8px 0 4px" }} />

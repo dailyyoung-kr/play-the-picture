@@ -968,15 +968,16 @@ export default function ResultPage() {
 
         const platforms = [
           {
+            name: "Apple Music에서 듣기",
+            url: `https://music.apple.com/kr/search?term=${encodeURIComponent(`${songName} ${artistName}`)}`,
+            isDirect: false,
+            iconImage: "/badges/apple-music-icon.svg",
+          },
+          {
             name: "YouTube Music에서 듣기",
             url: musicLinks?.youtubeUrl ?? musicLinks?.youtubeFallback ?? `https://music.youtube.com/search?q=${encodeURIComponent(`${songName} ${artistName}`)}`,
             isDirect: !!musicLinks?.youtubeUrl,
-            iconBg: "#FF0000",
-            icon: (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-                <polygon points="9,6 20,12 9,18" />
-              </svg>
-            ),
+            iconImage: "/badges/youtube-music-icon.svg",
           },
           {
             name: "Spotify에서 듣기",
@@ -984,12 +985,7 @@ export default function ResultPage() {
               ? `https://open.spotify.com/track/${result.spotifyTrackId}`
               : (musicLinks?.spotifyUrl ?? musicLinks?.spotifyFallback ?? `https://open.spotify.com/search/${encodeURIComponent(`${songName} ${artistName}`)}`),
             isDirect: !!(result.spotifyTrackId || musicLinks?.spotifyUrl),
-            iconBg: "#1DB954",
-            icon: (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-                <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424a.622.622 0 01-.857.207c-2.348-1.435-5.304-1.76-8.785-.964a.623.623 0 01-.277-1.215c3.809-.87 7.077-.496 9.713 1.115a.623.623 0 01.206.857zm1.223-2.722a.78.78 0 01-1.072.257c-2.687-1.652-6.786-2.131-9.965-1.166a.78.78 0 01-.973-.519.781.781 0 01.519-.973c3.632-1.102 8.147-.568 11.234 1.329a.78.78 0 01.257 1.072zm.105-2.835C14.692 8.95 9.375 8.775 6.297 9.71a.937.937 0 11-.543-1.794c3.532-1.072 9.404-.865 13.115 1.338a.937.937 0 01-.955 1.613z"/>
-              </svg>
-            ),
+            iconImage: "/badges/spotify-icon.svg",
           },
         ];
 
@@ -1054,14 +1050,13 @@ export default function ResultPage() {
                       opacity: (loadingLinks && !result.spotifyTrackId) ? 0.5 : 1,
                     }}
                   >
-                    <div style={{
-                      width: 40, height: 40, borderRadius: "50%",
-                      background: p.iconBg,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      flexShrink: 0,
-                    }}>
-                      {p.icon}
-                    </div>
+                    <img
+                      src={p.iconImage}
+                      alt=""
+                      width={40}
+                      height={40}
+                      style={{ flexShrink: 0, display: "block" }}
+                    />
                     <div style={{ flex: 1 }}>
                       <span style={{ fontSize: 14, color: "#2e2547", display: "block" }}>{p.name}</span>
                       {(!loadingLinks || result.spotifyTrackId) && (

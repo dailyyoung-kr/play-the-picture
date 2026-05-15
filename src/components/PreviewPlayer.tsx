@@ -347,6 +347,10 @@ export function PreviewPlayer({ song, artist, pageContext }: Props) {
           {fmt(elapsed)} / 0:30
         </div>
       </div>
+      {/* iTunes API 약관 (iii) 어트리뷰션 */}
+      <div style={{ fontSize: 9, color: "rgba(128,128,128,0.7)", textAlign: "center", marginTop: 4, marginBottom: 8, letterSpacing: "0.02em" }}>
+        미리듣기 제공: iTunes
+      </div>
     </>
   );
 }
