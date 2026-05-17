@@ -447,7 +447,7 @@ export default function PreferencePage() {
                 const sz = n === 1 ? 100 : n === 2 ? 88 : n === 3 ? 80 : n === 4 ? 72 : 64;
                 const gap = n <= 3 ? 6 : 5;
                 return (
-                  <div style={{ display: "flex", gap, justifyContent: "center", flexWrap: "wrap", marginBottom: 36 }}>
+                  <div style={{ display: "flex", gap, justifyContent: "center", flexWrap: "wrap", marginBottom: 36, maxWidth: n === 5 ? sz * 3 + gap * 2 : undefined, marginLeft: "auto", marginRight: "auto" }}>
                     {loadingPhotos.map((src, i) => (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -495,7 +495,7 @@ export default function PreferencePage() {
                 const sz = n === 1 ? 100 : n === 2 ? 88 : n === 3 ? 80 : n === 4 ? 72 : 64;
                 const gap = n <= 3 ? 6 : 5;
                 return (
-                  <div style={{ display: "flex", gap, justifyContent: "center", flexWrap: "wrap", marginBottom: 36 }}>
+                  <div style={{ display: "flex", gap, justifyContent: "center", flexWrap: "wrap", marginBottom: 36, maxWidth: n === 5 ? sz * 3 + gap * 2 : undefined, marginLeft: "auto", marginRight: "auto" }}>
                     {loadingPhotos.map((src, i) => (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img key={i} src={src} alt="" style={{ width: sz, height: sz, objectFit: "cover", borderRadius: 14, border: "2px solid rgba(255,255,255,0.6)", opacity: 1, flexShrink: 0 }} />
@@ -527,7 +527,7 @@ export default function PreferencePage() {
                 const sz = n === 1 ? 100 : n === 2 ? 88 : n === 3 ? 80 : n === 4 ? 72 : 64;
                 const gap = n <= 3 ? 6 : 5;
                 return (
-                  <div style={{ display: "flex", gap, justifyContent: "center", flexWrap: "wrap", marginBottom: 36 }}>
+                  <div style={{ display: "flex", gap, justifyContent: "center", flexWrap: "wrap", marginBottom: 36, maxWidth: n === 5 ? sz * 3 + gap * 2 : undefined, marginLeft: "auto", marginRight: "auto" }}>
                     {loadingPhotos.map((src, i) => (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img key={i} src={src} alt="" style={{ width: sz, height: sz, objectFit: "cover", borderRadius: 14, border: "2px solid rgba(255,255,255,0.6)", opacity: 1, flexShrink: 0 }} />
