@@ -212,8 +212,10 @@ export async function GET(request: NextRequest) {
         .eq("id", userId);
     }
 
+    const provider = exchangeData?.user?.app_metadata?.provider ?? "google";
+    const loginEvent = provider === "apple" ? "apple_login_success" : "google_login_success";
     await adminClient.from("auth_logs").insert([
-      { device_id: deviceId, user_id: userId, event: "google_login_success" },
+      { device_id: deviceId, user_id: userId, event: loginEvent },
       { device_id: deviceId, user_id: userId, event: "signup_complete" },
       { device_id: deviceId, user_id: userId, event: "device_migrated", metadata: movedRows },
     ]);
