@@ -272,7 +272,7 @@ ${recentVibes.join(" / ")}
   return `후보곡 중 사진에 가장 어울리는 1곡. JSON만.
 
 장르: ${isDiscover ? "AI 자유 선택" : genre}
-분위기: ${energyLabel} (${energy}/5)
+분위기: ${energyLabel}
 
 [후보곡]
 ${songList}
