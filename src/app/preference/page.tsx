@@ -37,11 +37,11 @@ const WAVE_BARS = [
   { delay: 0.04, duration: 0.92, anim: "wave3" },
 ];
 const PHASE3_TEXTS = [
-  "픽터가 플레이리스트를 뒤적이는 중...",
   "딱 맞는 한 곡을 고르고 있어요",
+  "거의 다 골랐어요",
+  "픽터가 플레이리스트를 뒤적이는 중...",
   "다른 곡과 한번 더 비교하는 중",
   "한 곡인 만큼 신중하게",
-  "거의 다 골랐어요",
   "마지막으로 한번 더 확인해볼게요",
 ];
 
@@ -101,7 +101,7 @@ export default function PreferencePage() {
     const LAST = PHASE3_TEXTS.length - 1;
 
     for (let i = 1; i <= LAST; i++) {
-      const base = i * 2000;
+      const base = i * 3000;
       timers.push(setTimeout(() => setPhase3TextVisible(false), base - 300));
       const idx = i;
       timers.push(setTimeout(() => {
