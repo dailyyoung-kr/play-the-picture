@@ -259,10 +259,15 @@ function buildNewPrompt(
     .map((s, i) => `${i + 1}. ${s.song} - ${s.artist}`)
     .join("\n");
 
-  const recentBlock = recentVibes.length > 0
-    ? `\n[같은 사용자가 최근 24h 내 받은 카드]
-${recentVibes.join(" / ")}
-→ 위 카드들과 어미·prefix·각도 모두 다르게 생성. 같은 패턴 반복 절대 금지.
+  // 이모지 다음 첫 단어(=prefix) 추출. 예: "🍝 면치기 헤드뱅어" → "면치기"
+  const recentPrefixes = recentVibes
+    .map((v) => v.replace(/^\p{Extended_Pictographic}+\s*/u, "").split(/\s+/)[0])
+    .filter((p) => p && p.length > 0);
+  const recentBlock = recentPrefixes.length > 0
+    ? `\n[24h 내 같은 사용자에게 사용된 prefix — 재사용 금지]
+${recentPrefixes.join(", ")}
+→ 새 카드 vibeType의 첫 단어(이모지 다음)는 위 단어와 반드시 다르게.
+  어미·역할명은 자유.
 `
     : "";
 
