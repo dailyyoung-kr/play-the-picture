@@ -7,7 +7,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { logAuthEvent } from "@/lib/auth/log";
 
 const DELETE_WARNING =
-  "모든 사진 기록과 추천곡 데이터가 사라져요. 삭제된 데이터는 복구가 불가해요.";
+  "모든 사진 기록과 추천곡 데이터가 사라져요.\n삭제된 데이터는 복구가 불가해요.";
 
 type Provider = "apple" | "google" | "kakao" | "email" | null;
 
@@ -307,6 +307,7 @@ export function AccountManager() {
                 color: "rgba(46,37,71,0.7)",
                 lineHeight: 1.6,
                 marginBottom: 24,
+                whiteSpace: "pre-line",
               }}
             >
               {DELETE_WARNING}
