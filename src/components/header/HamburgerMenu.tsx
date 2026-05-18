@@ -274,7 +274,7 @@ export function HamburgerMenu() {
                   </>
                 )}
 
-                {/* 프로필 편집 — 아이콘 제거 */}
+                {/* 프로필 편집 */}
                 <button
                   onClick={() => { setIsOpen(false); router.push("/settings"); }}
                   style={menuItemStyle}
@@ -283,15 +283,14 @@ export function HamburgerMenu() {
                   <span style={{ color: "rgba(46,37,71,0.35)", fontSize: 14 }}>›</span>
                 </button>
 
-                <div style={{ height: 1, background: "rgba(46,37,71,0.1)", margin: "4px 0" }} />
-
-                {/* 로그아웃 — 아이콘 제거 */}
-                <a
-                  href="/auth/logout"
-                  style={{ ...menuItemStyle, textDecoration: "none" } as React.CSSProperties}
+                {/* 계정 관리 — 로그아웃·회원 탈퇴 */}
+                <button
+                  onClick={() => { setIsOpen(false); router.push("/account"); }}
+                  style={menuItemStyle}
                 >
-                  <span style={{ flex: 1, textAlign: "left" }}>로그아웃</span>
-                </a>
+                  <span style={{ flex: 1, textAlign: "left" }}>계정 관리</span>
+                  <span style={{ color: "rgba(46,37,71,0.35)", fontSize: 14 }}>›</span>
+                </button>
               </>
             ) : (
               <>
