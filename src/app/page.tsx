@@ -82,6 +82,20 @@ function MergeSuccessHandler({ onSuccess }: { onSuccess: () => void }) {
   return null;
 }
 
+// account_deleted=1 감지 → 탈퇴 완료 토스트 + URL 정리
+function AccountDeletedHandler({ onDeleted }: { onDeleted: () => void }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("account_deleted") === "1") {
+      onDeleted();
+      router.replace("/");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+  return null;
+}
+
 // 가입 직후 callback에서 /?signup=success로 redirect됨 → 닉네임 fetch 후 welcome toast 표시
 function AuthSuccessHandler({ onWelcome }: { onWelcome: (nickname: string) => void }) {
   const router = useRouter();
@@ -568,6 +582,7 @@ export default function UploadPage() {
         />
         <AuthSuccessHandler onWelcome={(nick) => showToast(`${nick}님, 환영해요!`)} />
         <MergeSuccessHandler onSuccess={() => showToast("기존 계정으로 로그인됐어요!")} />
+        <AccountDeletedHandler onDeleted={() => showToast("탈퇴가 완료됐어요")} />
       </Suspense>
 
       <AccountConflictModal

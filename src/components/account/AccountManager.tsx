@@ -105,7 +105,8 @@ export function AccountManager() {
         /* noop */
       }
       setDeleteModalOpen(false);
-      router.replace("/");
+      // 홈에서 토스트 표시용 query param. 홈 페이지의 AccountDeletedHandler가 감지 후 URL 정리.
+      router.replace("/?account_deleted=1");
     } catch (e) {
       console.error("[AccountManager] delete 실패:", e);
       showToast("네트워크 오류로 탈퇴에 실패했어요");
