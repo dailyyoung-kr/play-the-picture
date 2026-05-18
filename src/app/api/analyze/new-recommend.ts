@@ -281,14 +281,14 @@ ${songList}
 
 [이번 카드의 톤]
 ${tone.name} — ${tone.reason_tone}
-(reason 3문장 + vibeDescription을 모두 이 톤으로 작성)
+(reason은 위 톤(reason_tone) 따라. vibeDescription은 아래 필드의 angle 따라.)
 ${recentBlock}
 
 [분석 지시]
 - 사진에서 디테일 1~2개 관찰 (피사체 동작·포즈 / 장소 / 색감·빛 / 사물 상태 중)
 - 가능하면 곡과 연결될 디테일 우선 선택
 - reason에 자연스럽게 녹일 것
-- 여러 장이면 흐름·감정 변화·전체 무드 짚을 것
+- reason: 여러 장이면 흐름·감정 변화·전체 무드 짚을 것
 - 구체적 주소·지번 노출 금지
 - reason 1번째 문장은 40자 이내로 간결하게
 
