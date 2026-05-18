@@ -8,6 +8,9 @@ import { logAuthEvent } from "@/lib/auth/log";
 
 const MAX_LENGTH = 13;
 
+// 계정 삭제 — 1단계 모달에서 표시
+const DELETE_WARNING = "모든 사진 기록과 추천곡 데이터가 사라져요. 삭제된 데이터는 복구가 불가해요.";
+
 export function NicknameEditor() {
   const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
@@ -16,6 +19,9 @@ export function NicknameEditor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
+  // 계정 삭제 — 1단계 모달 노출 + 진행 상태
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
@@ -89,6 +95,57 @@ export function NicknameEditor() {
   };
 
   const hasChange = nickname.trim() !== originalNickname && nickname.trim().length >= 1;
+
+  // 계정 삭제 — 2단계 confirm 후 API 호출
+  const handleConfirmDelete = async () => {
+    // 2단계: 시스템 confirm (브라우저 native dialog로 무게감 추가)
+    const confirmed = window.confirm("정말 계정을 삭제할까요?");
+    if (!confirmed) return;
+
+    if (deleting) return;
+    setDeleting(true);
+    const supabase = createSupabaseBrowserClient();
+    try {
+      // Bearer 토큰 헤더로 서버 인증 (쿠키 세션 fallback도 서버에서 처리됨)
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const res = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        showToast(`삭제 실패: ${data.error ?? "알 수 없는 오류"}`);
+        setDeleting(false);
+        return;
+      }
+
+      logAuthEvent("account_deleted", {}, userId);
+      // 로컬 세션·캐시 모두 클리어
+      await supabase.auth.signOut();
+      try {
+        localStorage.removeItem("ptp_photos");
+        localStorage.removeItem("ptp_result");
+        localStorage.removeItem("ptp_prefs");
+      } catch {
+        /* noop */
+      }
+      setDeleteModalOpen(false);
+      // 홈으로 이동 + 토스트는 home에서 query param으로 표시할 수 있지만 일단 단순 redirect
+      router.replace("/");
+    } catch (e) {
+      console.error("[NicknameEditor] delete 실패:", e);
+      showToast("네트워크 오류로 삭제에 실패했어요");
+      setDeleting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -206,7 +263,134 @@ export function NicknameEditor() {
         >
           {saving ? "저장 중..." : "저장"}
         </button>
+
+        {/* 계정 삭제 영역 — 위험 액션 */}
+        <div
+          style={{
+            marginTop: 48,
+            paddingTop: 20,
+            borderTop: "1px solid rgba(46,37,71,0.1)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              color: "rgba(46,37,71,0.5)",
+              marginBottom: 10,
+              letterSpacing: 0.2,
+            }}
+          >
+            위험 영역
+          </div>
+          <button
+            onClick={() => setDeleteModalOpen(true)}
+            style={{
+              width: "100%",
+              padding: "12px 16px",
+              background: "transparent",
+              border: "1px solid rgba(176,48,80,0.35)",
+              borderRadius: 10,
+              color: "#b03050",
+              fontSize: 14,
+              fontWeight: 500,
+              cursor: "pointer",
+              textAlign: "left",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            계정 삭제
+            <span style={{ color: "rgba(176,48,80,0.5)", fontSize: 14 }}>›</span>
+          </button>
+        </div>
       </div>
+
+      {/* 1단계 모달 — 정보 전달 + 계정 삭제 버튼 (빨강) */}
+      {deleteModalOpen && (
+        <div
+          onClick={() => !deleting && setDeleteModalOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+            zIndex: 100,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 360,
+              background: "#ffffff",
+              borderRadius: 16,
+              padding: 24,
+              boxShadow: "0 8px 32px rgba(46,37,71,0.25)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 17,
+                fontWeight: 600,
+                color: "#2e2547",
+                marginBottom: 10,
+              }}
+            >
+              계정을 삭제하시겠어요?
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: "rgba(46,37,71,0.7)",
+                lineHeight: 1.6,
+                marginBottom: 24,
+              }}
+            >
+              {DELETE_WARNING}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={deleting}
+                style={{
+                  flex: 1,
+                  padding: "12px 16px",
+                  background: "rgba(93,79,140,0.08)",
+                  border: "1px solid rgba(93,79,140,0.2)",
+                  borderRadius: 10,
+                  color: "#2e2547",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: deleting ? "not-allowed" : "pointer",
+                }}
+              >
+                취소
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+                style={{
+                  flex: 1,
+                  padding: "12px 16px",
+                  background: deleting ? "rgba(176,48,80,0.5)" : "#b03050",
+                  border: "none",
+                  borderRadius: 10,
+                  color: "#fff",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: deleting ? "not-allowed" : "pointer",
+                }}
+              >
+                {deleting ? "삭제 중..." : "계정 삭제"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (

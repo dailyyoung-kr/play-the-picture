@@ -19,7 +19,8 @@ export type AuthEvent =
   | "nickname_regenerated"
   | "device_migrated"
   | "save_prompt_shown"
-  | "save_prompt_signup";
+  | "save_prompt_signup"
+  | "account_deleted";
 
 export async function logAuthEvent(
   event: AuthEvent,
