@@ -21,6 +21,29 @@ function getMondayOf(date: Date): Date {
   return d;
 }
 
+// KST 기준 오늘 정보 — toISOString()은 UTC 기준이라 한국 새벽(00~09시)에는 어제 날짜 반환 버그.
+// Intl.DateTimeFormat으로 KST 직접 추출 후 KST 자정 Date 생성.
+function getTodayKST(): {
+  year: number;
+  month: number;
+  day: number;
+  iso: string;
+  date: Date;
+} {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const year = parseInt(parts.find((p) => p.type === "year")!.value, 10);
+  const month = parseInt(parts.find((p) => p.type === "month")!.value, 10) - 1;
+  const day = parseInt(parts.find((p) => p.type === "day")!.value, 10);
+  const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const date = new Date(`${iso}T00:00:00+09:00`);
+  return { year, month, day, iso, date };
+}
+
 function toDateStr(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
@@ -49,13 +72,12 @@ function EntryNote() {
 
 export default function JournalPage() {
   const router = useRouter();
-  const [today] = useState(new Date());
-  const [currentYear, setCurrentYear] = useState(today.getFullYear());
-  const [currentMonth, setCurrentMonth] = useState(today.getMonth());
+  const [todayKST] = useState(getTodayKST);
+  const today = todayKST.date;
+  const [currentYear, setCurrentYear] = useState(todayKST.year);
+  const [currentMonth, setCurrentMonth] = useState(todayKST.month);
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string | null>(
-    today.toISOString().slice(0, 10)
-  );
+  const [selectedDate, setSelectedDate] = useState<string | null>(todayKST.iso);
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Entry | null>(null);
   const [toast, setToast] = useState("");
@@ -70,7 +92,7 @@ export default function JournalPage() {
   } | null>(null);
   const [loadingLinks, setLoadingLinks] = useState(false);
   const [calendarView, setCalendarView] = useState<"week" | "month">("week");
-  const [weekStartDate, setWeekStartDate] = useState(() => getMondayOf(new Date()));
+  const [weekStartDate, setWeekStartDate] = useState(() => getMondayOf(todayKST.date));
   const [modalIndex, setModalIndex] = useState<number | null>(null);
   const calendarTouchStartX = useRef(0);
 
@@ -201,7 +223,7 @@ export default function JournalPage() {
     })();
   }, [calendarView, weekStartDate, currentYear, currentMonth]);
 
-  const todayStr = today.toISOString().slice(0, 10);
+  const todayStr = todayKST.iso; // KST 기준 오늘 (today.toISOString()은 UTC라 새벽 시각 버그)
 
   // 주간 뷰 날짜 7개 (월~일)
   const weekDays = Array.from({ length: 7 }, (_, i) => {
