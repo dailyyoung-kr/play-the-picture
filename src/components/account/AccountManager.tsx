@@ -90,7 +90,9 @@ export function AccountManager() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        showToast(`탈퇴 실패: ${data.error ?? "알 수 없는 오류"}`);
+        // 원시 서버 에러는 콘솔에만, 사용자에겐 친근 메시지
+        console.error("[AccountManager] 탈퇴 실패:", data.error);
+        showToast("탈퇴 처리에 문제가 생겼어요. 잠시 후 다시 시도해주세요");
         setDeleting(false);
         return;
       }

@@ -75,8 +75,9 @@ export function NicknameEditor() {
       .eq("id", userId);
 
     if (error) {
+      // 원시 에러는 콘솔에만 (디버깅 용), 사용자에겐 친근 메시지
       console.error("[NicknameEditor] update 실패:", error.message);
-      showToast(`저장 실패: ${error.message}`);
+      showToast("저장에 실패했어요. 잠시 후 다시 시도해주세요");
       setSaving(false);
       return;
     }
