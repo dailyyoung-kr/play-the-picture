@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     const { photos, deviceId } = body as { photos?: string[]; deviceId?: string };
 
     if (!photos || photos.length === 0) {
-      return NextResponse.json({ error: "사진이 없어요", error_code: "no_photos" }, { status: 400 });
+      return NextResponse.json({ error: "사진이 업로드되지 않았어요. 다시 사진을 첨부하고 시도해주세요.", error_code: "no_photos" }, { status: 400 });
     }
 
     // ── Device Rate Limit: 분당 5 / 시간당 30 / 일당 60 ──
@@ -113,13 +113,13 @@ export async function POST(req: NextRequest) {
       lower.includes("credit balance")
     ) {
       return NextResponse.json(
-        { error: "잠시 점검 중이에요. 곧 돌아올게요 🙏", error_code: "usage_limit" },
+        { error: "잠시 서버 점검중이에요. 빠르게 점검 후 돌아올게요.", error_code: "usage_limit" },
         { status: 503 }
       );
     }
     if (status === 529 || message.includes("529") || lower.includes("overloaded")) {
       return NextResponse.json(
-        { error: "지금 플더픽이 너무 바빠요 🙏 잠시 후 다시 시도해주세요", error_code: "overloaded" },
+        { error: "플더픽 서버에 일시적인 문제가 생겼어요. 잠시 후 다시 시도해주세요", error_code: "overloaded" },
         { status: 529 }
       );
     }

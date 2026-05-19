@@ -619,7 +619,6 @@ export default function PreferencePage() {
             padding: "0 32px",
           }}
         >
-          <div style={{ fontSize: 36 }}>🙏</div>
           <p style={{ color: "#2e2547", fontSize: 15, fontWeight: 600, textAlign: "center", lineHeight: 1.6 }}>
             {error}
           </p>

@@ -164,7 +164,7 @@ export default function UploadPage() {
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.some((f) => f.type.startsWith("video/"))) {
-      showToast("사진 파일만 추가할 수 있어요 📷");
+      showToast("사진 파일만 추가할 수 있어요");
       e.target.value = "";
       return;
     }

@@ -343,7 +343,7 @@ export async function newRecommend(
 ): Promise<ReturnType<typeof NextResponse.json>> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: "API 키가 설정되지 않았어요.", error_code: "api_key_missing" }, { status: 500 });
+    return NextResponse.json({ error: "지금은 분석이 어려워요. 잠시 후 다시 시도해주세요", error_code: "api_key_missing" }, { status: 500 });
   }
 
   const supabase = createClient(
