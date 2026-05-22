@@ -195,10 +195,10 @@ export default function PrivacyPage() {
               · 이름: 박찬영
               <br />· 이메일:{" "}
               <a
-                href="mailto:dailyyoung@linareen.com"
+                href="mailto:pcy2177@gmail.com"
                 style={{ color: "#5D4F8C", textDecoration: "none" }}
               >
-                dailyyoung@linareen.com
+                pcy2177@gmail.com
               </a>
             </p>
             <p style={{ fontWeight: 500, marginBottom: 6, marginTop: 14 }}>회사 정보</p>
