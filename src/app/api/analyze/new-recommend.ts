@@ -150,107 +150,17 @@ function limitPerArtist(arr: SongRow[], maxPerArtist: number): SongRow[] {
   });
 }
 
-// 매 호출마다 1톤 랜덤 선택 → reason·vibeDescription 톤 + vibeType 어미 풀 결정
-// 데이터(LIKED share/story_save) 기반으로 검증된 톤 4종. 톤별 어미 풀로 결 통일.
-const VIBE_TONE_POOL = [
-  {
-    name: "농담관찰",
-    reason_tone: "삐딱한 친구가 옆에서 놀리듯 농담. MBTI 밈 톤. 자조적 위트.",
-    desc_angle: "사진 속 디테일 1개를 자기 과시 + 위트로 비틀기",
-    desc_examples: [
-      "잔디밭이 무대인 줄 아는 사람",
-      "필기 3줄 쓰고 폰 30분 보는 중",
-      "산 전세 내고 라떼 한 잔",
-    ],
-    format_examples: [
-      "🍵 카페 중독자",
-      "✍️ 끄적임 사색가",
-      "🛋️ 벨벳 의자 점령자",
-      "🐱 길냥이 단골",
-      "📚 책상 위 찐친",
-      "🌧️ 우중 낭만 유목민",
-      "🛏️ 늦잠 전문가",
-    ],
-  },
-  {
-    name: "자기자랑",
-    reason_tone: "단톡방에 자랑 사진 올린 친구를 알아봐주는 톤. 디테일을 '자랑각'·'인증샷각'으로 짚기. 허세·자뻑·농담 OK.",
-    desc_angle: "사진 속 본인의 디테일 1개를 자기자랑 카피로 풀기. '나 이런 사람이야', '이 정도는 기본이지' 자기 인증·허세 결. 단톡방에 친구한테 자랑 던지는 느낌. 허세·가벼운 호들갑 OK.",
-    desc_examples: [
-      "사진 찍는 자세 하나로 웃음 바다 만드는 폼 미쳤음",
-      "이 구역의 분위기 메이커는 바로 나",
-      "힙스터라는게 별게 있나?",
-    ],
-    format_examples: [
-      "🏙️ 도심 화보 모델",
-      "🎀 길거리 핑크공주",
-      "🚗 트렁크 펜션 사장",
-      "📸 셀카 감독",
-      "🎤 단톡방 주연",
-      "🌇 노을 디자이너",
-      "🏖️ 휴양지 주인공",
-    ],
-  },
-  {
-    name: "직설인정",
-    reason_tone: "짧고 단호하지만 친구 말투. 군더더기 제거. '인정' 한 마디 결.",
-    desc_angle: "사진의 핵심 1개를 단정적으로 인정",
-    desc_examples: [
-      "조명 끄고 감성 켜는 시간대",
-      "선인장한테 비니 씌우는 감각",
-      "어금니가 스크린 데뷔하는 날",
-    ],
-    format_examples: [
-      "🍵 말차 전문가",
-      "🌃 야경 디자이너",
-      "📷 필름 감독",
-      "🦷 치과 단골",
-      "🍱 도시락 사장",
-      "🍷 디너 감독",
-      "🌿 그림자 관찰자",
-      "📚 끄적임 기록자",
-    ],
-  },
-  {
-    name: "유쾌발견",
-    reason_tone: "친구가 사진에서 재미있는 디테일 발견. '이거 봐봐' 결. 발견 + 위트.",
-    desc_angle: "사진 속 의외의 디테일 1개를 짚어내며 위트",
-    desc_examples: [
-      "히라가나보다 아이스크림이 먼저 녹는 중",
-      "발밑 풍경도 작품이 되는 사람",
-      "언니 손목시계가 오늘의 주인공",
-    ],
-    format_examples: [
-      "🐱 길냥이 찐친",
-      "🌿 그림자 탐험가",
-      "🌸 봄꽃 유목민",
-      "🍔 앞치마 헌터",
-      "🌅 새벽 기록자",
-      "🐯 브이요정 커플",
-    ],
-  },
-];
-
-function pickRandom<T>(arr: T[], n: number): T[] {
-  return [...arr].sort(() => Math.random() - 0.5).slice(0, n);
-}
-
-const SYSTEM_PROMPT = `'플더픽(Play the Picture)'은 사진을 올리면(최대 5장) 분위기를 읽어서 어울리는 음악 1곡을 추천해주는 서비스야.
-추천곡과 결과 카드를 인스타 DM·스토리에 공유하고 친구들끼리 돌려보며 한 마디씩 던지는 게 가장 즐기는 방식이야.
-너는 그 서비스의 마스코트 '픽터' — 친구처럼 친근한 캐릭터.
-사진을 분석해서 후보곡 중 어울리는 음악 1곡을 골라.
-톤은 친구처럼 친근하게 — 위트·농담·호들갑 OK. 감성적·잔잔한 톤은 픽터와 안 맞음.
-reason은 존댓말(~요체)이지만 친구가 카톡으로 말하는 듯한 자연스러운 호흡.
-vibeDescription은 명사로 종결 — 트렌디한 매거진 카피처럼 짧고 임팩트 있게.
-한국어, JSON만 응답.`;
+const SYSTEM_PROMPT = `너는 '플더픽'이라는 사진 기반 음악 추천 서비스의 AI야.
+유저가 올린 사진의 분위기를 읽고, 후보곡 중 가장 어울리는 1곡을 골라.
+곡 제목 뿐만 아니라 실제 곡의 무드와 어울리는지도 함께 고려.
+추천 결과는 단톡방에서 친구들끼리 돌려보고 싶은 카드 —
+존댓말(~요체). 농담 섞은 톤. JSON만 응답.`;
 
 function buildNewPrompt(
   genre: string,
   energy: number,
   candidates: SongRow[],
-  tone: typeof VIBE_TONE_POOL[number],
-  recentVibes: string[],
-  formatExamples: string[]
+  recentVibes: string[]
 ): string {
   const energyLabel = ENERGY_LABELS[energy] ?? String(energy);
   const isDiscover = genre === "discover";
@@ -273,66 +183,43 @@ ${recentPrefixes.join(", ")}
 
   return `후보곡 중 사진에 가장 어울리는 1곡. JSON만.
 
-장르: ${isDiscover ? "자유 (장르 발견하기 모드)" : genre}
-곡 분위기: ${energyLabel}
+장르: ${isDiscover ? "AI 자유 선택" : genre}
+분위기: ${energyLabel} (${energy}/5)
 
 [후보곡]
 ${songList}
-
-[이번 카드의 톤]
-${tone.name} — ${tone.reason_tone}
-(reason은 위 톤(reason_tone) 따라. vibeDescription은 아래 필드의 angle 따라.)
 ${recentBlock}
-
 [분석 지시]
-- 사진에서 디테일 1~2개 관찰 (피사체 동작·포즈 / 장소 / 색감·빛 / 사물 상태 중)
-- 가능하면 곡과 연결될 디테일 우선 선택
-- reason에 자연스럽게 녹일 것
-- reason: 여러 장이면 흐름·감정 변화·전체 무드 짚을 것
-- 구체적 주소·지번 노출 금지
+- 여러 장이면 하나의 하루로 읽을 것
+- 사진에서 가장 눈에 띄는 요소 1~2개를 자연스럽게 관찰해 reason에 녹일 것 (피사체의 동작·포즈, 장소, 색감·빛, 사물 상태 중)
+- 개인 정보성 세부(옷 색깔·브랜드·티셔츠 글자·얼굴 특징·액세서리)는 짚지 말 것
 - reason 1번째 문장은 40자 이내로 간결하게
 
-금지:
-- '딱 맞아 떨어지다'
-- '이건 그냥 A가 아니라 B'
-- '그 자체로'
-- 의문형 연속
-- 'ㅋ' 자음 단독
-- 태그 띄어쓰기
-- 평범한 종결 반복: '~어울려요' / '~딱이에요' / '~이만한 게 없어요' / '~결이 맞아요'
-- 'BGM' 2회 이상 (1회는 OK)
-
-⚠️ 분위기 라벨 수치 노출 금지: "설렘 3", "에너지 N/5" 같이 [분위기 라벨]+[숫자] 조합 표현 절대 금지. 분위기는 카피 결로만 자연스럽게 묻어나야 함.
+금지: '딱 맞아 떨어지다', '이건 그냥 A가 아니라 B', '그 자체로', 의문형 연속, 'ㅋ' 자음 단독, 태그 띄어쓰기, 'BGM' 사용 자제(같은 대화에서 여러 번 쓰지 말 것), 'K-POP'을 '케이팝'으로 쓰지 말 것('K팝' 또는 '댄스팝'·'발라드' 등 서브장르), '~어울려요' / '~딱이에요' / '~이만한 게 없어요' / '~결이 맞아요' 같은 평범한 종결 반복 금지
 
 {
   "selectedIndex": 번호,
-  "reason": "3문장. 위 [이번 카드의 톤] 가이드를 따라 작성.
-① 사진의 구체적 디테일 1~2개를 위 톤 가이드대로 관찰 (톤 이름 직접 언급 X)
-② 사진과 곡이 어울리는 이유 1~2가지로 연결. 다음 중 선택:
-  - 제목·아티스트의 특징
-  - 장르·곡 분위기
-  - 사진의 장소·시간대·계절감
+  "reason": "3문장. '단톡방에 카드 받은 친구가 끝까지 읽고 키득거릴' 추천 이유.
+① 사진의 구체적 디테일 1개를 관찰자 + 삐딱한 시선으로 묘사
+(설명체·해설체 금지).
+② 곡 연결: 제목/아티스트 자체 은유 OR 무드 수준만.
 금지: '기타 톤', '통통 튀는 리듬', '목소리가 흩날려요' 같은
 사운드 직접 묘사 — AI가 실제 사운드 정확히 모를 수 있어 거짓말 위험.
-③ 종결 결 선택: 질문 / 권유 / 과장·비교 / 반전 / 추측 중.
-마지막 문장 반드시 존댓말(~요/~죠/~네요/~예요).
-명사·간결체 종결 금지(~정상/~인증/~수준/~함/~수도).",
-  "tags": [
-    "장르 1개 (한글 2~5자, 영문 약어 4자도 OK. 예: KPOP/시티팝/R&B/어쿠스틱)",
-    "무드 1개 (한글 2~5자. 예: 몽글한/들뜬/설레는/나른한)",
-    "상황·시간대 1개 (한글 2~5자. 예: 퇴근길/카페/주말오후)"
-  ],
+③ 종결 매번 다르게 — 질문/권유/과장·비교/반전/추측 중.
+존댓말. 농담 섞은 톤.",
+  "tags": ["장르/서브장르 2~5자 (예: KPOP·시티팝·R&B·어쿠스틱)", "무드/감정 2~5자 (예: 몽글한·들뜬·설레는·나른한)", "상황/시간대 2~5자 (예: 퇴근길·카페·주말오후)"],
   "vibeType": "이모지 + 한글 캐릭터명. 3~7자.
 '카톡 단톡방에 떴을 때 친구들이 한 번씩 다 만들어보고 싶게 만드는 별명'.
-사진 1장이면 단일 디테일, 여러 장이면 단일 컷 임팩트가 아닌 흐름·변화·전체 무드 짚기.
-어미는 사진 소재와 자연스럽게 매칭되는 직업·역할·정체성 자유 선택 — 예: 요정/모델/주인공/탐험가/팬/스타일리스트/감독/사장님/단골/사색가/관찰자/디자이너/전문가/커플/찐친/중독자/유목민/트렌드세터 등.
-'~러', '~러너' 어미 사용 금지. 영문 변형('runner', '러너')도 포함.
-(예: ${formatExamples.join(" / ")})",
-  "vibeDescription": "25자 이내. 위 [이번 카드의 톤] 가이드를 따라 1문장.
-angle: ${tone.desc_angle}
-반드시 명사로 종결 — ~중/~사람/~컷/~한 장/~인증/~핵심/~정답/~그림/~보람/~수준 등.
-'~요체' (~예요/~죠/~다/~겠어요) 절대 금지.
-예: ${tone.desc_examples.join(" / ")}"${isDiscover ? ',\n  "discoveredGenre": "장르명 한국어"' : ""}
+매번 다른 어미. '장인/요정/공주/수집가/탐험가/팬/커플/모델/순애남' 같은 직업·역할형 다양화
+(예: 🍓 딸기 한 입 요정 / 🎀 길거리 핑크공주 / 🌧️ 우중 낭만 중독자 /
+    🪞 거울셀카 장인 / 🌇 저녁 노을 러버 / 🐱 치즈냥이 집사)",
+  "vibeDescription": "25자 이내.
+'친구가 단톡방에 이 카드 띄웠을 때 댓글 달고 싶게 만드는' 한 줄 —
+사진의 구체 디테일(소품·동작·배경) 1개를 자기 과시 + 위트로 비틀기.
+설명형/단정형 금지.
+예: '올해 봄 지분 혼자 다 가져가는 중' / '머리띠가 인격을 바꾸는 날' /
+    '내 카메라 롤은 내가 주인공' / '필터빨 아니고 원래 기분 좋음' /
+    '하늘은 흐려도 고기는 빨갛게'"${isDiscover ? ',\n  "discoveredGenre": "장르명 한국어"' : ""}
 }`;
 }
 
@@ -381,9 +268,10 @@ export async function newRecommend(
     console.log(`[PERF] ${label}: ${Date.now() - since}ms`);
 
   const MODEL_PRICING: Record<string, { input: number; output: number }> = {
-    "claude-sonnet-4-6": { input: 3, output: 15 },
-    "claude-opus-4-6":   { input: 5, output: 25 },
-    "claude-opus-4-7":   { input: 5, output: 25 },
+    "claude-haiku-4-5-20251001": { input: 1, output: 5 },
+    "claude-sonnet-4-6":         { input: 3, output: 15 },
+    "claude-opus-4-6":           { input: 5, output: 25 },
+    "claude-opus-4-7":           { input: 5, output: 25 },
   };
 
   console.log(`[PERF] 분석 시작 — 사진 ${photos.length}장`);
@@ -541,11 +429,6 @@ export async function newRecommend(
   console.log(`[PERF] Claude API 호출 시작 — 사진 ${photos.length}장, 모델: ${model}`);
   const t2 = Date.now();
 
-  // 매 호출: 톤 1개 랜덤 + 톤별 format_examples에서 3개 랜덤 (편향 방지 — 단일 톤·예시 회귀 차단)
-  const tone = pickRandom(VIBE_TONE_POOL, 1)[0];
-  const formatExamples = pickRandom(tone.format_examples, 3);
-  console.log(`[new] 톤: ${tone.name} / 형식 예시: [${formatExamples.join(", ")}]`);
-
   const client = new Anthropic({ apiKey });
   const response = await client.messages.create({
     model,
@@ -555,7 +438,7 @@ export async function newRecommend(
       role: "user",
       content: [
         ...imageBlocks,
-        { type: "text", text: buildNewPrompt(genre, energy, finalCandidates, tone, recentVibes, formatExamples) },
+        { type: "text", text: buildNewPrompt(genre, energy, finalCandidates, recentVibes) },
       ],
     }],
   });
