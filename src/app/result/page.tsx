@@ -6,6 +6,7 @@ import { getSupabaseWithDeviceId } from "@/lib/supabase";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { Archive, Music, Play, Bookmark, RotateCcw, Check, X } from "lucide-react";
 import { PreviewPlayer } from "@/components/PreviewPlayer";
+import AppInstallSheet from "@/components/promo/AppInstallSheet";
 
 // Instagram 아이콘 — lucide-react가 브랜드 트레이드마크 이슈로 제거함, inline SVG로 대체
 const InstagramIcon = ({ size = 15, strokeWidth = 1.5 }: { size?: number; strokeWidth?: number }) => (
@@ -1596,6 +1597,8 @@ export default function ResultPage() {
         )}
       </div>
     </div>
+
+    <AppInstallSheet trigger={!!result} />
     </div>
   );
 }

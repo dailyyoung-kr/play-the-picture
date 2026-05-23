@@ -43,6 +43,10 @@ export const metadata: Metadata = {
       "naver-site-verification": "97385e903b9f06876427abb9a1a0e58b2b9d0abb",
     },
   },
+  // iOS Safari Smart App Banner — iOS Safari만 자동으로 상단 배너 노출
+  other: {
+    "apple-itunes-app": "app-id=6770438873",
+  },
 };
 
 export default function RootLayout({
