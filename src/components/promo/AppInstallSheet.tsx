@@ -100,24 +100,6 @@ export default function AppInstallSheet({ trigger }: Props) {
           boxShadow: "0 -4px 24px rgba(46,37,71,0.15)",
         }}
       >
-        {/* 픽터 아이콘 */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            marginBottom: 14,
-          }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/branding/pikter-mark.png"
-            alt="픽터"
-            width={64}
-            height={64}
-            style={{ borderRadius: 14 }}
-          />
-        </div>
-
         {/* 헤드라인 */}
         <p
           style={{
