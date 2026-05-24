@@ -538,13 +538,17 @@ export default function ResultPage() {
   // savedEntryId가 바뀔 때마다 ref 동기화
   useEffect(() => { savedEntryIdRef.current = savedEntryId; }, [savedEntryId]);
 
-  // 결과 페이지 떠날 때 — 사진 storage 초기화
+  // 결과 페이지 떠날 때 — 사진·결과 storage 모두 초기화
   // (뒤로가기·한 번 더 해보기·아카이브 이동 등 모든 경로에서 일관된 패턴 강제)
-  // 의도: 같은 사진 반복 분석 봉쇄 → 매번 새 사진 선택 유도
+  // 의도:
+  //   1. 같은 사진 반복 분석 봉쇄 → 매번 새 사진 선택 유도
+  //   2. result 재진입 시 결과만 떠 있고 사진 빈 상태 어색함 차단
+  //   결과 재확인은 "아카이브에 보관" → journal 정식 경로
   useEffect(() => {
     return () => {
       try {
         localStorage.removeItem("ptp_photos");
+        localStorage.removeItem("ptp_result");
       } catch {}
     };
   }, []);
