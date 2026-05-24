@@ -538,6 +538,17 @@ export default function ResultPage() {
   // savedEntryId가 바뀔 때마다 ref 동기화
   useEffect(() => { savedEntryIdRef.current = savedEntryId; }, [savedEntryId]);
 
+  // 결과 페이지 떠날 때 — 사진 storage 초기화
+  // (뒤로가기·한 번 더 해보기·아카이브 이동 등 모든 경로에서 일관된 패턴 강제)
+  // 의도: 같은 사진 반복 분석 봉쇄 → 매번 새 사진 선택 유도
+  useEffect(() => {
+    return () => {
+      try {
+        localStorage.removeItem("ptp_photos");
+      } catch {}
+    };
+  }, []);
+
   // 체류 시간 트래킹: 마운트 시 시작, 언마운트/언로드 시 전송
   useEffect(() => {
     if (!isAnalyticsEnabled()) return;

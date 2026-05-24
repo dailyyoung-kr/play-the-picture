@@ -209,7 +209,9 @@ export default function PreferencePage() {
 
       localStorage.setItem("ptp_result", JSON.stringify(data));
       localStorage.setItem("ptp_prefs", JSON.stringify({ genre: selectedGenre, energy: selectedEnergy }));
-      router.push("/result");
+      // replace: history에서 preference 항목 제거 → result에서 뒤로가기 시 main으로 직접 이동
+      // (결과 후 사진 재첨부 강제: result.unmount에서 ptp_photos 초기화)
+      router.replace("/result");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "오류가 발생했어요. 다시 시도해주세요.";
       // fetch 자체가 throw된 네트워크 오류 케이스 — 이때는 위 !res.ok 로깅이 안 탔으므로 여기서 보정
