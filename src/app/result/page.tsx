@@ -75,6 +75,7 @@ const PHOTO_COLORS = [
 export default function ResultPage() {
   const router = useRouter();
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [loading, setLoading] = useState(true);
   const [photos, setPhotos] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -587,6 +588,7 @@ export default function ResultPage() {
       pixelViewContent(parsed.song);
     }
     if (photosRaw) setPhotos(JSON.parse(photosRaw));
+    setLoading(false);
   }, []);
 
   // Lazy storyBg 생성: albumArt → proxy fetch → base64 → Canvas (blur+overlay) → JPEG dataURL
@@ -691,7 +693,8 @@ export default function ResultPage() {
 
   // 미리듣기 fetch·rAF·togglePreview 로직은 <PreviewPlayer> 내부로 이동
 
-  if (!result) {
+  // 로딩 중 — useEffect로 storage 읽는 동안 잠깐
+  if (loading) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
@@ -700,6 +703,34 @@ export default function ResultPage() {
         <div className="text-center">
           <div style={{ fontSize: 32, marginBottom: 16 }}>✦</div>
           <p style={{ color: "rgba(46,37,71,0.6)", fontSize: 14 }}>결과를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 로딩 완료했는데 결과 없음 — 앞으로가기·직접 URL·storage 정리 후 진입 등
+  if (!result) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: "linear-gradient(180deg, #c5beda 0%, #b3acd2 45%, #c8c0e0 100%)", padding: 24 }}
+      >
+        <div className="text-center">
+          <p style={{ color: "#2e2547", fontSize: 16, marginBottom: 20 }}>결과가 없어요</p>
+          <button
+            onClick={() => router.replace("/")}
+            style={{
+              backgroundColor: "#5D4F8C",
+              color: "#fff",
+              border: "none",
+              borderRadius: 24,
+              padding: "12px 24px",
+              fontSize: 14,
+              cursor: "pointer",
+            }}
+          >
+            처음으로
+          </button>
         </div>
       </div>
     );

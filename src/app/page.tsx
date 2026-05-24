@@ -127,11 +127,15 @@ export default function UploadPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photos, setPhotos] = useState<string[]>([]);
-  // localStorage는 클라이언트 전용 — hydration 후에 로드 (SSR mismatch 방지)
+  // main 진입 시마다 빈 상태로 시작 + 잔존 storage 정리
+  // 의도:
+  //   1. 결과 후 사진 재첨부 강제 (cleanup race condition 회피)
+  //   2. result 페이지 무한 로딩 방지 (앞으로가기로 result 복귀 시 빈 결과 처리)
+  // 트레이드오프: preference에서 뒤로 main 시 사진 사라짐 (의식적 뒤로가기 = 새 첨부 의도로 해석)
   useEffect(() => {
     try {
-      const stored = JSON.parse(localStorage.getItem("ptp_photos") ?? "[]");
-      if (Array.isArray(stored) && stored.length > 0) setPhotos(stored);
+      localStorage.removeItem("ptp_photos");
+      localStorage.removeItem("ptp_result");
     } catch { /* noop */ }
   }, []);
 
