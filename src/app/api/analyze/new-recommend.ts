@@ -292,30 +292,32 @@ export async function newRecommend(
     console.log(`[new] device 평생 추천 제외: ${excludedIds.length}곡`);
   }
 
-  // ── STEP 0-B: 같은 device 24h 내 vibe_type 이력 (헤비유저 패턴 변주용) ──
+  // ── STEP 0-B: 같은 device 1h 내 vibe_type 이력 (헤비유저 패턴 변주용) ──
   // ⚠️ analysis_results는 RLS 활성화 + 정책 0개 → anon client는 SELECT 차단됨
   //    → supabaseAdmin (service role) 사용 필수
   // idx_analysis_device_created 인덱스 적중 — EXPLAIN ANALYZE 3ms 이하 검증됨
+  // 2026-05-24: 24h → 1h로 단축 (한 세션 내 다양성만 보장, 응답시간 단축)
+  //             LIMIT 5 → 10으로 완화 (1h 안 헤비 유저도 충분히 커버)
   let recentVibes: string[] = [];
   if (deviceId) {
-    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const since = new Date(Date.now() - 1 * 3600 * 1000).toISOString();
     const { data: recent, error: recentErr } = await supabaseAdmin
       .from("analysis_results")
       .select("vibe_type")
       .eq("device_id", deviceId)
       .gte("created_at", since)
       .order("created_at", { ascending: false })
-      .limit(5);
+      .limit(10);
     if (recentErr) {
-      console.error(`[new] 24h 이력 조회 ERROR: ${recentErr.message}`);
+      console.error(`[new] 1h 이력 조회 ERROR: ${recentErr.message}`);
     }
     recentVibes = (recent ?? []).map((r: { vibe_type: string | null }) => r.vibe_type).filter((v): v is string => Boolean(v));
-    console.log(`[new] 24h 이력 조회 결과: deviceId=${deviceId.substring(0,8)}, raw_count=${recent?.length ?? 0}, filtered_count=${recentVibes.length}`);
+    console.log(`[new] 1h 이력 조회 결과: deviceId=${deviceId.substring(0,8)}, raw_count=${recent?.length ?? 0}, filtered_count=${recentVibes.length}`);
     if (recentVibes.length > 0) {
-      console.log(`[new] device 24h vibe 이력: [${recentVibes.join(", ")}]`);
+      console.log(`[new] device 1h vibe 이력: [${recentVibes.join(", ")}]`);
     }
   } else {
-    console.log(`[new] 24h 이력 조회 SKIP: deviceId 없음`);
+    console.log(`[new] 1h 이력 조회 SKIP: deviceId 없음`);
   }
 
   // ── STEP 1: Supabase에서 후보곡 필터링 ──
