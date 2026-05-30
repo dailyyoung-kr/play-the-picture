@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 };
 
 // 한국 PIPA + 전자상거래법 + 공정거래위 표준약관 참고
-// 시행일: 2026-05-12
+// 시행일: 2026-05-30 (5/30 개정 — '오늘의 발견' 기능 도입에 따른 서비스 정의 갱신)
 
 export default function TermsPage() {
   return (
@@ -52,7 +52,7 @@ export default function TermsPage() {
           이용약관
         </h1>
         <p style={{ fontSize: 12, color: "rgba(46,37,71,0.5)" }}>
-          시행일자: 2026년 5월 12일
+          시행일자: 2026년 5월 30일
         </p>
       </div>
 
@@ -82,7 +82,7 @@ export default function TermsPage() {
           <List
             items={[
               "본 약관은 회사가 제공하는 서비스의 이용 조건·절차, 회원과 회사 간 권리·의무를 정합니다.",
-              "‘서비스’: 사진 업로드를 통해 분위기를 분석하고 어울리는 음악을 추천하는 기능 일체.",
+              "‘서비스’: 사진 업로드를 통해 분위기를 분석하고 어울리는 음악을 추천하는 기능, 매일 큐레이션된 아티스트를 소개하는 ‘오늘의 발견’ 기능 일체.",
               "‘회원’: 본 약관에 동의하고 서비스를 이용하는 자 (비회원·OAuth 가입자 포함).",
               "‘콘텐츠’: 회원이 업로드·생성·공유하는 사진, 분석 결과, vibeType, 닉네임 등 일체.",
             ]}
@@ -203,7 +203,7 @@ export default function TermsPage() {
         </Section>
 
         <p style={{ marginTop: 24, fontSize: 12, color: "rgba(46,37,71,0.5)" }}>
-          시행일자: 2026년 5월 12일
+          시행일자: 2026년 5월 30일
         </p>
       </div>
     </div>

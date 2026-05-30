@@ -48,3 +48,8 @@ supabase/.temp/
 
 # 비밀 키 (Apple Sign in 등)
 *.p8
+
+# 디버그·임시 실험 스크립트 (수동 실행, 영구 보관 X)
+_temp_*.cjs
+_temp_*.js
+_temp_*.ts

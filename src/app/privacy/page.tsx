@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 };
 
 // 한국 PIPA 2025.4.21 작성지침 + 2026.3 개정 + App Store 5.1.1/5.1.2 준수
-// 시행일: 2026-05-18 (5/18 개정 — 사용자 액션 표현을 실제 앱 버튼명과 동기화)
+// 시행일: 2026-05-30 (5/30 개정 — '오늘의 발견' 신기능 도입에 따른 수집 항목·이용 목적·위탁 갱신)
 
 export default function PrivacyPage() {
   return (
@@ -52,7 +52,7 @@ export default function PrivacyPage() {
           개인정보 처리방침
         </h1>
         <p style={{ fontSize: 12, color: "rgba(46,37,71,0.5)" }}>
-          시행일자: 2026년 5월 18일
+          시행일자: 2026년 5월 30일
         </p>
       </div>
 
@@ -89,6 +89,7 @@ export default function PrivacyPage() {
               "익명 기기 식별자: 사용자 구분을 위한 임의 ID (개인을 직접 식별하지 않음)",
               "서비스 이용 기록: 분석 요청, 추천 결과, 클릭 이벤트 등",
               "선호 정보: 장르·분위기 등 사용자가 선택한 항목",
+              "발견 카드 저장 데이터: '오늘의 발견'에서 회원이 저장한 아티스트·곡 정보",
               "가입 정보 (OAuth 가입 시): Google·Apple·카카오 계정에서 받는 이메일·닉네임·프로필 사진·회원번호 (제공자 측 동의 항목에 따름)",
             ]}
           />
@@ -106,6 +107,7 @@ export default function PrivacyPage() {
               "회원 가입·로그인·계정 관리 (OAuth 가입자에 한함)",
               "서비스 품질 개선 및 통계 분석",
               "결과 공유 카드 또는 스토리용 이미지 생성 (사용자가 직접 요청한 경우)",
+              "'오늘의 발견' 카드 개인화 추천 (회원의 저장·공유 기록을 시드로 활용)",
             ]}
           />
         </Section>
@@ -116,6 +118,7 @@ export default function PrivacyPage() {
               "사진: 분석 직후 삭제 ('아카이브 보관'·'결과 공유하기'·'스토리용 이미지' 선택 시에만 저장, 아카이브의 '기록 삭제하기'로 즉시 삭제 가능)",
               "익명 기기 식별자·이용 기록: 서비스 운영 기간 동안 보관",
               "회원 가입 정보(OAuth): 회원 자격 유지 기간 동안 보관, 탈퇴 시 즉시 파기 (법령상 보존 의무 있는 경우 해당 기간 동안 보관)",
+              "발견 카드 저장 데이터: 회원이 직접 삭제하거나 회원 탈퇴 시 일괄 파기",
               "삭제 요청 시: 즉시 영구 삭제",
             ]}
           />
@@ -131,7 +134,7 @@ export default function PrivacyPage() {
               "AI 분석: Anthropic (사진은 7일 이내 자동 삭제, 모델 학습에 사용되지 않음)",
               "클라우드 인프라: Vercel, Supabase (국제 보안 인증 보유)",
               "OAuth 인증: Google, Apple, Kakao (가입 시 회원 동의에 따라 계정 정보 일부를 제공받음)",
-              "음악 정보 검색: Spotify, YouTube",
+              "음악 정보 검색·미리듣기·아티스트 데이터: Spotify, YouTube, Apple Music",
               "서비스 통계: Google Analytics, Meta",
             ]}
           />
@@ -229,7 +232,7 @@ export default function PrivacyPage() {
             통해 사전 고지합니다.
           </p>
           <p style={{ marginTop: 12, fontSize: 12, color: "rgba(46,37,71,0.55)" }}>
-            · 시행일자: 2026년 5월 18일 (직전 개정: 2026년 5월 12일)
+            · 시행일자: 2026년 5월 30일 (직전 개정: 2026년 5월 18일)
           </p>
         </Section>
       </div>

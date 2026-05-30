@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Archive, Music } from "lucide-react";
+import { Archive, Music, Sparkles } from "lucide-react";
 import { supabase, getDeviceId } from "@/lib/supabase";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { pixelInitiateCheckout } from "@/lib/fpixel";
@@ -565,6 +565,10 @@ export default function UploadPage() {
         <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "#2e2547", cursor: "pointer" }} onClick={() => router.push("/")}>
           <Music size={22} strokeWidth={1.5} />
           노래 추천받기
+        </div>
+        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(46,37,71,0.55)", cursor: "pointer" }} onClick={() => router.push("/discovery")}>
+          <Sparkles size={22} strokeWidth={1.5} />
+          오늘의 발견
         </div>
       </div>
 

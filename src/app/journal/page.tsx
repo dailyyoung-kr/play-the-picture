@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseWithDeviceId, Entry } from "@/lib/supabase";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
-import { Archive, Music, ChevronDown, X } from "lucide-react";
+import { Archive, Music, ChevronDown, X, Sparkles } from "lucide-react";
 import { getDeviceId } from "@/lib/device";
 import { HamburgerMenu } from "@/components/header/HamburgerMenu";
 import { PreviewPlayer } from "@/components/PreviewPlayer";
@@ -624,6 +624,10 @@ export default function JournalPage() {
         <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(46,37,71,0.55)", cursor: "pointer" }} onClick={() => router.push("/")}>
           <Music size={22} strokeWidth={1.5} />
           노래 추천받기
+        </div>
+        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(46,37,71,0.55)", cursor: "pointer" }} onClick={() => router.push("/discovery")}>
+          <Sparkles size={22} strokeWidth={1.5} />
+          오늘의 발견
         </div>
       </div>
 

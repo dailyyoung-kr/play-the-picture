@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseWithDeviceId } from "@/lib/supabase";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
-import { Archive, Music, Play, Bookmark, RotateCcw, Check, X } from "lucide-react";
+import { Archive, Music, Play, Bookmark, RotateCcw, Check, X, Sparkles } from "lucide-react";
 import { PreviewPlayer } from "@/components/PreviewPlayer";
 import AppInstallSheet from "@/components/promo/AppInstallSheet";
 
@@ -1245,6 +1245,10 @@ export default function ResultPage() {
         <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "#2e2547", cursor: "pointer" }} onClick={() => router.push("/")}>
           <Music size={22} strokeWidth={1.5} />
           노래 추천받기
+        </div>
+        <div className="flex flex-col items-center gap-1" style={{ fontSize: 10, color: "rgba(46,37,71,0.55)", cursor: "pointer" }} onClick={() => router.push("/discovery")}>
+          <Sparkles size={22} strokeWidth={1.5} />
+          오늘의 발견
         </div>
       </div>
     </div>

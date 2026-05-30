@@ -5,7 +5,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { getDeviceId } from "@/lib/supabase";
 import { logAuthEvent } from "@/lib/auth/log";
 
-export type LoginGateSource = "photo_upload" | "hamburger";
+export type LoginGateSource = "photo_upload" | "hamburger" | "discovery";
 
 interface Props {
   isOpen: boolean;
