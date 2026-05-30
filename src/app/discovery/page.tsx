@@ -50,6 +50,11 @@ type SavesResponse = {
 const PURPLE_MAIN = "#5D4F8C";
 const PURPLE_BG = "linear-gradient(180deg, #c5beda 0%, #b3acd2 45%, #c8c0e0 100%)";
 
+/** KST 기준 yyyy-mm-dd — today/route.ts와 동일 로직 */
+function todayKstStr(): string {
+  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 // ─────────────────────────── Save helpers ───────────────────────────
 
 type Identity = { deviceId: string; userId: string | null };
@@ -112,6 +117,8 @@ function DiscoveryPageInner() {
   const [loginGateOpen, setLoginGateOpen] = useState(false);
   // isActive: null=아직 확인 안 함, true=entries 1건+, false=entries 0건 (안내 화면)
   const [isActive, setIsActive] = useState<boolean | null>(null);
+  // 마지막 today fetch한 KST 날짜 — 탭 복귀 시 date 바뀌었으면 stale 카드 갱신
+  const [fetchedDate, setFetchedDate] = useState<string | null>(null);
 
   /** 비로그인 사용자가 보호된 action 시도 → 로그인 게이트 띄움 */
   const requireAuth = useCallback(
@@ -145,12 +152,27 @@ function DiscoveryPageInner() {
         setSavedArtists(new Set(saves.artists.map((a) => a.apple_id)));
         setSavedTracks(new Set(saves.tracks.map((t) => t.apple_id)));
       }
+      // KST 기준 fetch 날짜 기록 → 다음 focus·visibility 변경 시 stale 비교
+      setFetchedDate(todayKstStr());
     } catch (e) {
       setError(String(e));
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // 탭/창 복귀 시 KST 날짜가 바뀌었으면 today 카드 refetch (자정 갱신 대응)
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      if (!identity?.userId) return;
+      if (fetchedDate && fetchedDate !== todayKstStr()) {
+        loadData(identity);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [identity, fetchedDate, loadData]);
 
   // 초기 진입 — 비로그인은 게이트, 로그인+entries 0건은 안내 UI, 활성은 카드 fetch
   useEffect(() => {
