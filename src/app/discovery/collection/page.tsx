@@ -9,9 +9,9 @@
  *  · 아티스트 리스트: 썸네일 + 이름 + 저장일
  *  · 곡 리스트: 썸네일 + 곡명 + 아티스트
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Star, Bookmark, Archive, Music, Sparkles } from "lucide-react";
+import { ChevronLeft, Star, Bookmark, Archive, Music, Sparkles, Trash2 } from "lucide-react";
 import { HamburgerMenu } from "@/components/header/HamburgerMenu";
 import { LoginGate } from "@/components/auth/LoginGate";
 import { getDeviceId } from "@/lib/supabase";
@@ -55,9 +55,40 @@ export default function CollectionPage() {
   const [tab, setTab] = useState<"artist" | "track">("artist");
   const [artists, setArtists] = useState<SavedItem<ArtistSnapshot>[]>([]);
   const [tracks, setTracks] = useState<SavedItem<TrackSnapshot>[]>([]);
+  const [identity, setIdentity] = useState<{ deviceId: string; userId: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loginGateOpen, setLoginGateOpen] = useState(false);
+
+  /** 컬렉션 항목 삭제 — optimistic UI + 백그라운드 unsave (toggle) */
+  const handleDelete = useCallback(
+    async (itemType: "artist" | "track", appleId: string, snapshot: unknown) => {
+      if (!identity) return;
+      // optimistic
+      if (itemType === "artist") {
+        setArtists((prev) => prev.filter((a) => a.apple_id !== appleId));
+      } else {
+        setTracks((prev) => prev.filter((t) => t.apple_id !== appleId));
+      }
+      try {
+        await fetch("/api/discovery/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            device_id: identity.deviceId,
+            user_id: identity.userId,
+            item_type: itemType,
+            apple_id: appleId,
+            snapshot,
+          }),
+        });
+      } catch {
+        // 실패 시 알림 정도 — 사용자가 페이지 새로 고치면 복구됨
+        console.error("[collection] 삭제 실패");
+      }
+    },
+    [identity],
+  );
 
   useEffect(() => {
     (async () => {
@@ -77,6 +108,8 @@ export default function CollectionPage() {
         setLoading(false);
         return;
       }
+
+      setIdentity({ deviceId: did, userId: uid });
 
       const params = new URLSearchParams({ device_id: did, user_id: uid });
 
@@ -167,12 +200,12 @@ export default function CollectionPage() {
           {!loading && !error && tab === "artist" && (
             artists.length === 0
               ? <EmptyArtists />
-              : <ArtistList items={artists} />
+              : <ArtistList items={artists} onDelete={(item) => handleDelete("artist", item.apple_id, item.snapshot)} />
           )}
           {!loading && !error && tab === "track" && (
             tracks.length === 0
               ? <EmptyTracks />
-              : <TrackList items={tracks} />
+              : <TrackList items={tracks} onDelete={(item) => handleDelete("track", item.apple_id, item.snapshot)} />
           )}
         </div>
       </div>
@@ -282,7 +315,13 @@ function EmptyTracks() {
 
 // ─────────────────────────── Artist list ───────────────────────────
 
-function ArtistList({ items }: { items: SavedItem<ArtistSnapshot>[] }) {
+function ArtistList({
+  items,
+  onDelete,
+}: {
+  items: SavedItem<ArtistSnapshot>[];
+  onDelete: (item: SavedItem<ArtistSnapshot>) => void;
+}) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
       {items.map((item) => {
@@ -302,6 +341,7 @@ function ArtistList({ items }: { items: SavedItem<ArtistSnapshot>[] }) {
             {/* 상단: 큰 artwork (4:5) */}
             <div style={{ position: "relative", width: "100%", aspectRatio: "4 / 5", overflow: "hidden" }}>
               {a.artwork ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={a.artwork}
                   alt={a.name}
@@ -314,6 +354,22 @@ function ArtistList({ items }: { items: SavedItem<ArtistSnapshot>[] }) {
                   </span>
                 </div>
               )}
+              {/* 우상단 삭제 (휴지통) */}
+              <button
+                onClick={() => onDelete(item)}
+                aria-label="삭제"
+                style={{
+                  position: "absolute", top: 8, right: 8,
+                  width: 28, height: 28, borderRadius: 14,
+                  background: "rgba(0,0,0,0.45)",
+                  border: "none", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "#fff",
+                  padding: 0,
+                }}
+              >
+                <Trash2 size={14} strokeWidth={2.2} />
+              </button>
             </div>
             {/* 하단: 아티스트명 + 저장일 */}
             <div style={{ padding: "12px 14px 14px", display: "flex", flexDirection: "column", gap: 5 }}>
@@ -341,7 +397,13 @@ function ArtistList({ items }: { items: SavedItem<ArtistSnapshot>[] }) {
 
 // ─────────────────────────── Track list ───────────────────────────
 
-function TrackList({ items }: { items: SavedItem<TrackSnapshot>[] }) {
+function TrackList({
+  items,
+  onDelete,
+}: {
+  items: SavedItem<TrackSnapshot>[];
+  onDelete: (item: SavedItem<TrackSnapshot>) => void;
+}) {
   // 가로형 플레이리스트 — 좌측 album art + 곡 정보 + 저장일
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -398,14 +460,29 @@ function TrackList({ items }: { items: SavedItem<TrackSnapshot>[] }) {
                 {t.artist_name}{t.year ? ` · ${t.year}` : ""}
               </div>
             </div>
-            {/* 우측 저장일 */}
-            <div style={{
-              fontSize: 10,
-              color: "rgba(46,37,71,0.45)",
-              flexShrink: 0,
-              fontVariantNumeric: "tabular-nums",
-            }}>
-              {fmtSavedAt(item.saved_at)}
+            {/* 우측 저장일 + 삭제 */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <div style={{
+                fontSize: 10,
+                color: "rgba(46,37,71,0.45)",
+                fontVariantNumeric: "tabular-nums",
+              }}>
+                {fmtSavedAt(item.saved_at)}
+              </div>
+              <button
+                onClick={() => onDelete(item)}
+                aria-label="삭제"
+                style={{
+                  width: 28, height: 28, borderRadius: 14,
+                  background: "rgba(93,79,140,0.08)",
+                  border: "none", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "rgba(46,37,71,0.55)",
+                  padding: 0,
+                }}
+              >
+                <Trash2 size={14} strokeWidth={2} />
+              </button>
             </div>
           </div>
         );

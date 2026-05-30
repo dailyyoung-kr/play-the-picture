@@ -153,9 +153,47 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-/** 시드 아티스트 1명 → Apple similar (shuffle) → Artist 1·2 확정 (둘 다 새 발견) */
+/**
+ * 사용자가 이미 저장한 아티스트 apple_id Set — 추천 시 중복 제외용.
+ * cache_key = userId (활성 사용자 기준). 비로그인·콜드 사용자는 보통 호출 X.
+ */
+async function getSavedArtistIds(
+  userId: string | null,
+  deviceId: string,
+): Promise<Set<string>> {
+  const cacheKey = userId || deviceId;
+  if (!cacheKey) return new Set();
+  const { data } = await supabaseAdmin
+    .from("discovery_saves")
+    .select("apple_id")
+    .eq("cache_key", cacheKey)
+    .eq("item_type", "artist");
+  return new Set((data ?? []).map((r) => r.apple_id as string));
+}
+
+/**
+ * 시드 아티스트 1명 → Apple similar (shuffle) → Artist 1·2 확정 (둘 다 새 발견).
+ * excludeIds에 있는 아티스트는 제외 (이미 저장한 항목 재추천 방지).
+ * 단, excludeIds 적용으로 페어 못 만들면 자동 폴백 (excludeIds 무시).
+ */
 async function resolveArtistPair(
   seedNames: string[],
+  excludeIds: Set<string> = new Set(),
+): Promise<{ artist1: AppleArtistFull; artist2: AppleArtistFull } | null> {
+  // 1차: excludeIds 적용
+  const result = await tryResolvePair(seedNames, excludeIds);
+  if (result) return result;
+  // 2차 폴백: excludeIds 무시 — 시드 풀이 작아서 다 제외되면 어쩔 수 없이 중복 허용
+  if (excludeIds.size > 0) {
+    console.log("[discovery] excludeIds 적용 실패 → 폴백 (중복 허용)");
+    return tryResolvePair(seedNames, new Set());
+  }
+  return null;
+}
+
+async function tryResolvePair(
+  seedNames: string[],
+  excludeIds: Set<string>,
 ): Promise<{ artist1: AppleArtistFull; artist2: AppleArtistFull } | null> {
   for (const seedName of seedNames) {
     const seedSearch = await appleSearchArtist(seedName);
@@ -169,6 +207,7 @@ async function resolveArtistPair(
     let a1: AppleArtistFull | null = null;
     let a2: AppleArtistFull | null = null;
     for (const sim of shuffledSimilar) {
+      if (excludeIds.has(sim.id)) continue; // 이미 저장한 아티스트 제외
       const full = await appleGetArtistFull(sim.id);
       if (!full || full.tracks.length === 0) continue;
       if (!a1) {
@@ -390,8 +429,16 @@ export async function generateDiscoveryCard(
     console.log(`[discovery] 활성 사용자 시드 ${seedPool.length}명`);
   }
 
-  // 3. 아티스트 페어 확정 (시드 → similar 2명)
-  const pair = await resolveArtistPair(seedPool);
+  // 2.5. 이미 저장한 아티스트 ID — 추천에서 제외 (콜드 풀은 X)
+  const excludeIds = options.forceColdStart
+    ? new Set<string>()
+    : await getSavedArtistIds(userId, deviceId);
+  if (excludeIds.size > 0) {
+    console.log(`[discovery] 저장된 아티스트 ${excludeIds.size}명 추천 제외`);
+  }
+
+  // 3. 아티스트 페어 확정 (시드 → similar 2명, 이미 저장한 항목 제외)
+  const pair = await resolveArtistPair(seedPool, excludeIds);
   if (!pair) throw new Error("Apple Music similar artists로 페어 확정 실패");
 
   console.log(`[discovery] artist_1: ${pair.artist1.name}, artist_2: ${pair.artist2.name}`);

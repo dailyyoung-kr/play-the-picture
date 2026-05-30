@@ -292,6 +292,8 @@ function DiscoveryPageInner() {
         <DetailView
           artist={artist}
           savedTracks={savedTracks}
+          isArtistSaved={savedArtists.has(artist.apple_id)}
+          onSaveArtist={() => handleSaveArtist(artist)}
           onSaveTrack={(t) => handleSaveTrack(t, artist)}
           onBack={() => router.push("/discovery")}
         />
@@ -785,11 +787,15 @@ function CarouselSlide({
 function DetailView({
   artist,
   savedTracks,
+  isArtistSaved,
+  onSaveArtist,
   onSaveTrack,
   onBack,
 }: {
   artist: Artist;
   savedTracks: Set<string>;
+  isArtistSaved: boolean;
+  onSaveArtist: () => void;
   onSaveTrack: (t: Track) => void;
   onBack: () => void;
 }) {
@@ -822,7 +828,24 @@ function DetailView({
             </div>
           </div>
         )}
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.55) 100%)", display: "flex", alignItems: "flex-end", padding: "16px 20px" }}>
+        {/* 좌상단 별 — 캐러셀과 동일 디자인 */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onSaveArtist(); }}
+          aria-label={isArtistSaved ? "저장 취소" : "아티스트 저장"}
+          style={{
+            position: "absolute", top: 14, left: 14,
+            width: 40, height: 40,
+            background: "transparent", border: "none",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: isArtistSaved ? "#FFD23F" : "#fff",
+            cursor: "pointer",
+            padding: 0,
+            filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.55))",
+          }}
+        >
+          <Star size={28} strokeWidth={2.2} fill={isArtistSaved ? "#FFD23F" : "transparent"} />
+        </button>
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.55) 100%)", display: "flex", alignItems: "flex-end", padding: "16px 20px", pointerEvents: "none" }}>
           <div style={{ color: "#fff", fontSize: 12, fontWeight: 600, letterSpacing: "0.5px", textShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>
             📍 오늘의 발견 아티스트
           </div>
