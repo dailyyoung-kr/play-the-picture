@@ -1,122 +1,105 @@
 /**
- * GET /api/discovery/today?device_id=...
+ * GET /api/discovery/today
+ *  쿼리: device_id (필수), user_id (선택)
  *
- * "오늘의 발견" 카드 lazy generation + DB 캐싱.
+ *  흐름:
+ *  1. 시드 판정 (getUserContext) — 저장/공유/스토리한 아티스트(가수 단위) 수
+ *  2. 시드 0개 → { blocked: true } (카드 생성 안 함, 클라가 안내 UI 표시)
+ *  3. 시드 1+ → cache_key(userId 또는 device_) 로 today_discovery 캐시 조회
+ *  4. 캐시 MISS → generateDiscoveryCard (시드 1=하이브리드 / 2+=각각 1명)
+ *  5. JSON 응답: { artist_1, artist_2, cache_key, generated, blocked }
  *
- * 흐름:
- *  1. device_id 받음 → entries 1건+ 있으면 활성, 없으면 신규
- *  2. cache_key 결정:
- *     - 활성 (로그인 + entries 1건+) → user_id (개인화)
- *     - 신규/비회원 → `common_${bucketOf(device_id) % BUCKET_COUNT}` (해시 버킷 분산)
- *  3. today_discovery (cache_key, today KST) 조회
- *     - 있음 → 즉시 반환
- *     - 없음 → generateDiscoveryCard() → DB upsert → 반환
- *  4. JSON 응답: { artist_1, artist_2, cache_key, generated }
- *
- * 응답시간: cache hit ~0.1초 / miss ~15초 (Apple Music + Claude)
+ *  생성 비용: Claude 1회 + Apple Music 다수 호출 → 캐시 우선
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { generateDiscoveryCard } from "@/lib/discovery-engine";
+import { generateDiscoveryCard, getUserContext } from "@/lib/discovery-engine";
 
 // Vercel Hobby plan timeout 60초 (default 10초) — 카드 첫 생성 ~15초 필요
 export const maxDuration = 60;
-
-// 콜드 스타트 버킷 수 — 5명의 신규 사용자가 통계적으로 5개의 서로 다른 카드를 받음
-// 비용: 일 최대 5카드 × ~$0.02 = ~$0.10 (활성 사용자 비용 별도)
-const BUCKET_COUNT = 5;
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 );
 
-// KST 기준 yyyy-mm-dd
 function todayKst(): string {
   return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
-}
-
-/**
- * device_id 해시 버킷 — 같은 device는 매일 같은 버킷 (취향 일관성).
- * UUID v4 앞 8자리 hex → int 변환 후 mod.
- * UUID 형식이 아닌 경우 charCode 합산으로 fallback.
- */
-function bucketOf(deviceId: string, bucketCount: number): number {
-  const hex = deviceId.replace(/-/g, "").slice(0, 8);
-  const n = parseInt(hex, 16);
-  if (Number.isFinite(n) && !Number.isNaN(n)) return n % bucketCount;
-  // fallback: char code 합산
-  let sum = 0;
-  for (let i = 0; i < deviceId.length; i++) {
-    sum = (sum + deviceId.charCodeAt(i)) >>> 0;
-  }
-  return sum % bucketCount;
-}
-
-async function isActiveUser(userId: string | null, deviceId: string): Promise<boolean> {
-  // user_id 있으면 user_id 기준, 없으면 device_id 기준
-  const q = supabaseAdmin
-    .from("entries")
-    .select("id", { count: "exact", head: true })
-    .limit(1);
-  const { count } = userId
-    ? await q.eq("user_id", userId)
-    : await q.eq("device_id", deviceId);
-  return (count ?? 0) > 0;
 }
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const deviceId = url.searchParams.get("device_id") || "";
   const userId = url.searchParams.get("user_id") || null;
+  // 새 클라(웹·새 앱)는 supports_blocked=1 전송 → blocked 안내화면 처리 가능.
+  // 구버전 앱은 못 보냄 → 시드 0개여도 콜드 카드를 정상 카드처럼 받아 안 깨짐.
+  //
+  // TODO(구버전 앱 호환 제거): supports_blocked를 보내는 앱 버전이 충분히 퍼지면
+  //   아래 콜드 폴백 분기를 제거하고 "시드 0개 = 무조건 blocked"로 단순화할 것.
+  //   - 제거 조건: "supports_blocked 없이 forceCold 탄 요청"이 거의 0 (구버전 앱 사용률 < 5%)
+  //   - 확인 방법: 이 라우트 로그의 `forceCold=true`(아래 cache MISS 로그)에서
+  //     supports_blocked 미전송 비율 모니터링. 거의 0이면 supportsBlocked 분기·cold_ 캐시키 삭제 가능.
+  const supportsBlocked = url.searchParams.get("supports_blocked") === "1";
   if (!deviceId) {
     return NextResponse.json({ error: "device_id 쿼리 필요" }, { status: 400 });
   }
 
   const today = todayKst();
-  const active = await isActiveUser(userId, deviceId);
-  // 캐시 키 우선순위:
-  //   로그인 + entries 있음 → user_id (개인화)
-  //   로그인 + entries 0건 → `common_${bucket}` (해시 버킷)
-  //   비로그인 → `common_${bucket}` (해시 버킷)
-  const bucket = bucketOf(deviceId, BUCKET_COUNT);
-  const cacheKey = userId && active ? userId : `common_${bucket}`;
-  // 공용 풀 캐시에는 개인 신호(vibe_description) 차단 — cache_key·생성 로직 일관성 보장
-  const isColdBucket = cacheKey.startsWith("common_");
 
-  // 1. DB 조회 (cache hit)
+  // 1. 시드 판정 (게이트) — 저장/공유/스토리한 아티스트(가수 단위) 수
+  const userCtx = await getUserContext(userId, deviceId);
+  // 시드 0개: 새 클라는 blocked 안내, 구버전 앱은 콜드 카드(forceCold)로 폴백
+  const forceCold = userCtx.seedCount === 0;
+  if (forceCold && supportsBlocked) {
+    console.log(
+      `[discovery/today] blocked — 시드 0개 (user=${userId ?? "none"} device=${deviceId})`,
+    );
+    return NextResponse.json({ blocked: true });
+  }
+
+  // 2. 캐시 키 — 로그인 유저는 user_id, 비로그인(직접 호출)은 device_.
+  //    콜드 폴백 카드는 개인 신호가 없으니 공용 콜드 캐시(cold_*)로 분리 — 개인 키 오염 방지.
+  const cacheKey = forceCold ? `cold_${deviceId}` : userId ?? `device_${deviceId}`;
+
+  // 3. 캐시 조회 (cache hit)
   const { data: cached } = await supabaseAdmin
     .from("today_discovery")
-    .select("artist_1, artist_2, created_at")
+    .select("artist_1, artist_2")
     .eq("cache_key", cacheKey)
     .eq("date", today)
     .maybeSingle();
 
   if (cached) {
-    console.log(`[discovery/today] cache HIT cache_key=${cacheKey} bucket=${bucket} date=${today}`);
+    console.log(`[discovery/today] cache HIT cache_key=${cacheKey} date=${today}`);
     return NextResponse.json({
       artist_1: cached.artist_1,
       artist_2: cached.artist_2,
       cache_key: cacheKey,
       generated: false,
+      blocked: false,
     });
   }
 
-  // 2. 없으면 생성 → upsert → 반환
-  console.log(`[discovery/today] cache MISS — 생성 시작 cache_key=${cacheKey} bucket=${bucket} date=${today} cold=${isColdBucket}`);
+  // 4. 없으면 생성 (시드 분기·forceCold는 generateDiscoveryCard 내부) → upsert → 반환
+  console.log(
+    `[discovery/today] cache MISS — 생성 시작 cache_key=${cacheKey} date=${today} seedCount=${userCtx.seedCount} forceCold=${forceCold}`,
+  );
   const t0 = Date.now();
   let card;
   try {
-    card = await generateDiscoveryCard(userId, deviceId, { forceColdStart: isColdBucket });
+    card = await generateDiscoveryCard(userId, deviceId, userCtx, { forceCold });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "unknown";
     console.error(`[discovery/today] 생성 실패:`, msg);
-    return NextResponse.json({ error: "오늘의 발견 생성 실패", detail: msg }, { status: 500 });
+    return NextResponse.json(
+      { error: "오늘의 발견 생성 실패", detail: msg },
+      { status: 500 },
+    );
   }
   const generationMs = Date.now() - t0;
   console.log(`[discovery/today] 생성 완료 ${(generationMs / 1000).toFixed(1)}s`);
 
-  // 3. DB 저장 (upsert — 동시 호출 시 두 번째도 안전)
+  // 5. DB 저장 (upsert — 동시 호출 시 두 번째도 안전)
   const { error: insertErr } = await supabaseAdmin
     .from("today_discovery")
     .upsert(
@@ -139,5 +122,6 @@ export async function GET(req: NextRequest) {
     cache_key: cacheKey,
     generated: true,
     generation_ms: generationMs,
+    blocked: false,
   });
 }

@@ -51,13 +51,29 @@ const supabaseAdmin = createClient(
 
 const WINDOW_DAYS = 60;
 
-/** 활성 사용자 시드 + vibe_description 추출 (없으면 콜드 스타트로) */
+// 스토리저장 중 "진짜 내보낸" 의도로 인정할 status
+//  - shared      : 스토리 공유 완료 (주력 신호)
+//  - downloaded  : 이미지 저장
+//  - inapp_shown : 안드로이드 인스타 인앱(webview 차단으로 completed 도달 불가, 여기서 끝남)
+// 제외: clicked·generated(만들기만)·cancelled·failed
+const STORY_SEED_STATUSES = ["shared", "downloaded", "inapp_shown"] as const;
+
+/**
+ * 활성 사용자 시드 + vibe_description 추출 (없으면 콜드 스타트로).
+ *
+ * 시드 = 최근 WINDOW_DAYS 내 entries 중 "내가 행동한 곡"의 아티스트(가수 단위, distinct).
+ *   행동 = save_logs OR share_logs OR story_save_logs(shared·downloaded·inapp_shown)
+ *   점수 = 행동 종류마다 +1 (save +1, share +1, story +1) — 합산해서 정렬
+ *
+ * seedCount = distinct 시드 아티스트 수. 게이트(0개 차단)·분기(1=하이브리드/2+=각각)에 사용.
+ */
 export async function getUserContext(
   userId: string | null,
   deviceId: string,
 ): Promise<{
   ctx: UserContext;
   seedArtists: string[]; // 활성만, top 10 shuffle. 신규는 빈 배열
+  seedCount: number; // distinct 시드 아티스트 수 (게이트·분기 판정용)
 }> {
   const sinceIso = new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
@@ -72,22 +88,31 @@ export async function getUserContext(
     : await baseQuery.eq("device_id", deviceId);
 
   if (!entries || entries.length === 0) {
-    return { ctx: { isActive: false, vibeDescriptions: [] }, seedArtists: [] };
+    return { ctx: { isActive: false, vibeDescriptions: [] }, seedArtists: [], seedCount: 0 };
   }
 
   const ids = entries.map((e) => e.id);
-  const [savesRes, sharesRes] = await Promise.all([
+  const [savesRes, sharesRes, storiesRes] = await Promise.all([
     supabaseAdmin.from("save_logs").select("entry_id").in("entry_id", ids),
     supabaseAdmin.from("share_logs").select("entry_id").in("entry_id", ids),
+    supabaseAdmin
+      .from("story_save_logs")
+      .select("entry_id")
+      .in("entry_id", ids)
+      .in("status", STORY_SEED_STATUSES as unknown as string[]),
   ]);
   const saveSet = new Set((savesRes.data || []).map((r) => r.entry_id));
   const shareSet = new Set((sharesRes.data || []).map((r) => r.entry_id));
+  const storySet = new Set((storiesRes.data || []).map((r) => r.entry_id));
 
-  // 시드 후보: save·share 받은 아티스트 (점수 기반 정렬)
+  // 시드 후보: save·share·story 받은 아티스트 (점수 기반 정렬, 행동마다 +1)
   const scoreMap = new Map<string, number>();
   for (const e of entries) {
     if (!e.artist) continue;
-    const s = (saveSet.has(e.id) ? 1 : 0) + (shareSet.has(e.id) ? 1 : 0);
+    const s =
+      (saveSet.has(e.id) ? 1 : 0) +
+      (shareSet.has(e.id) ? 1 : 0) +
+      (storySet.has(e.id) ? 1 : 0);
     if (s === 0) continue;
     scoreMap.set(e.artist, (scoreMap.get(e.artist) || 0) + s);
   }
@@ -100,10 +125,11 @@ export async function getUserContext(
     .slice(0, 10);
 
   if (sortedSeed.length === 0) {
-    // entries는 있지만 save·share 0건 → 콜드 스타트로 폴백 (단 vibe_description은 있을 수 있음)
+    // entries는 있지만 행동(save·share·story) 0건 → 시드 0개 (게이트에서 차단)
     return {
-      ctx: { isActive: vibeDescriptions.length > 0, vibeDescriptions },
+      ctx: { isActive: false, vibeDescriptions },
       seedArtists: [],
+      seedCount: 0,
     };
   }
 
@@ -117,6 +143,7 @@ export async function getUserContext(
   return {
     ctx: { isActive: true, vibeDescriptions },
     seedArtists: top,
+    seedCount: sortedSeed.length, // 셔플 전 전체 distinct 시드 수
   };
 }
 
@@ -171,55 +198,95 @@ async function getSavedArtistIds(
   return new Set((data ?? []).map((r) => r.apple_id as string));
 }
 
+type ArtistPair = { artist1: AppleArtistFull; artist2: AppleArtistFull };
+
 /**
- * 시드 아티스트 1명 → Apple similar (shuffle) → Artist 1·2 확정 (둘 다 새 발견).
- * excludeIds에 있는 아티스트는 제외 (이미 저장한 항목 재추천 방지).
- * 단, excludeIds 적용으로 페어 못 만들면 자동 폴백 (excludeIds 무시).
+ * 시드 리스트를 순회하며 "처음 성공하는 시드"에서 similar 1명을 뽑는다.
+ * - usedSeeds에 든 시드는 건너뜀 (2시드 모드에서 같은 시드 재사용 방지)
+ * - excludeIds(이미 저장)·avoidId(다른 슬롯이 이미 쓴 아티스트)·곡 0개는 제외
+ * - 성공 시 사용한 시드명을 usedSeeds에 추가하고 아티스트 반환
  */
-async function resolveArtistPair(
+async function pickSimilarFromSeeds(
   seedNames: string[],
-  excludeIds: Set<string> = new Set(),
-): Promise<{ artist1: AppleArtistFull; artist2: AppleArtistFull } | null> {
-  // 1차: excludeIds 적용
-  const result = await tryResolvePair(seedNames, excludeIds);
-  if (result) return result;
-  // 2차 폴백: excludeIds 무시 — 시드 풀이 작아서 다 제외되면 어쩔 수 없이 중복 허용
-  if (excludeIds.size > 0) {
-    console.log("[discovery] excludeIds 적용 실패 → 폴백 (중복 허용)");
-    return tryResolvePair(seedNames, new Set());
+  excludeIds: Set<string>,
+  avoidId: string | null,
+  usedSeeds: Set<string>,
+): Promise<AppleArtistFull | null> {
+  for (const seedName of seedNames) {
+    if (usedSeeds.has(seedName)) continue;
+    const sr = await appleSearchArtist(seedName);
+    if (!sr) continue;
+    const seedFull = await appleGetArtistFull(sr.id);
+    if (!seedFull || seedFull.similar.length === 0) continue;
+    for (const sim of shuffle(seedFull.similar)) {
+      if (excludeIds.has(sim.id)) continue;
+      if (avoidId && sim.id === avoidId) continue;
+      const full = await appleGetArtistFull(sim.id);
+      if (!full || full.tracks.length === 0) continue;
+      usedSeeds.add(seedName);
+      return full;
+    }
   }
   return null;
 }
 
-async function tryResolvePair(
+/** 콜드 큐레이션 풀에서 아티스트 1명을 직접 뽑는다 (발견용). */
+async function pickFromColdPool(
+  excludeIds: Set<string>,
+  avoidId: string | null,
+): Promise<AppleArtistFull | null> {
+  const pool = shuffle(await getColdStartSeedArtists());
+  for (const name of pool) {
+    const sr = await appleSearchArtist(name);
+    if (!sr) continue;
+    if (excludeIds.has(sr.id)) continue;
+    if (avoidId && sr.id === avoidId) continue;
+    const full = await appleGetArtistFull(sr.id);
+    if (!full || full.tracks.length === 0) continue;
+    return full;
+  }
+  return null;
+}
+
+/** 순수 콜드 — 큐레이션 풀에서 2명 직접 (시드 전부 실패 시 최종 폴백). */
+async function resolveColdPair(excludeIds: Set<string>): Promise<ArtistPair | null> {
+  const a1 = await pickFromColdPool(excludeIds, null);
+  if (!a1) return null;
+  const a2 = await pickFromColdPool(excludeIds, a1.appleId);
+  if (!a2) return null;
+  return { artist1: a1, artist2: a2 };
+}
+
+/** 시드 1개 → 시드 similar 1명 + 콜드풀 1명 (하이브리드: 취향 1 + 발견 1). */
+async function resolveHybrid(
   seedNames: string[],
   excludeIds: Set<string>,
-): Promise<{ artist1: AppleArtistFull; artist2: AppleArtistFull } | null> {
-  for (const seedName of seedNames) {
-    const seedSearch = await appleSearchArtist(seedName);
-    if (!seedSearch) continue;
-    const seedFull = await appleGetArtistFull(seedSearch.id);
-    if (!seedFull || seedFull.similar.length < 2) continue;
+): Promise<ArtistPair | null> {
+  const a1 = await pickSimilarFromSeeds(seedNames, excludeIds, null, new Set());
+  if (!a1) return resolveColdPair(excludeIds); // 시드 검색 전부 실패 → 순수 콜드
+  const a2 = await pickFromColdPool(excludeIds, a1.appleId);
+  if (a2) return { artist1: a1, artist2: a2 };
+  // 콜드풀도 실패 → 같은 시드 similar에서 2번째 한 명 더
+  const a2b = await pickSimilarFromSeeds(seedNames, excludeIds, a1.appleId, new Set());
+  if (a2b) return { artist1: a1, artist2: a2b };
+  return null;
+}
 
-    // similar list shuffle — 매 진입마다 다른 결과 확보
-    const shuffledSimilar = shuffle(seedFull.similar);
-
-    let a1: AppleArtistFull | null = null;
-    let a2: AppleArtistFull | null = null;
-    for (const sim of shuffledSimilar) {
-      if (excludeIds.has(sim.id)) continue; // 이미 저장한 아티스트 제외
-      const full = await appleGetArtistFull(sim.id);
-      if (!full || full.tracks.length === 0) continue;
-      if (!a1) {
-        a1 = full;
-        continue;
-      }
-      if (full.appleId === a1.appleId) continue;
-      a2 = full;
-      break;
-    }
-    if (a1 && a2) return { artist1: a1, artist2: a2 };
+/** 시드 2개+ → 서로 다른 두 시드에서 각각 1명씩. a2 실패 시 콜드풀로 강등(=하이브리드). */
+async function resolveTwoSeeds(
+  seedNames: string[],
+  excludeIds: Set<string>,
+): Promise<ArtistPair | null> {
+  const usedSeeds = new Set<string>();
+  const a1 = await pickSimilarFromSeeds(seedNames, excludeIds, null, usedSeeds);
+  if (!a1) return resolveColdPair(excludeIds); // 시드 전부 실패 → 순수 콜드
+  // 다른 시드에서 a2
+  let a2 = await pickSimilarFromSeeds(seedNames, excludeIds, a1.appleId, usedSeeds);
+  if (!a2) {
+    // 두 번째 시드 못 찾음 → 콜드풀로 강등 (하이브리드)
+    a2 = await pickFromColdPool(excludeIds, a1.appleId);
   }
+  if (a2) return { artist1: a1, artist2: a2 };
   return null;
 }
 
@@ -399,52 +466,55 @@ ${captionGuide}
 // ─────────────────────────── Main API ───────────────────────────
 
 /**
- * 오늘의 발견 카드 생성 (lazy generation, DB 저장은 호출자가)
+ * 오늘의 발견 카드 생성 (lazy generation, DB 저장은 호출자가).
  *
- * @param options.forceColdStart - true면 user/device entries 무시하고 무조건 콜드 풀로 생성.
- *   공용 풀(`common_${bucket}`) 캐시에 저장될 카드에 개인 신호(vibe_description)가 묻지
- *   않도록 차단하는 용도. cache_key 판정과 카드 생성 로직의 일관성을 보장한다.
+ * 시드 개수 기반 분기:
+ *   - 시드 2개+ : resolveTwoSeeds (서로 다른 두 시드에서 각각 1명씩)
+ *   - 시드 1개  : resolveHybrid (시드 similar 1 + 콜드풀 1)
+ *   - 시드 0개  : resolveColdPair (순수 콜드 큐레이션 2명).
+ *       시드 0개는 보통 호출자(today route)가 blocked로 차단하지만, 구버전 앱
+ *       호환을 위해 forceCold=true로 콜드 카드를 생성해 정상 카드처럼 내려준다.
+ *
+ * @param precomputed - route가 이미 구한 getUserContext 결과 (중복 쿼리 방지). 없으면 직접 조회.
+ * @param opts.forceCold - true면 시드 무시하고 콜드 큐레이션 2명으로 생성 (구버전 앱 호환).
  */
 export async function generateDiscoveryCard(
   userId: string | null,
   deviceId: string,
-  options: { forceColdStart?: boolean } = {},
+  precomputed?: { ctx: UserContext; seedArtists: string[]; seedCount: number },
+  opts?: { forceCold?: boolean },
 ): Promise<DiscoveryCardResult> {
-  // 1. User context (활성/신규 구분)
-  //    forceColdStart=true면 사용자 신호 무시하고 콜드로 강제
-  const { ctx, seedArtists } = options.forceColdStart
-    ? { ctx: { isActive: false, vibeDescriptions: [] }, seedArtists: [] as string[] }
-    : await getUserContext(userId, deviceId);
+  // 1. User context (route가 넘긴 값 재사용, 없으면 직접 조회)
+  const { ctx, seedArtists, seedCount } =
+    precomputed ?? (await getUserContext(userId, deviceId));
 
-  if (options.forceColdStart) {
-    console.log("[discovery] forceColdStart=true — 사용자 신호 무시, 콜드 풀로 강제");
-  }
-
-  // 2. 시드 결정
-  let seedPool = seedArtists;
-  if (seedPool.length === 0) {
-    console.log("[discovery] 콜드 스타트 시드 추출 (Apple 큐레이션 playlist)");
-    seedPool = await getColdStartSeedArtists();
-  } else {
-    console.log(`[discovery] 활성 사용자 시드 ${seedPool.length}명`);
-  }
-
-  // 2.5. 이미 저장한 아티스트 ID — 추천에서 제외 (콜드 풀은 X)
-  const excludeIds = options.forceColdStart
-    ? new Set<string>()
-    : await getSavedArtistIds(userId, deviceId);
+  // 2. 이미 저장한 아티스트 ID — 추천에서 제외 (재추천 방지)
+  const excludeIds = await getSavedArtistIds(userId, deviceId);
   if (excludeIds.size > 0) {
     console.log(`[discovery] 저장된 아티스트 ${excludeIds.size}명 추천 제외`);
   }
 
-  // 3. 아티스트 페어 확정 (시드 → similar 2명, 이미 저장한 항목 제외)
-  const pair = await resolveArtistPair(seedPool, excludeIds);
+  // 3. 모드 결정: forceCold(또는 시드0) = 순수 콜드 / 2개+ = 각각 / 1개 = 하이브리드
+  const cold = opts?.forceCold || seedCount === 0;
+  const resolve = (ex: Set<string>) =>
+    cold ? resolveColdPair(ex) : seedCount >= 2 ? resolveTwoSeeds(seedArtists, ex) : resolveHybrid(seedArtists, ex);
+  console.log(`[discovery] ${cold ? "콜드" : seedCount >= 2 ? "2시드" : "하이브리드"} 모드 (시드 ${seedCount}명)`);
+
+  // 콜드 모드는 개인 신호(vibe) 없이 — ctx를 비활성으로 (caption 콜드 톤)
+  const writeCtx = cold ? { isActive: false, vibeDescriptions: [] } : ctx;
+
+  let pair = await resolve(excludeIds);
+  // 폴백: excludeIds 때문에 실패하면 무시하고 재시도 (시드 풀 작을 때 중복 허용)
+  if (!pair && excludeIds.size > 0) {
+    console.log("[discovery] excludeIds 폴백 (중복 허용)");
+    pair = await resolve(new Set());
+  }
   if (!pair) throw new Error("Apple Music similar artists로 페어 확정 실패");
 
   console.log(`[discovery] artist_1: ${pair.artist1.name}, artist_2: ${pair.artist2.name}`);
 
   // 4. Claude → bio + caption + reason × 2
-  const cards = await claudeWriteCards(pair.artist1, pair.artist2, ctx);
+  const cards = await claudeWriteCards(pair.artist1, pair.artist2, writeCtx);
 
   // 5. 결과 조합
   return {

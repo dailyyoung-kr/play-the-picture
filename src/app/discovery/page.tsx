@@ -41,6 +41,7 @@ type DiscoveryResponse = {
   artist_2: Artist;
   cache_key: string;
   generated: boolean;
+  blocked?: boolean; // 시드 0개 → 백엔드가 차단 (안내 UI 표시)
 };
 type SavesResponse = {
   artists: { apple_id: string }[];
@@ -138,14 +139,24 @@ function DiscoveryPageInner() {
     setError(null);
     const params = new URLSearchParams({ device_id: id.deviceId });
     if (id.userId) params.set("user_id", id.userId);
+    const todayParams = new URLSearchParams(params);
+    todayParams.set("supports_blocked", "1"); // 웹은 blocked 안내화면 처리 가능
     try {
       const [cardRes, savesRes] = await Promise.all([
-        fetch(`/api/discovery/today?${params}`),
+        fetch(`/api/discovery/today?${todayParams}`),
         fetch(`/api/discovery/saves?${params}`),
       ]);
       const card = (await cardRes.json()) as DiscoveryResponse & { error?: string };
-      if (card.error) setError(card.error);
-      else setData(card);
+      // 시드 0개 → 백엔드가 blocked:true 반환 → 안내 UI (카드 없음)
+      if (card.blocked) {
+        setIsActive(false);
+      } else if (card.error) {
+        setError(card.error);
+        setIsActive(true);
+      } else {
+        setData(card);
+        setIsActive(true);
+      }
 
       const saves = (await savesRes.json()) as SavesResponse & { error?: string };
       if (!saves.error) {
@@ -174,26 +185,14 @@ function DiscoveryPageInner() {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [identity, fetchedDate, loadData]);
 
-  // 초기 진입 — 비로그인은 게이트, 로그인+entries 0건은 안내 UI, 활성은 카드 fetch
+  // 초기 진입 — 비로그인은 게이트, 로그인은 카드 fetch.
+  // 시드 0개 판정(안내 UI)은 백엔드 today API가 blocked로 내려주고 loadData가 처리.
   useEffect(() => {
     (async () => {
       const id = await getIdentity();
       setIdentity(id);
       if (!id.userId) {
         setLoginGateOpen(true);
-        setLoading(false);
-        return;
-      }
-      // entries 0건 → 안내 UI (콜드 카드 만들지 않음)
-      const sb = createSupabaseBrowserClient();
-      const { count } = await sb
-        .from("entries")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", id.userId)
-        .limit(1);
-      const active = (count ?? 0) > 0;
-      setIsActive(active);
-      if (!active) {
         setLoading(false);
         return;
       }
