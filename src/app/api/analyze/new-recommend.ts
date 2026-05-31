@@ -272,6 +272,7 @@ export async function newRecommend(
     "claude-sonnet-4-6":         { input: 3, output: 15 },
     "claude-opus-4-6":           { input: 5, output: 25 },
     "claude-opus-4-7":           { input: 5, output: 25 },
+    "claude-opus-4-8":           { input: 5, output: 25 },
   };
 
   console.log(`[PERF] 분석 시작 — 사진 ${photos.length}장`);

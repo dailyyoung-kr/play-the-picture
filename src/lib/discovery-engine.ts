@@ -378,7 +378,7 @@ ${captionGuide}
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-6",
+      model: "claude-opus-4-8",
       max_tokens: 800,
       system: systemPrompt,
       tools,
