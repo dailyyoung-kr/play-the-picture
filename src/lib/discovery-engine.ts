@@ -149,10 +149,15 @@ export async function getUserContext(
 
 /** 콜드 스타트 시드: Apple Music 큐레이션 playlist 5개에서 아티스트 풀 추출 후 shuffle */
 async function getColdStartSeedArtists(): Promise<string[]> {
+  // playlist 5개는 서로 독립 → 순차 await(5×지연) 대신 병렬로 한 번에 가져온다(1×지연).
+  // Promise.all은 입력 순서를 유지하므로 아래 dedup 결과는 순차 버전과 동일.
+  const trackLists = await Promise.all(
+    CURATED_PLAYLISTS.map((pl) => applePlaylistTracks(pl.id)),
+  );
+
   const seen = new Set<string>();
   const artists: string[] = [];
-  for (const pl of CURATED_PLAYLISTS) {
-    const tracks = await applePlaylistTracks(pl.id);
+  for (const tracks of trackLists) {
     for (const t of tracks) {
       const main = t.artistName.split(/[,&]| feat\./i)[0].trim();
       if (!main || seen.has(main)) continue;
