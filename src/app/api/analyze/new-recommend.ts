@@ -341,20 +341,20 @@ export async function newRecommend(
 
   if (isDiscover) {
     // discover: energy ±1 범위로 바로 조회
-    const { data, error } = await supabase.from("songs").select("*").gte("energy", energyMin).lte("energy", energyMax);
+    const { data, error } = await supabase.from("songs").select("*").eq("active", true).gte("energy", energyMin).lte("energy", energyMax);
     if (error) {
       console.error("[new] DB 조회 오류:", error.message);
       return NextResponse.json({ error: "곡 데이터를 불러오지 못했어요.", error_code: "db_error" }, { status: 500 });
     }
     candidates = (data ?? []) as SongRow[];
     if (candidates.length < 10) {
-      const { data: fallback } = await supabase.from("songs").select("*");
+      const { data: fallback } = await supabase.from("songs").select("*").eq("active", true);
       candidates = (fallback ?? []) as SongRow[];
     }
     console.log(`[new] discover 후보: ${candidates.length}곡`);
   } else {
     // 1차: genre + energy 정확 매칭
-    const { data: exact, error } = await supabase.from("songs").select("*").eq("genre", genre).eq("energy", energy);
+    const { data: exact, error } = await supabase.from("songs").select("*").eq("active", true).eq("genre", genre).eq("energy", energy);
     if (error) {
       console.error("[new] DB 조회 오류:", error.message);
       return NextResponse.json({ error: "곡 데이터를 불러오지 못했어요.", error_code: "db_error" }, { status: 500 });
@@ -364,14 +364,14 @@ export async function newRecommend(
 
     // 2차: genre + energy ±1
     if (candidates.length < 30) {
-      const { data: expanded } = await supabase.from("songs").select("*").eq("genre", genre).gte("energy", energyMin).lte("energy", energyMax);
+      const { data: expanded } = await supabase.from("songs").select("*").eq("active", true).eq("genre", genre).gte("energy", energyMin).lte("energy", energyMax);
       candidates = (expanded ?? []) as SongRow[];
       console.log(`[new] 2차 확장: ${candidates.length}곡 (energy=${energyMin}~${energyMax})`);
     }
 
     // 3차: genre 전체 (energy 제한 없음)
     if (candidates.length < 10) {
-      const { data: fallback } = await supabase.from("songs").select("*").eq("genre", genre);
+      const { data: fallback } = await supabase.from("songs").select("*").eq("active", true).eq("genre", genre);
       candidates = (fallback ?? []) as SongRow[];
       console.log(`[new] 3차 fallback: ${candidates.length}곡 (energy 제한 없음)`);
     }
