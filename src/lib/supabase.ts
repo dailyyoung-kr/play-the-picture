@@ -41,4 +41,5 @@ export interface Entry {
   photos: string[];
   album_art?: string | null;
   device_id?: string | null;
+  user_note?: string | null;   // 한 줄 일기 — 유저가 직접 쓴 한 줄
 }

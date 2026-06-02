@@ -95,6 +95,8 @@ export default function JournalPage() {
   const [weekStartDate, setWeekStartDate] = useState(() => getMondayOf(todayKST.date));
   const [modalIndex, setModalIndex] = useState<number | null>(null);
   const calendarTouchStartX = useRef(0);
+  const [diaryNote, setDiaryNote] = useState("");
+  const [savingDiary, setSavingDiary] = useState(false);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -162,6 +164,36 @@ export default function JournalPage() {
       showToast("삭제에 실패했어요. 다시 시도해주세요.");
     }
     setDeleteTarget(null);
+  };
+
+  // 상세 모달 열릴 때(선택 기록 변경 시) 한 줄 일기 입력값 동기화
+  useEffect(() => {
+    setDiaryNote(selectedEntry?.user_note ?? "");
+  }, [selectedEntry]);
+
+  // 한 줄 일기 저장 — user_note만 PATCH (본인 device_id 검증은 서버)
+  const handleSaveDiary = async () => {
+    if (!selectedEntry) return;
+    // 변경 없으면 무시 — 빈 내용 저장 / 동일 내용 중복 저장 방지
+    if (diaryNote === (selectedEntry.user_note ?? "")) return;
+    setSavingDiary(true);
+    const deviceId = getDeviceId();
+    try {
+      const res = await fetch(`/api/entries/${selectedEntry.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-device-id": deviceId },
+        body: JSON.stringify({ user_note: diaryNote }),
+      });
+      if (!res.ok) throw new Error();
+      const patch = { user_note: diaryNote };
+      setEntries((prev) => prev.map((e) => (e.id === selectedEntry.id ? { ...e, ...patch } : e)));
+      setSelectedEntry((prev) => (prev ? { ...prev, ...patch } : prev));
+      showToast("한 줄 일기를 저장했어요");
+    } catch {
+      showToast("저장에 실패했어요. 다시 시도해주세요.");
+    } finally {
+      setSavingDiary(false);
+    }
   };
 
   useEffect(() => {
@@ -246,6 +278,10 @@ export default function JournalPage() {
 
   // 선택된 날짜의 entries (최신순)
   const selectedEntries = selectedDate ? (entriesByDate[selectedDate] ?? []) : [];
+
+  // 한 줄 일기 저장 버튼 상태 — 변경됐을 때만 활성 (중복/빈 저장 방지)
+  const diaryDirty = !!selectedEntry && diaryNote !== (selectedEntry.user_note ?? "");
+  const hasSavedDiary = !!selectedEntry && !!selectedEntry.user_note;
 
   // 캘린더 계산
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
@@ -524,14 +560,11 @@ export default function JournalPage() {
                         )}
                       </div>
 
-                      {/* 정보 */}
+                      {/* 정보 — 항상 곡 중심(디폴트). 일기 메모는 아래 말풍선, 감정 이모지는 상세 모달에서만 */}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                          <span style={{ fontSize: 12.5, color: "rgba(46,37,71,0.55)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, marginRight: 6 }}>
+                        <div style={{ marginBottom: 6 }}>
+                          <span style={{ fontSize: 12.5, color: "rgba(46,37,71,0.55)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
                             {entry.vibe_type ?? ""}
-                          </span>
-                          <span style={{ fontSize: 11, color: "rgba(46,37,71,0.4)", flexShrink: 0 }}>
-                            {formatTime(entry.created_at)}
                           </span>
                         </div>
                         <p style={{ fontWeight: 700, fontSize: 17, color: "#2e2547", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -540,6 +573,19 @@ export default function JournalPage() {
                         <p style={{ fontSize: 13.5, color: "rgba(46,37,71,0.55)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {entry.artist}
                         </p>
+                        {/* 일기 메모 — 작은 말풍선 (텍스트만, 감정 이모지는 상세 모달에서) */}
+                        {entry.user_note && (
+                          <div style={{
+                            display: "inline-block", maxWidth: "100%",
+                            marginTop: 8, padding: "6px 11px",
+                            background: "rgba(93,79,140,0.1)",
+                            borderRadius: "4px 13px 13px 13px",
+                          }}>
+                            <p style={{ fontSize: 12, color: "rgba(46,37,71,0.65)", margin: 0, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                              {entry.user_note}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -547,24 +593,6 @@ export default function JournalPage() {
               </div>
             )}
 
-            {/* CTA: 노래 추천받기 */}
-            <button
-              onClick={() => router.push("/")}
-              style={{
-                width: "100%",
-                marginTop: 10,
-                background: "rgba(255,255,255,0.4)",
-                border: "1px dashed rgba(93,79,140,0.35)",
-                borderRadius: 14,
-                padding: 16,
-                textAlign: "center",
-                cursor: "pointer",
-                color: "rgba(46,37,71,0.6)",
-                fontSize: 14,
-              }}
-            >
-              새로운 노래 찾으러 가기 →
-            </button>
           </>
         )}
       </div>
@@ -688,6 +716,41 @@ export default function JournalPage() {
                 )}
               </div>
             )}
+
+            {/* 섹션 3: 한 줄 일기 (유저가 직접 쓰는 감정 + 한 줄) */}
+            <div style={{
+              width: "100%", marginBottom: 10,
+              background: "rgba(255,255,255,0.55)", border: "1px solid rgba(93,79,140,0.18)",
+              borderRadius: 14, padding: "12px 14px",
+            }}>
+              <p style={{ fontSize: 10, color: "rgba(46,37,71,0.55)", marginBottom: 8, textAlign: "center" }}>한 줄 일기</p>
+              {/* 한 줄 메모 */}
+              <textarea
+                value={diaryNote}
+                onChange={(e) => setDiaryNote(e.target.value)}
+                placeholder="이 순간을 기억하기 위한 한 줄"
+                maxLength={100}
+                rows={2}
+                style={{
+                  width: "100%", resize: "none", boxSizing: "border-box",
+                  background: "rgba(255,255,255,0.6)", border: "1px solid rgba(93,79,140,0.2)",
+                  borderRadius: 10, padding: "8px 10px", fontSize: 13, color: "#2e2547",
+                  marginBottom: 8, fontFamily: "inherit",
+                }}
+              />
+              <button
+                onClick={handleSaveDiary}
+                disabled={savingDiary || !diaryDirty}
+                style={{
+                  width: "100%", padding: 10, borderRadius: 10, border: "none",
+                  background: (savingDiary || !diaryDirty) ? "rgba(93,79,140,0.35)" : "rgba(93,79,140,0.85)",
+                  color: "#fff", fontSize: 13, fontWeight: 600,
+                  cursor: (savingDiary || !diaryDirty) ? "default" : "pointer",
+                }}
+              >
+                {savingDiary ? "저장 중..." : diaryDirty ? "일기 저장하기" : hasSavedDiary ? "저장됨 ✓" : "일기 저장하기"}
+              </button>
+            </div>
 
             {/* 섹션 4: 곡 정보 */}
             <div style={{ marginBottom: 10, textAlign: "center" }}>

@@ -86,3 +86,53 @@ export async function DELETE(
 
   return NextResponse.json({ ok: true });
 }
+
+/**
+ * PATCH /api/entries/[id]
+ * 한 줄 일기(유저 입력)만 수정 — body: { user_note? }
+ * device_id 일치하는 본인 기록만 (DELETE와 동일 검증).
+ */
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const deviceId = req.headers.get("x-device-id") ?? "";
+
+  if (!id || !deviceId) {
+    return NextResponse.json({ error: "id, device_id 필요" }, { status: 400 });
+  }
+
+  let body: { user_note?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "잘못된 요청" }, { status: 400 });
+  }
+
+  // 화이트리스트: 한 줄 일기 필드만 (그 외 무시)
+  const update: Record<string, string | null> = {};
+  if ("user_note" in body) {
+    update.user_note =
+      typeof body.user_note === "string" ? body.user_note.slice(0, 200) : null;
+  }
+  if (Object.keys(update).length === 0) {
+    return NextResponse.json({ error: "수정할 필드 없음" }, { status: 400 });
+  }
+
+  const { error, count } = await supabaseAdmin
+    .from("entries")
+    .update(update, { count: "exact" })
+    .eq("id", id)
+    .eq("device_id", deviceId);
+
+  if (error) {
+    console.error("[entries PATCH] 오류:", error.message);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  if (!count || count === 0) {
+    return NextResponse.json({ error: "수정 권한 없음" }, { status: 403 });
+  }
+
+  return NextResponse.json({ ok: true });
+}
