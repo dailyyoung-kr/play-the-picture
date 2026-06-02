@@ -349,9 +349,6 @@ function ArtistList({
                 />
               ) : (
                 <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #c5beda 0%, #a594c5 50%, #d6c8e8 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontSize: 64, fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: "-1px" }}>
-                    {(a.name || "?").slice(0, 1).toUpperCase()}
-                  </span>
                 </div>
               )}
               {/* 우상단 삭제 (휴지통) */}

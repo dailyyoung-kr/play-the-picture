@@ -697,9 +697,6 @@ function CarouselSlide({
         />
       ) : (
         <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #c5beda 0%, #a594c5 50%, #d6c8e8 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ fontSize: 96, fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: "-2px" }}>
-            {(artist.name || "?").slice(0, 1).toUpperCase()}
-          </span>
         </div>
       )}
 
@@ -822,9 +819,6 @@ function DetailView({
           <img src={artist.artwork} alt={artist.name} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%", display: "block" }} />
         ) : (
           <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #c5beda 0%, #a594c5 50%, #d6c8e8 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ fontSize: 96, fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: "-2px" }}>
-              {(artist.name || "?").slice(0, 1).toUpperCase()}
-            </div>
           </div>
         )}
         {/* 좌상단 별 — 캐러셀과 동일 디자인 */}
