@@ -97,6 +97,7 @@ export default function JournalPage() {
   const calendarTouchStartX = useRef(0);
   const [diaryNote, setDiaryNote] = useState("");
   const [savingDiary, setSavingDiary] = useState(false);
+  const [reasonOpen, setReasonOpen] = useState(false);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -169,6 +170,7 @@ export default function JournalPage() {
   // 상세 모달 열릴 때(선택 기록 변경 시) 한 줄 일기 입력값 동기화
   useEffect(() => {
     setDiaryNote(selectedEntry?.user_note ?? "");
+    setReasonOpen(false);
   }, [selectedEntry]);
 
   // 한 줄 일기 저장 — user_note만 PATCH (본인 device_id 검증은 서버)
@@ -281,7 +283,6 @@ export default function JournalPage() {
 
   // 한 줄 일기 저장 버튼 상태 — 변경됐을 때만 활성 (중복/빈 저장 방지)
   const diaryDirty = !!selectedEntry && diaryNote !== (selectedEntry.user_note ?? "");
-  const hasSavedDiary = !!selectedEntry && !!selectedEntry.user_note;
 
   // 캘린더 계산
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
@@ -738,18 +739,20 @@ export default function JournalPage() {
                   marginBottom: 8, fontFamily: "inherit",
                 }}
               />
-              <button
-                onClick={handleSaveDiary}
-                disabled={savingDiary || !diaryDirty}
-                style={{
-                  width: "100%", padding: 10, borderRadius: 10, border: "none",
-                  background: (savingDiary || !diaryDirty) ? "rgba(93,79,140,0.35)" : "rgba(93,79,140,0.85)",
-                  color: "#fff", fontSize: 13, fontWeight: 600,
-                  cursor: (savingDiary || !diaryDirty) ? "default" : "pointer",
-                }}
-              >
-                {savingDiary ? "저장 중..." : diaryDirty ? "일기 저장하기" : hasSavedDiary ? "저장됨 ✓" : "일기 저장하기"}
-              </button>
+              {(diaryDirty || savingDiary) && (
+                <button
+                  onClick={handleSaveDiary}
+                  disabled={savingDiary}
+                  style={{
+                    width: "100%", padding: 10, borderRadius: 10, border: "none",
+                    background: savingDiary ? "rgba(93,79,140,0.5)" : "rgba(93,79,140,0.85)",
+                    color: "#fff", fontSize: 13, fontWeight: 600,
+                    cursor: savingDiary ? "default" : "pointer",
+                  }}
+                >
+                  {savingDiary ? "저장 중..." : "일기 저장하기"}
+                </button>
+              )}
             </div>
 
             {/* 섹션 4: 곡 정보 */}
@@ -757,16 +760,9 @@ export default function JournalPage() {
               <h2 className="font-semibold" style={{ fontSize: 22, color: "#2e2547", letterSpacing: "-0.5px", marginBottom: 4 }}>
                 {selectedEntry.song}
               </h2>
-              <p style={{ fontSize: 13, color: "rgba(46,37,71,0.55)", marginBottom: 8 }}>
+              <p style={{ fontSize: 13, color: "rgba(46,37,71,0.55)" }}>
                 {selectedEntry.artist}
               </p>
-              <div className="flex gap-2 justify-center flex-wrap">
-                {selectedEntry.tags?.map((tag) => (
-                  <span key={tag} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 20, border: "1px solid rgba(93,79,140,0.3)", color: "rgba(46,37,71,0.7)" }}>
-                    #{tag.replace(/^#+/, "")}
-                  </span>
-                ))}
-              </div>
             </div>
 
             {/* 섹션 4-b: 30초 미리듣기 — iTunes URL 있을 때만 표시 (컴포넌트 내부에서 처리) */}
@@ -776,12 +772,20 @@ export default function JournalPage() {
               pageContext="journal"
             />
 
-            {/* 섹션 5: 플더픽이 추천한 이유 */}
-            <div style={{ background: "rgba(255,255,255,0.55)", border: "1px solid rgba(93,79,140,0.18)", borderRadius: 12, padding: "12px 16px", marginBottom: 16 }}>
+            {/* 섹션 5: 플더픽이 추천한 이유 — 기본 접힘(2줄) + 탭하면 펼침 */}
+            <div
+              onClick={() => setReasonOpen((v) => !v)}
+              style={{ background: "rgba(255,255,255,0.55)", border: "1px solid rgba(93,79,140,0.18)", borderRadius: 12, padding: "12px 16px", marginBottom: 16, cursor: "pointer" }}
+            >
               <p className="font-medium" style={{ fontSize: 10, color: "#5D4F8C", letterSpacing: "0.05em", marginBottom: 6 }}>
                 플더픽이 추천한 이유
               </p>
-              <p style={{ fontSize: 12, color: "rgba(46,37,71,0.7)", lineHeight: 1.8 }}>{selectedEntry.reason}</p>
+              <p style={{ fontSize: 12, color: "rgba(46,37,71,0.7)", lineHeight: 1.8, ...(reasonOpen ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>
+                {selectedEntry.reason}
+              </p>
+              <p style={{ fontSize: 11, color: "#5D4F8C", marginTop: 6, textAlign: "right" }}>
+                {reasonOpen ? "접기" : "더보기"}
+              </p>
             </div>
 
             {/* 음악앱에서 듣기 — result 페이지와 라벨 통일 */}

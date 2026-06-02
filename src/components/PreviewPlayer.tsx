@@ -30,6 +30,7 @@ const PREVIEW_DURATION = 30;
  * - preview_abandoned (GA4): 재생 중 unmount.
  */
 export function PreviewPlayer({ song, artist, pageContext }: Props) {
+  const isJournal = pageContext === "journal"; // 라벤더(밝은) 배경용 색 분기
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewState, setPreviewState] = useState<"idle" | "ready" | "playing" | "done">("idle");
   const [previewProgress, setPreviewProgress] = useState(0); // 0~1
@@ -205,10 +206,10 @@ export function PreviewPlayer({ song, artist, pageContext }: Props) {
           gap: 12,
           padding: "10px 14px",
           marginBottom: 8,
-          background: "linear-gradient(180deg, rgba(93,79,140,0.16) 0%, rgba(93,79,140,0.06) 100%)",
-          border: "1px solid rgba(255,255,255,0.06)",
+          background: isJournal ? "rgba(255,255,255,0.55)" : "linear-gradient(180deg, rgba(93,79,140,0.16) 0%, rgba(93,79,140,0.06) 100%)",
+          border: isJournal ? "1px solid rgba(93,79,140,0.18)" : "1px solid rgba(255,255,255,0.06)",
           borderRadius: 24,
-          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 6px rgba(0,0,0,0.12)",
+          boxShadow: isJournal ? "none" : "inset 0 1px 0 rgba(255,255,255,0.10), 0 2px 6px rgba(0,0,0,0.12)",
           cursor: "pointer",
         }}
       >
@@ -218,8 +219,8 @@ export function PreviewPlayer({ song, artist, pageContext }: Props) {
             width: 32,
             height: 32,
             borderRadius: "50%",
-            background: "rgba(255,255,255,0.14)",
-            border: "1px solid rgba(255,255,255,0.22)",
+            background: isJournal ? "#5D4F8C" : "rgba(255,255,255,0.14)",
+            border: isJournal ? "1px solid transparent" : "1px solid rgba(255,255,255,0.22)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -239,7 +240,7 @@ export function PreviewPlayer({ song, artist, pageContext }: Props) {
           <div
             style={{
               fontSize: 9,
-              color: "rgba(255,255,255,0.45)",
+              color: isJournal ? "rgba(46,37,71,0.55)" : "rgba(255,255,255,0.45)",
               letterSpacing: "0.02em",
               lineHeight: 1,
               textAlign: "center",
@@ -301,7 +302,7 @@ export function PreviewPlayer({ song, artist, pageContext }: Props) {
                 transform: "translateY(-50%)",
                 height: 3,
                 borderRadius: 2,
-                background: "rgba(255,255,255,0.15)",
+                background: isJournal ? "rgba(93,79,140,0.2)" : "rgba(255,255,255,0.15)",
               }}
             />
             <div
@@ -325,7 +326,7 @@ export function PreviewPlayer({ song, artist, pageContext }: Props) {
                 width: isDragging ? 14 : 10,
                 height: isDragging ? 14 : 10,
                 borderRadius: "50%",
-                background: "#fff",
+                background: isJournal ? "#5D4F8C" : "#fff",
                 boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
                 transition: isDragging ? "none" : "width 0.15s, height 0.15s",
               }}
@@ -337,7 +338,7 @@ export function PreviewPlayer({ song, artist, pageContext }: Props) {
         <div
           style={{
             fontSize: 11,
-            color: "rgba(255,255,255,0.6)",
+            color: isJournal ? "rgba(46,37,71,0.55)" : "rgba(255,255,255,0.6)",
             fontVariantNumeric: "tabular-nums",
             minWidth: 56,
             textAlign: "right",
