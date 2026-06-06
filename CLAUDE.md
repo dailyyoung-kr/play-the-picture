@@ -112,7 +112,8 @@ no_candidates    → 후보곡 0건
 no_photos        → 사진 없음
 api_key_missing  → API 키 누락
 db_error         → Supabase DB 조회 실패
-json_parse_error → Claude 응답 파싱 실패
+json_parse_error → Claude 응답 파싱 실패 (포맷 오류 — stop_reason ≠ max_tokens)
+token_limit      → Claude 응답이 max_tokens로 잘려 파싱 실패 (stop_reason = max_tokens)
 selection_error  → 곡 선택 실패
 network_error    → 네트워크/기타
 unknown          → 분류 불가

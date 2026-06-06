@@ -441,7 +441,7 @@ export async function newRecommend(
   const client = new Anthropic({ apiKey });
   const response = await client.messages.create({
     model,
-    max_tokens: 700,
+    max_tokens: 1000,
     system: SYSTEM_PROMPT,
     messages: [{
       role: "user",
@@ -466,8 +466,13 @@ export async function newRecommend(
   try {
     result = JSON.parse(cleaned);
   } catch {
-    console.error("[new] JSON 파싱 실패:", cleaned.slice(0, 200));
-    return NextResponse.json({ error: "분석 중 오류가 발생했어요. 다시 시도해주세요.", error_code: "json_parse_error" }, { status: 500 });
+    // 파싱 실패 원인 구분: 토큰 초과로 응답이 잘림(stop_reason=max_tokens) vs 모델이 깨진 JSON 출력.
+    const truncated = response.stop_reason === "max_tokens";
+    console.error(`[new] JSON 파싱 실패 (stop_reason=${response.stop_reason}, out=${output_tokens}, len=${cleaned.length}):`, cleaned.slice(0, 500));
+    return NextResponse.json({
+      error: "분석 중 오류가 발생했어요. 다시 시도해주세요.",
+      error_code: truncated ? "token_limit" : "json_parse_error",
+    }, { status: 500 });
   }
 
   // ── STEP 3: 결과 조합 ──
