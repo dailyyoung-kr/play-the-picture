@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 };
 
 // 한국 PIPA 2025.4.21 작성지침 + 2026.3 개정 + App Store 5.1.1/5.1.2 준수
-// 시행일: 2026-05-30 (5/30 개정 — '오늘의 발견' 신기능 도입에 따른 수집 항목·이용 목적·위탁 갱신)
+// 시행일: 2026-06-07 (6/7 개정 — AppsFlyer 위탁 추가, 비회원(익명) 로그인 항목 정리)
 
 export default function PrivacyPage() {
   return (
@@ -52,7 +52,7 @@ export default function PrivacyPage() {
           개인정보 처리방침
         </h1>
         <p style={{ fontSize: 12, color: "rgba(46,37,71,0.5)" }}>
-          시행일자: 2026년 5월 30일
+          시행일자: 2026년 6월 7일
         </p>
       </div>
 
@@ -95,8 +95,7 @@ export default function PrivacyPage() {
           />
           <p style={{ marginTop: 12, fontSize: 12, color: "rgba(46,37,71,0.55)" }}>
             ※ 전화번호·실명·주소·금융정보는 수집하지 않습니다. 가입 정보는 사용자가 OAuth
-            제공자에서 동의한 항목에 한해 받으며, 비회원으로 이용 시에는 익명 기기 식별자만
-            사용됩니다.
+            제공자에서 동의한 항목에 한해 받습니다.
           </p>
         </Section>
 
@@ -135,7 +134,7 @@ export default function PrivacyPage() {
               "클라우드 인프라: Vercel, Supabase (국제 보안 인증 보유)",
               "OAuth 인증: Google, Apple, Kakao (가입 시 회원 동의에 따라 계정 정보 일부를 제공받음)",
               "음악 정보 검색·미리듣기·아티스트 데이터: Spotify, YouTube, Apple Music",
-              "서비스 통계: Google Analytics, Meta",
+              "서비스 통계·앱 설치 측정: Google Analytics, Meta, AppsFlyer (광고 식별자 IDFA 미사용)",
             ]}
           />
         </Section>
@@ -232,7 +231,7 @@ export default function PrivacyPage() {
             통해 사전 고지합니다.
           </p>
           <p style={{ marginTop: 12, fontSize: 12, color: "rgba(46,37,71,0.55)" }}>
-            · 시행일자: 2026년 5월 30일 (직전 개정: 2026년 5월 18일)
+            · 시행일자: 2026년 6월 7일 (직전 개정: 2026년 5월 30일)
           </p>
         </Section>
       </div>
