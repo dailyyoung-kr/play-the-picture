@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { trackEvent } from "@/lib/gtag";
 
-const APP_STORE_URL = "https://apps.apple.com/kr/app/id6770438873";
+// AppsFlyer OneLink — App Store로 라우팅하되 설치를 "웹 result 모달발"로 attribution
+const INSTALL_URL = "https://playthepicture.onelink.me/mEdb/i5xoyiri";
 const DISMISS_KEY = "ptp_app_promo_dismissed_at";
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const SHOW_DELAY_MS = 1500;
@@ -44,7 +46,10 @@ export default function AppInstallSheet({ trigger }: Props) {
     if (!trigger || visible) return;
     if (!isIOS() || isDismissedRecently()) return;
 
-    const timer = setTimeout(() => setVisible(true), SHOW_DELAY_MS);
+    const timer = setTimeout(() => {
+      setVisible(true);
+      trackEvent("app_install_sheet_shown");
+    }, SHOW_DELAY_MS);
     return () => clearTimeout(timer);
   }, [trigger, visible]);
 
@@ -58,11 +63,13 @@ export default function AppInstallSheet({ trigger }: Props) {
   }, [visible]);
 
   const handleInstall = () => {
-    window.open(APP_STORE_URL, "_blank");
+    trackEvent("app_install_clicked");
+    window.open(INSTALL_URL, "_blank");
     setVisible(false);
   };
 
   const handleDismiss = () => {
+    trackEvent("app_install_dismissed");
     try {
       window.localStorage.setItem(DISMISS_KEY, String(Date.now()));
     } catch {}
