@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { getDeviceId } from "@/lib/supabase";
 import { logAuthEvent } from "@/lib/auth/log";
@@ -10,12 +10,11 @@ export type LoginGateSource = "photo_upload" | "hamburger" | "discovery";
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onGuestContinue: () => void;
+  onGuestContinue?: () => void; // deprecated — 비회원 로그인 제거됨 (호출부 호환 위해 optional 유지)
   source?: LoginGateSource;
 }
 
-export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_upload" }: Props) {
-  const [guestLoading, setGuestLoading] = useState(false);
+export function LoginGate({ isOpen, onClose, source = "photo_upload" }: Props) {
 
   useEffect(() => {
     if (isOpen) {
@@ -63,48 +62,6 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
     window.location.href = `/api/auth/kakao/start?device_id=${encodeURIComponent(deviceId)}&action=signin`;
   };
 
-  const handleGuest = async () => {
-    if (guestLoading) return;
-    setGuestLoading(true);
-
-    // 로깅은 fire-and-forget — 결과 대기 X (UX 응답성 우선)
-    logAuthEvent("guest_skip", { source });
-
-    const deviceId = getDeviceId();
-    const supabase = createSupabaseBrowserClient();
-
-    // 1. Supabase anonymous sign-in (필수 await — anon user 생성)
-    const { data, error } = await supabase.auth.signInAnonymously();
-
-    if (error) {
-      console.error("[LoginGate] anonymous signin 실패:", error.message);
-      logAuthEvent("anonymous_signin_failed", { source, message: error.message });
-      setGuestLoading(false);
-      onGuestContinue();
-      return;
-    }
-
-    const userId = data.user?.id;
-    // 두 로그 모두 fire-and-forget — user_id는 이미 잡혀있음
-    logAuthEvent("anonymous_signin_success", { source }, userId);
-    logAuthEvent("signup_complete", { method: "anonymous", source }, userId);
-
-    // 2. device_id 마이그레이션 — fire-and-forget로 변경 (사용자 응답성 우선)
-    // /journal은 device_id 기준 query라 migrate 결과 안 기다려도 정상 작동.
-    // profile.device_ids·entries.user_id 동기화는 백그라운드에서 수 초 내 완료.
-    fetch("/api/auth/migrate-device", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ device_id: deviceId }),
-    }).catch((e) => {
-      console.error("[LoginGate] migrate-device 실패:", e);
-    });
-
-    // 3. /?signup=success로 full reload → welcome toast 트리거
-    window.location.href = "/?signup=success";
-  };
-
-  // "비회원 로그인" = signInAnonymously() — 실제 anon Supabase user 생성. 모든 source에서 노출.
 
   return (
     <div
@@ -219,28 +176,6 @@ export function LoginGate({ isOpen, onClose, onGuestContinue, source = "photo_up
           카카오로 로그인
         </button>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-          <div style={{ flex: 1, height: 1, background: "rgba(46,37,71,0.15)" }} />
-          <span style={{ fontSize: 11, color: "rgba(46,37,71,0.45)" }}>또는</span>
-          <div style={{ flex: 1, height: 1, background: "rgba(46,37,71,0.15)" }} />
-        </div>
-
-        <button
-          onClick={handleGuest}
-          disabled={guestLoading}
-          style={{
-            width: "100%",
-            padding: "12px 16px",
-            background: "transparent",
-            border: "1px solid rgba(93,79,140,0.3)",
-            borderRadius: 12,
-            color: guestLoading ? "rgba(46,37,71,0.4)" : "rgba(46,37,71,0.65)",
-            fontSize: 14,
-            cursor: guestLoading ? "wait" : "pointer",
-          }}
-        >
-          {guestLoading ? "잠시만 기다려주세요..." : "비회원 로그인"}
-        </button>
 
         {/* 약관·정책 동의 안내 (implicit consent — OAuth 간편 로그인 표준 패턴) */}
         <p
