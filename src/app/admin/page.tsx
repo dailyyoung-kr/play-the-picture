@@ -11,7 +11,7 @@ type EntryRow = { id: string; date: string; song: string; artist: string; genre:
 type ListenLog = { id: string; created_at: string; device_id?: string | null };
 type ViewLog  = { id: string; created_at: string; duration_seconds: number | null; exit_type: string | null; device_id?: string | null };
 type LogRow = { id: string; created_at: string; device_id?: string | null; entry_id?: string | null };
-type StorySaveLog = { id: string; created_at: string; device_id: string | null; entry_id: string | null; status: string; user_agent: string | null };
+type StorySaveLog = { id: string; created_at: string; device_id: string | null; entry_id: string | null; status: string; user_agent: string | null; platform: string | null; os: string | null };
 type SaveLog = { id: string; created_at: string; entry_id: string; device_id: string };
 type PreviewLog = { id: string; created_at: string; device_id: string; song: string | null; artist: string | null; action: "played" | "completed" };
 type AuthLog = { id: string; created_at: string; device_id: string | null; user_id: string | null; event: string; metadata: Record<string, unknown> | null };
@@ -863,7 +863,13 @@ export default function AdminPage() {
   const storyCancelledCount = filteredStorySaves.filter(l => l.status === "cancelled").length;
   const storyFailedCount    = filteredStorySaves.filter(l => l.status === "failed").length;
   // 환경별 분류 (UA) — 인스타 인앱 vs 외부 비교 (광고 ROAS 시너지 신호)
-  const classifyStoryUA = (ua: string | null): string => {
+  const classifyStoryUA = (ua: string | null, platform?: string | null, os?: string | null): string => {
+    // 네이티브 앱은 UA가 CFNetwork(iOS)/okhttp(Android)라 iPhone/Android 매칭 불가 → platform/os로 정확히 분류
+    if (platform === "app") {
+      if (os === "ios") return "ios_app";
+      if (os === "android") return "android_app";
+      return "app_other";
+    }
     if (!ua) return "null_ua";
     if (/KAKAOTALK/i.test(ua)) return "kakao_inapp";
     // Instagram 인앱은 OS 분리 — 안드로이드는 navigator.share/download 차단되어 viral 동선 X
@@ -883,7 +889,7 @@ export default function AdminPage() {
   };
   const storyEnvCounts: Record<string, number> = {};
   for (const l of filteredStorySaves) {
-    const env = classifyStoryUA(l.user_agent);
+    const env = classifyStoryUA(l.user_agent, l.platform, l.os);
     storyEnvCounts[env] = (storyEnvCounts[env] ?? 0) + 1;
   }
   const storyAndroidInstaRate = storyClickedCount > 0 ? pct(storyEnvCounts["android_instagram_inapp"] ?? 0, storyClickedCount) : "—";

@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
       fetchAllItunesStatus(),
       supabaseAdmin
         .from("story_save_logs")
-        .select("id, created_at, device_id, entry_id, status, user_agent")
+        .select("id, created_at, device_id, entry_id, status, user_agent, platform, os")
         .order("created_at", { ascending: false }),
       supabaseAdmin
         .from("share_logs")
