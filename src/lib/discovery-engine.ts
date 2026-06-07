@@ -334,24 +334,21 @@ ${ctx.vibeDescriptions.map((v, i) => `  ${i + 1}. ${v}`).join("\n")}
 따옴표 없이.
 
 ✅ 좋은 예:
-- vibe 노을·그늘·그림자 + 어쿠스틱 R&B → "그늘 산책길에 어울리는 햇살 소울"
-- vibe 꽃집·강아지·카네이션 + 인디팝 → "꽃집 단골견과 잘 어울리는 결"
-- vibe 새벽·야간배회 + 몽환적 R&B → "야간 산책러를 위한 새벽 R&B"
-- vibe 하늘·구름 + 인디록 → "흐린 하늘 사진에 어울리는 톤"
-- vibe 카페·창문 + 재즈 → "카페 자리 잡고 듣고 싶은 재즈"
+- vibe 꽃집·강아지·카네이션 → "꽃집 단골견과 잘 어울리는 결"
+- vibe 하늘·구름 → "흐린 하늘 사진에 어울리는 톤"
 
 ❌ 나쁜 예:
 - 너무 일반: "감성 추천" (매칭 X)
-- vibe만: "그늘 산책러 취향 저격" (아티스트 결 X)
-- 아티스트만: "햇살 머금은 소울" (개인화 X)
+- vibe만: "취향 저격" (아티스트 결 X)
 - vibe_description 원문 그대로 인용`
     : `[caption — 20자 내, 콜드 스타트용 (시적 한 줄)]
 음악의 결·정서를 응축한 시적 한 줄. 따옴표 없이.
 예: "장면을 노래하는 사람", "안개 끼는 새벽 같은 R&B", "런던발 소울의 오후"`;
 
   const systemPrompt = `너는 '플더픽'이라는 사진 기반 음악 추천 서비스의 AI야.
-오늘의 발견 카드는 단톡방에서 친구들이 돌려보고 키득거리는 카드 —
-존댓말(~요체). 농담 섞은 톤. JSON만 응답.`;
+오늘의 발견 카드는 유저들이 사진으로 추천받아서 저장/공유한 기록을 기반으로
+매일 2명의 취향에 맞는 새로운 아티스트를 추천하는 카드.
+존댓말(~요체). 지정된 도구로만 응답.`;
 
   const prompt = `오늘의 발견 카드 텍스트를 작성해 주세요.
 
@@ -365,51 +362,20 @@ ${fmt(artist2)}
 ${vibeBlock}
 
 ──────────────────────────────────────────────
-[bio_ko — 매거진 + 단톡방 hybrid, 80~150자]
+[bio_ko — 음악 매거진 아티스트 소개 톤, 80~150자]
 ──────────────────────────────────────────────
+음악 매거진이 주목할 아티스트를 큐레이션하듯, 이 아티스트의 음악적 정체성을 감각적으로 소개해 주세요.
 3단 구조:
-① Hook 한 문장 — 정보 나열 절대 금지. 예: "처음 들으면 '이게 진짜야?' 싶은 ○○예요" / "지금 ○○ 씬을 다시 쓰고 있다는 말이 과장 아니에요"
-② 형용사 + 장르 + 사실 압축 (예: "햇살 머금은 소울", "나른한 베드룸팝")
-③ 현재형 종결 + 아티스트 매력의 결을 한 줄로 짚기
-   ⚠️ 곡 제목 인용 금지 — 곡 인용은 reason의 역할이라 bio에서 중복하지 말 것
-   ✅ 좋은 예: "지금 활발하게 음악을 다듬어가는 중이에요" / "들으면 들을수록 매력이 깊어지는 부류" / "정제된 보컬에 힘 빼는 방식이 특히 매력적이에요" / "한 번 듣기 시작하면 멈추기 어려운 톤이에요"
-   ❌ 나쁜 예: "Snooze부터 들어보세요" (reason과 중복) / "Kill Bill로 시작하면..." (reason과 중복)
-
-⚠️ 절대 금지:
-- "○○은 ○○ 출신의 ○○예요" 위키 첫 문장 톤
-- 사운드 직접 묘사 ('기타 톤', '통통 튀는 리듬')
-- 과장 형용사 ('최고의', '독보적인', '전설적')
-- **곡 제목·앨범명 인용 (bio는 아티스트 자체 묘사. 곡 인용은 reason에서만)**
+① 이 아티스트를 규정하는 Hook 한 문장
+② 형용사 + 장르 + 핵심 특징 압축
+③ 현재형 종결 — 큐레이터의 시선으로 이 아티스트의 음악적 결을 한 줄
+   ⚠️ 곡 제목·앨범명 인용 금지 (곡 인용은 reason의 역할)
 
 ${captionGuide}
 
 [reason — 80~120자, 2~3문장 ⭐ 가장 중요]
-⭐ 핵심: 이 아티스트의 음악 매력·특징 + 그게 왜 이 사용자에게 맞는지 매칭.
-   아티스트 설명 없는 reason은 무효예요.
-
-✅ 좋은 흐름 (활성 사용자):
-① 이 아티스트의 음악 매력·결 한 줄 (장르 결, 곡의 인상, 사운드 특징 — 직접 사운드 묘사가 아닌 분위기 수준)
-② 사용자 vibe 패턴과 어떻게 연결되는지 ("○○ 자주 담는 분이라면", "○○한 시선에는")
-③ 본인 곡 1~2개 자연스럽게 인용 (Apple Music 5곡 한정)
-④ 종결 매번 다르게 — 질문/권유/과장·비교/반전/추측 중
-
-✅ 좋은 흐름 (신규 사용자):
-① 아티스트 음악 매력·결 한 줄
-② 어떤 상황·취향의 사람에게 어울리는지 일반 톤 ("○○한 무드 좋아하면")
-③ 본인 곡 1~2개 + 다양한 종결
-
-✅ 좋은 예:
-- (활성) "절제된 어쿠스틱과 잔잔한 보컬이 강점인 아티스트예요. 새벽 산책 무드 자주 담는 분이라면 Dive 한 곡으로 그 시간이 더 길어질 거예요."
-- (활성) "장르 경계 흐리는 사운드가 매력이에요. 일상 디테일 잡는 시선이 좋은 분에게 Kill Bill의 묘한 결이 잘 와닿을 듯해요."
-- (신규) "감정 결을 섬세하게 쌓는 보컬이 매력이에요. 차분한 무드 좋아하는 분이라면 INVU 한 번 틀어보세요, 다음 트랙으로 손이 알아서 가요."
-
-⚠️ ❌ 절대 금지:
-- ⛔ 사용자 사진/상황 직접 묘사 ("무대 위 마이크", "카메라 앵글", "필터 톤", "마이크 잡으면") — 이건 곡 추천 페이지 톤이라 여기선 금지
-- ⛔ 아티스트 음악 설명 없이 사용자 분석만
-- "저장한 곡", "saved 아티스트 ○○" 직접 언급
-- vibe_description 원문 그대로 인용
-- '~딱이에요', '~어울려요', '~결이 맞아요'
-- 의문형 연속
+⭐ 핵심: 이 아티스트가 "왜 이 사용자에게 맞는지"를 풀어주세요.
+   (아티스트 음악 매력 자체는 bio_ko에서 다루니, reason에서 반복하지 말 것)
 
 [전체 금지]
 - 따옴표·이모지·해시태그
@@ -423,12 +389,12 @@ ${captionGuide}
       input_schema: {
         type: "object",
         properties: {
-          primary_bio_ko: { type: "string", description: "artist 1 매거진+단톡방 hybrid bio (80~150자, ~요체). 곡 제목 인용 금지 — bio는 아티스트 자체 묘사, 곡 인용은 reason 역할." },
-          primary_caption: { type: "string", description: "artist 1 caption — 활성 사용자: vibe×아티스트 매칭 한 줄 25자 내 / 신규: 시적 한 줄 20자 내" },
-          primary_reason: { type: "string", description: "artist 1 추천 이유 (80~120자, ~요체) — 아티스트 음악 매력 + 사용자 취향 매칭. 사용자 사진·상황 직접 묘사 금지." },
-          partner_bio_ko: { type: "string", description: "artist 2 매거진+단톡방 hybrid bio (80~150자, ~요체). 곡 제목 인용 금지 — bio는 아티스트 자체 묘사, 곡 인용은 reason 역할." },
-          partner_caption: { type: "string", description: "artist 2 caption — 활성 사용자: vibe×아티스트 매칭 한 줄 25자 내 / 신규: 시적 한 줄 20자 내" },
-          partner_reason: { type: "string", description: "artist 2 추천 이유 (80~120자, ~요체) — 아티스트 음악 매력 + 사용자 취향 매칭. 사용자 사진·상황 직접 묘사 금지." },
+          primary_bio_ko: { type: "string", description: "artist 1 음악 매거진 톤 아티스트 소개 (80~150자, ~요체). 곡 인용 금지." },
+          primary_caption: { type: "string", description: "artist 1 caption — vibe×아티스트 매칭 한 줄 25자 내. 장르명으로 끝내지 말 것." },
+          primary_reason: { type: "string", description: "artist 1 추천 이유 (80~120자, ~요체) — 왜 이 사용자에게 맞는지. 아티스트 매력 반복·사용자 사진 직접 묘사 금지." },
+          partner_bio_ko: { type: "string", description: "artist 2 음악 매거진 톤 아티스트 소개 (80~150자, ~요체). 곡 인용 금지." },
+          partner_caption: { type: "string", description: "artist 2 caption — vibe×아티스트 매칭 한 줄 25자 내. 장르명으로 끝내지 말 것." },
+          partner_reason: { type: "string", description: "artist 2 추천 이유 (80~120자, ~요체) — 왜 이 사용자에게 맞는지. 아티스트 매력 반복·사용자 사진 직접 묘사 금지." },
         },
         required: [
           "primary_bio_ko",
@@ -442,30 +408,50 @@ ${captionGuide}
     },
   ];
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "claude-opus-4-8",
-      max_tokens: 800,
-      system: systemPrompt,
-      tools,
-      tool_choice: { type: "tool", name: "write_discovery_cards" },
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-  const json = (await res.json()) as {
-    error?: unknown;
-    content?: { type: string; input?: ClaudeCards }[];
+  // 출력 검증 — Opus가 드물게 tool XML(<parameter>)을 필드에 흘려 caption 누락/bio 비대해짐.
+  // max_tokens 1500 + 도구 지시 정렬로 빈도는 매우 낮으나, 깨지면 1회 재시도(얇은 그물).
+  const CARD_FIELDS: (keyof ClaudeCards)[] = [
+    "primary_bio_ko", "primary_caption", "primary_reason",
+    "partner_bio_ko", "partner_caption", "partner_reason",
+  ];
+  const isValidCards = (c: ClaudeCards | undefined): c is ClaudeCards =>
+    !!c && CARD_FIELDS.every((f) => {
+      const v = c[f];
+      return typeof v === "string" && v.length > 0 && !v.includes("<parameter") && !v.includes("</");
+    });
+
+  const callClaude = async (): Promise<ClaudeCards | undefined> => {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-opus-4-8",
+        max_tokens: 1500,
+        system: systemPrompt,
+        tools,
+        tool_choice: { type: "tool", name: "write_discovery_cards" },
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    const json = (await res.json()) as {
+      error?: unknown;
+      content?: { type: string; input?: ClaudeCards }[];
+    };
+    if (json.error) throw new Error(JSON.stringify(json.error));
+    return json.content?.find((c) => c.type === "tool_use")?.input;
   };
-  if (json.error) throw new Error(JSON.stringify(json.error));
-  const block = json.content?.find((c) => c.type === "tool_use");
-  if (!block || !block.input) throw new Error("Claude tool_use 응답 없음");
-  return block.input;
+
+  let cards = await callClaude();
+  if (!isValidCards(cards)) {
+    console.warn("[discovery] tool 출력 검증 실패 — 1회 재시도");
+    cards = await callClaude();
+  }
+  if (!isValidCards(cards)) throw new Error("Claude tool_use 응답 불량 (재시도 후)");
+  return cards;
 }
 
 // ─────────────────────────── Main API ───────────────────────────
