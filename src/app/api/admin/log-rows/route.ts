@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
         .order("created_at", { ascending: false }),
       supabaseAdmin
         .from("share_logs")
-        .select("id, created_at, device_id, entry_id")
+        .select("id, created_at, device_id, entry_id, platform")
         .order("created_at", { ascending: false }),
       supabaseAdmin
         .from("preview_logs")

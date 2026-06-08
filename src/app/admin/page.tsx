@@ -6,13 +6,13 @@ import { ImportTextSection } from "./ImportTextSection";
 
 type PhotoLog = { id: string; created_at: string; device_id?: string | null };
 type PrefLog = { id: string; created_at: string; genre: string | null; energy: number | null; device_id?: string | null };
-type AnalyzeLog = { id: string; created_at: string; status: string; response_time_ms: number | null; song: string | null; artist: string | null; device_id?: string | null; utm_source?: string | null };
+type AnalyzeLog = { id: string; created_at: string; status: string; response_time_ms: number | null; song: string | null; artist: string | null; device_id?: string | null; utm_source?: string | null; platform?: string | null };
 type EntryRow = { id: string; date: string; song: string; artist: string; genre: string | null; device_id?: string | null };
-type ListenLog = { id: string; created_at: string; device_id?: string | null };
+type ListenLog = { id: string; created_at: string; device_id?: string | null; platform?: string | null };
 type ViewLog  = { id: string; created_at: string; duration_seconds: number | null; exit_type: string | null; device_id?: string | null };
-type LogRow = { id: string; created_at: string; device_id?: string | null; entry_id?: string | null };
+type LogRow = { id: string; created_at: string; device_id?: string | null; entry_id?: string | null; platform?: string | null };
 type StorySaveLog = { id: string; created_at: string; device_id: string | null; entry_id: string | null; status: string; user_agent: string | null; platform: string | null; os: string | null };
-type SaveLog = { id: string; created_at: string; entry_id: string; device_id: string };
+type SaveLog = { id: string; created_at: string; entry_id: string; device_id: string; platform?: string | null };
 type PreviewLog = { id: string; created_at: string; device_id: string; song: string | null; artist: string | null; action: "played" | "completed" };
 type AuthLog = { id: string; created_at: string; device_id: string | null; user_id: string | null; event: string; metadata: Record<string, unknown> | null };
 type ItunesCacheRow = { status: string | null };
@@ -340,6 +340,11 @@ export default function AdminPage() {
   const [qualityMetrics, setQualityMetrics] = useState<QualityMetrics | null>(null);
   const [qualityLoading, setQualityLoading] = useState(false);
   const [qualityOpen, setQualityOpen] = useState(false);
+  // web→app 전환 (handoff 6/7) — analyze_logs 누적, 운영자 제외. /api/admin/web-to-app
+  const [webToApp, setWebToApp] = useState<{
+    web_users: number; app_users: number; both: number; web_then_app: number;
+    conversion_rate_pct: number; median_days_to_convert: number | null; app_only: number;
+  } | null>(null);
 
   // ── 텍스트로 곡 추가 state는 ./ImportTextSection.tsx 내부로 이전 (타이핑 지연 해결) ──
 
@@ -352,16 +357,17 @@ export default function AdminPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [photoRes, prefRes, analyzeRes, entriesRes, listenRes, viewRes, logRowsRes, saveRes] = await Promise.all([
+    const [photoRes, prefRes, analyzeRes, entriesRes, listenRes, viewRes, logRowsRes, saveRes, webToAppRes] = await Promise.all([
       supabase.from("photo_upload_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("preference_logs").select("id, created_at, genre, energy, device_id").order("created_at", { ascending: false }),
-      supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, song, artist, device_id, utm_source").order("created_at", { ascending: false }),
+      supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, song, artist, device_id, utm_source, platform").order("created_at", { ascending: false }),
       supabase.from("entries").select("id, date, song, artist, genre, device_id").order("id", { ascending: false }),
-      supabase.from("listen_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
+      supabase.from("listen_logs").select("id, created_at, device_id, platform").order("created_at", { ascending: false }),
       supabase.from("result_view_logs").select("id, created_at, duration_seconds, exit_type, device_id").order("created_at", { ascending: false }),
       // RLS 켜진 테이블 — supabaseAdmin 경유 서버 API 사용 (share_views, try_click, itunes, story_save_logs, share_logs, preview_logs)
       fetch("/api/admin/log-rows", { credentials: "same-origin" }).then(r => r.json()) as Promise<{ shareViews: LogRow[]; tryClicks: LogRow[]; itunes: ItunesCacheRow[]; storySaveLogs: StorySaveLog[]; shareLogs: LogRow[]; previewLogs: PreviewLog[]; authLogs: AuthLog[] }>,
-      supabase.from("save_logs").select("id, created_at, entry_id, device_id").order("created_at", { ascending: false }),
+      supabase.from("save_logs").select("id, created_at, entry_id, device_id, platform").order("created_at", { ascending: false }),
+      fetch("/api/admin/web-to-app", { credentials: "same-origin" }).then(r => r.json()),
     ]);
 
     if (!photoRes.error) setPhotoLogs(photoRes.data ?? []);
@@ -381,6 +387,7 @@ export default function AdminPage() {
     setAuthLogs(logRowsRes.authLogs ?? []);
     if (!saveRes.error) setSaveLogs(saveRes.data ?? []);
     else console.error("[admin] save_logs 로드 실패:", saveRes.error.message);
+    setWebToApp(webToAppRes?.error ? null : webToAppRes);
 
     setLastRefresh(new Date());
     setLoading(false);
@@ -690,6 +697,31 @@ export default function AdminPage() {
   const itunesTotalRows = itunesCache.length;
   const itunesMatchRate = itunesTotalRows > 0 ? (itunesMatchedRows / itunesTotalRows) * 100 : null;
 
+  // ── 플랫폼별 (웹 vs 앱) 행동 비교 — 건수 기준 (handoff 6/8) ──
+  // 앱이 platform='app'으로 모든 행동 로그 기록 중. log-* 테이블 platform 컬럼 활용.
+  // device 중복 회피 위해 유저 기준 아닌 건수 기준 (채널별 행동 강도 비교용).
+  const isAppRow = (l: { platform?: string | null }) => l.platform === "app";
+  const platRate = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) + "%" : "—");
+  // 누적 기준 (기간 탭 무관) — 앱 표본이 작아 날짜로 쪼개면 의미 없음. internal device만 제외 (filterDevice).
+  const platAnalyze = analyzeLogs.filter(filterDevice);
+  const platSave = saveLogs.filter(filterDevice);
+  const platListen = listenLogs.filter(filterDevice);
+  const platShare = recoveredShareLogs.filter(filterDevice);
+  const analyzeSuccessWeb = platAnalyze.filter(l => l.status === "success" && !isAppRow(l)).length;
+  const analyzeSuccessApp = platAnalyze.filter(l => l.status === "success" && isAppRow(l)).length;
+  const saveWeb = platSave.filter(l => !isAppRow(l)).length;
+  const saveApp = platSave.filter(isAppRow).length;
+  const listenWeb = platListen.filter(l => !isAppRow(l)).length;
+  const listenApp = platListen.filter(isAppRow).length;
+  const shareWeb = platShare.filter(l => !isAppRow(l)).length;
+  const shareApp = platShare.filter(isAppRow).length;
+  const saveRateWeb = platRate(saveWeb, analyzeSuccessWeb);
+  const saveRateApp = platRate(saveApp, analyzeSuccessApp);
+  const listenRateWeb = platRate(listenWeb, analyzeSuccessWeb);
+  const listenRateApp = platRate(listenApp, analyzeSuccessApp);
+  const shareRateWeb = platRate(shareWeb, analyzeSuccessWeb);
+  const shareRateApp = platRate(shareApp, analyzeSuccessApp);
+
   // ── 3갈래 분기 + 헤비 유저 / 이탈률 ──
   // 분석 성공 유저가 듣기·저장·공유 셋 중 어디로 분기하는지
   const successDevices = new Set(filteredAnalyze.filter(l => l.status === "success").map(l => l.device_id).filter((d): d is string => !!d));
@@ -932,13 +964,13 @@ export default function AdminPage() {
   // 신규 device의 첫 분석 utm_source가 NULL이면 organic (광고 외 = viral + 검색 + 즐겨찾기).
   // analyze_logs 전체에서 device의 첫 등장 시 utm 기준.
   const deviceFirstUtm = (() => {
-    const map: Record<string, { first: number; utm: string | null }> = {};
+    const map: Record<string, { first: number; utm: string | null; platform: string | null }> = {};
     for (const l of analyzeLogs) {
       if (!l.device_id) continue;
       const t = new Date(l.created_at).getTime();
       const cur = map[l.device_id];
       if (!cur || t < cur.first) {
-        map[l.device_id] = { first: t, utm: l.utm_source ?? null };
+        map[l.device_id] = { first: t, utm: l.utm_source ?? null, platform: l.platform ?? null };
       }
     }
     return map;
@@ -954,8 +986,13 @@ export default function AdminPage() {
   // 5/11 정의 통일 — cohort chart와 동일하게 (utm null + ig + instagram) 합집합
   // ig·instagram은 viral 신호 (Meta 광고는 utm=meta로 명확히 박힘)
   const isOrganicUtm = (utm: string | null | undefined) => !utm || utm === "ig" || utm === "instagram";
-  const periodOrganicCount = Array.from(periodNewDevices).filter(d => isOrganicUtm(deviceFirstUtm[d]?.utm)).length;
-  const organicRatePct = periodNewCount > 0 ? (periodOrganicCount / periodNewCount) * 100 : null;
+  // organic은 웹 신규 한정 — 앱 device는 utm_source가 없어(실측 36개 100% null) organic을 오염시킴.
+  // 앱 설치 유입은 AppsFlyer attribution 영역이므로 분리. 앱 신규는 별도 카운트(periodAppNewCount). (handoff 6/8)
+  const periodWebNewDevices = Array.from(periodNewDevices).filter(d => deviceFirstUtm[d]?.platform !== "app");
+  const periodWebNewCount = periodWebNewDevices.length;
+  const periodAppNewCount = periodNewCount - periodWebNewCount;
+  const periodOrganicCount = periodWebNewDevices.filter(d => isOrganicUtm(deviceFirstUtm[d]?.utm)).length;
+  const organicRatePct = periodWebNewCount > 0 ? (periodOrganicCount / periodWebNewCount) * 100 : null;
   // last7 organic 비중
   const last7NewDevices = new Set<string>();
   for (const [dev, info] of Object.entries(deviceFirstUtm)) {
@@ -964,8 +1001,9 @@ export default function AdminPage() {
     }
   }
   const last7NewCount = last7NewDevices.size;
-  const last7OrganicCount = Array.from(last7NewDevices).filter(d => isOrganicUtm(deviceFirstUtm[d]?.utm)).length;
-  const last7OrganicRate = last7NewCount > 0 ? (last7OrganicCount / last7NewCount) * 100 : null;
+  const last7WebNewDevices = Array.from(last7NewDevices).filter(d => deviceFirstUtm[d]?.platform !== "app");
+  const last7OrganicCount = last7WebNewDevices.filter(d => isOrganicUtm(deviceFirstUtm[d]?.utm)).length;
+  const last7OrganicRate = last7WebNewDevices.length > 0 ? (last7OrganicCount / last7WebNewDevices.length) * 100 : null;
 
   // ── 📷 스토리 viral 시도율 (Card A) ──
   // (story shared+downloaded device count) / successUsers
@@ -1008,9 +1046,11 @@ export default function AdminPage() {
         const dateOfFirst = timestampToKSTDate(new Date(info.first).toISOString());
         return dateOfFirst === dateStr;
       });
-      const meta = newDevsOnDay.filter(([, info]) => info.utm === "meta").length;
-      const organic = newDevsOnDay.filter(([, info]) => !info.utm || info.utm === "ig" || info.utm === "instagram").length;
-      result.push({ date: dateStr, meta, organic, total: newDevsOnDay.length });
+      // 앱 device는 utm 없어 organic 오염 → 웹 신규만 집계 (handoff 6/8)
+      const webDevsOnDay = newDevsOnDay.filter(([, info]) => info.platform !== "app");
+      const meta = webDevsOnDay.filter(([, info]) => info.utm === "meta").length;
+      const organic = webDevsOnDay.filter(([, info]) => !info.utm || info.utm === "ig" || info.utm === "instagram").length;
+      result.push({ date: dateStr, meta, organic, total: webDevsOnDay.length });
     }
     return result;
   })();
@@ -1492,11 +1532,11 @@ export default function AdminPage() {
         />
         {/* organic 비중 — 신규 device 첫 분석 utm_source NULL 비율 (cohort viral health) */}
         <ConvCard
-          label="organic 비중 (신규)"
+          label="organic 비중 (웹 신규)"
           value={organicRatePct != null ? organicRatePct.toFixed(1) + "%" : "—"}
-          sub={`${periodOrganicCount}명 / ${periodNewCount}명 · null+ig+instagram`}
-          accent={periodNewCount >= 20 && organicRatePct != null ? accentByRate(organicRatePct.toFixed(1) + "%", 25, 15) : C.gray}
-          tooltip={periodNewCount < 20 ? "신규 20명 미만 — 판단 보류" : "신규 device 중 첫 분석 시 utm_source가 (null) 또는 ig/instagram인 비율 (광고 외 = viral·검색·즐겨찾기·word-of-mouth·인스타 referrer 합). 5/11 정의 통일 — VIRAL LOOP cohort chart와 동일 (Meta 광고만 utm=meta로 박힘). direct attribution 한계 보완하는 cohort 단위 viral health KPI"}
+          sub={`${periodOrganicCount}명 / ${periodWebNewCount}명 웹 · 앱신규 ${periodAppNewCount}명 별도`}
+          accent={periodWebNewCount >= 20 && organicRatePct != null ? accentByRate(organicRatePct.toFixed(1) + "%", 25, 15) : C.gray}
+          tooltip={periodWebNewCount < 20 ? "웹 신규 20명 미만 — 판단 보류" : "웹 신규 device 중 첫 분석 utm_source가 (null)·ig·instagram인 비율 (광고 외 = viral·검색·즐겨찾기·인스타 referrer). 앱 유입은 utm이 없어(설치=AppsFlyer attribution 영역) organic을 오염시키므로 제외 — 앱신규는 sub에 별도 표기. cohort chart와 동일 정의 (Meta 광고만 utm=meta)"}
           avg7d={last7OrganicRate != null ? {
             value: last7OrganicRate.toFixed(1) + "%",
             delta: organicRatePct != null
@@ -1572,6 +1612,74 @@ export default function AdminPage() {
           sub={`anon ${anonFailCount} · link ${linkFailCount} · merge ${mergeFailCount}`}
           accent={totalAuthFailCount === 0 ? C.gray : totalAuthFailCount < 5 ? "#C4687A" : "#f07070"}
           tooltip="인증 실패 이벤트 합계 — anonymous_signin_failed, identity_link_failed, account_merged(failed). 1자리수면 산발적 네트워크 이슈. 두 자리수면 systemic 버그 의심"
+        />
+      </div>
+
+      {/* ── 섹션: WEB→APP 전환 (handoff 6/7) — analyze_logs 누적, 운영자 제외, 기간탭 무관 all-time ──
+          소스: /api/admin/web-to-app. 웹·앱이 같은 Supabase user_id 공유 → 단일 테이블(analyze_logs.platform)로 측정.
+          앱 출시 초기라 전환 표본 작음(추세용 인프라). 분모(웹유저)는 충분. */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>WEB→APP 전환 (누적 · 운영자 제외)</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+        <ConvCard
+          label="웹→앱 전환율"
+          value={webToApp ? `${webToApp.conversion_rate_pct}%` : "—"}
+          sub={webToApp ? `${webToApp.web_then_app}명 전환 / ${webToApp.web_users}명 웹분석` : "로딩 중"}
+          accent={webToApp && webToApp.web_users >= 10 ? "#C4687A" : C.gray}
+          tooltip={webToApp && webToApp.web_users < 10 ? "웹 분석 유저 10명 미만 — 판단 보류" : "웹에서 분석한 로그인 유저 중, 이후 앱에서도 분석한 유저 비율. 같은 Supabase user_id 기준 (웹·앱 계정 공유). 앱 출시 초기라 전환 표본은 작음 — 추세로 해석"}
+        />
+        <ConvCard
+          label="전환 소요 (중앙값)"
+          value={webToApp && webToApp.median_days_to_convert != null ? `${webToApp.median_days_to_convert}일` : "—"}
+          sub="웹 첫 분석 → 앱 첫 분석"
+          accent={C.white}
+          tooltip="웹에서 처음 분석한 날부터 앱에서 처음 분석하기까지 걸린 일수의 중앙값. 짧을수록 앱 유도 동선이 빠르게 작동"
+        />
+        <ConvCard
+          label="앱 분석 유저"
+          value={webToApp ? `${webToApp.app_users}명` : "—"}
+          sub={webToApp ? `웹·앱 둘 다: ${webToApp.both}명` : ""}
+          accent={C.white}
+          tooltip="앱에서 분석한 로그인 유저 수 (운영자 제외). '둘 다'는 웹·앱 모두 분석한 유저"
+        />
+        <ConvCard
+          label="앱 단독 유입"
+          value={webToApp ? `${webToApp.app_only}명` : "—"}
+          sub="웹 경험 없이 바로 앱"
+          accent="#a0d4f0"
+          tooltip="웹을 거치지 않고 앱에서만 분석한 유저 (광고·오가닉 직접 앱 설치 → AppsFlyer attribution 영역). 이 값이 전환 유저보다 크면 앱 직접 유입이 주력"
+        />
+      </div>
+
+      {/* ── 섹션: 플랫폼별 비교 (웹 vs 앱) — handoff 6/8, log-* platform 컬럼 활용, 건수 기준 ── */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>플랫폼별 (웹 vs 앱 · 누적 · 건수 기준)</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+        <ConvCard
+          label="분석 성공"
+          value={`웹 ${analyzeSuccessWeb} · 앱 ${analyzeSuccessApp}`}
+          sub="status=success 건수 (저장·듣기·공유율의 분모)"
+          accent={C.white}
+          tooltip="플랫폼별 분석 성공 건수 (analyze_logs.platform). 앱은 platform='app', 웹은 'web'/null"
+        />
+        <ConvCard
+          label="저장율 (웹 / 앱)"
+          value={`${saveRateWeb} / ${saveRateApp}`}
+          sub={`웹 ${saveWeb}건 · 앱 ${saveApp}건`}
+          accent="#C4687A"
+          tooltip="저장 건수 / 분석 성공 건수. 웹·앱 어느 채널이 저장 행동이 강한지 비교 (건수 기준 — 유저 기준 저장율은 위 KEY METRICS 참고)"
+        />
+        <ConvCard
+          label="듣기율 (웹 / 앱)"
+          value={`${listenRateWeb} / ${listenRateApp}`}
+          sub={`웹 ${listenWeb}건 · 앱 ${listenApp}건`}
+          accent="#C4687A"
+          tooltip="외부 앱 듣기(listen_logs) 건수 / 분석 성공 건수. 앱은 네이티브 음악앱 연동이 강할 수 있음 (건수 기준, 미리듣기 제외)"
+        />
+        <ConvCard
+          label="공유율 (웹 / 앱)"
+          value={`${shareRateWeb} / ${shareRateApp}`}
+          sub={`웹 ${shareWeb}건 · 앱 ${shareApp}건`}
+          accent="#C4687A"
+          tooltip="URL 공유(share_logs) 건수 / 분석 성공 건수. 네이티브 공유 시트 차이 비교 (건수 기준, 스토리 저장 제외)"
         />
       </div>
 
@@ -1856,7 +1964,7 @@ export default function AdminPage() {
       </div>
 
       {/* sub-heading: 유입 cohort 7일 추세 (Mini chart 옵션 X — 광고 vs organic 누적 막대) */}
-      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 6, fontWeight: 600 }}>📈 유입 cohort 7일 추세 (광고 vs organic)</p>
+      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 6, fontWeight: 600 }}>📈 유입 cohort 7일 추세 (웹 신규 · 광고 vs organic)</p>
       <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "14px 16px", marginBottom: 20 }}>
         {cohort7dDays.every(d => d.total === 0) ? (
           <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", margin: 0 }}>최근 7일 신규 device 데이터 없음</p>
