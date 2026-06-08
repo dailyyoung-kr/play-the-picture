@@ -460,7 +460,12 @@ export async function newRecommend(
   console.log(`[PERF] 토큰 사용량 — input: ${input_tokens}, output: ${output_tokens} (비용: $${cost})`);
 
   const text = response.content[0].type === "text" ? response.content[0].text : "";
-  const cleaned = text.replace(/```json\n?|\n?```/g, "").trim();
+  // JSON 추출 강화 (handoff 6/8) — 첫 { ~ 마지막 } 만 잘라 앞뒤 설명/코드블록을 무시. 못 찾으면 기존 방식.
+  const jsonStart = text.indexOf("{");
+  const jsonEnd = text.lastIndexOf("}");
+  const cleaned = jsonStart !== -1 && jsonEnd > jsonStart
+    ? text.slice(jsonStart, jsonEnd + 1)
+    : text.replace(/```json\n?|\n?```/g, "").trim();
 
   let result: Record<string, unknown>;
   try {
@@ -468,10 +473,13 @@ export async function newRecommend(
   } catch {
     // 파싱 실패 원인 구분: 토큰 초과로 응답이 잘림(stop_reason=max_tokens) vs 모델이 깨진 JSON 출력.
     const truncated = response.stop_reason === "max_tokens";
-    console.error(`[new] JSON 파싱 실패 (stop_reason=${response.stop_reason}, out=${output_tokens}, len=${cleaned.length}):`, cleaned.slice(0, 500));
+    // 계측 강화 (handoff 6/8) — 원본 응답을 로그 + parse_debug로 반환 → 클라가 error_reason에 저장(DB 추적).
+    const rawSnippet = text.slice(0, 200).replace(/\s+/g, " ").trim();
+    console.error(`[new] JSON 파싱 실패 (stop_reason=${response.stop_reason}, out=${output_tokens}, textlen=${text.length}):`, text.slice(0, 500));
     return NextResponse.json({
       error: "분석 중 오류가 발생했어요. 다시 시도해주세요.",
       error_code: truncated ? "token_limit" : "json_parse_error",
+      parse_debug: `stop=${response.stop_reason};out=${output_tokens};textlen=${text.length};raw=${rawSnippet}`,
     }, { status: 500 });
   }
 

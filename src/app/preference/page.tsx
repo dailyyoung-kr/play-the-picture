@@ -184,7 +184,7 @@ export default function PreferencePage() {
         if (logId) await supabase.from("analyze_logs").update({
           status: "fail",
           response_time_ms: responseTimeMs,
-          error_reason: data.error ?? "unknown",
+          error_reason: data.parse_debug ? `${data.error ?? ""} | ${data.parse_debug}` : (data.error ?? "unknown"),
           error_code: data.error_code ?? "unknown",
         }).eq("id", logId);
         throw new Error(data.error || "분석에 실패했어요.");
