@@ -6,7 +6,7 @@ import { ImportTextSection } from "./ImportTextSection";
 
 type PhotoLog = { id: string; created_at: string; device_id?: string | null };
 type PrefLog = { id: string; created_at: string; genre: string | null; energy: number | null; device_id?: string | null };
-type AnalyzeLog = { id: string; created_at: string; status: string; response_time_ms: number | null; song: string | null; artist: string | null; device_id?: string | null; utm_source?: string | null; platform?: string | null };
+type AnalyzeLog = { id: string; created_at: string; status: string; response_time_ms: number | null; song: string | null; artist: string | null; device_id?: string | null; utm_source?: string | null; platform?: string | null; user_id?: string | null };
 type EntryRow = { id: string; date: string; song: string; artist: string; genre: string | null; device_id?: string | null };
 type ListenLog = { id: string; created_at: string; device_id?: string | null; platform?: string | null };
 type ViewLog  = { id: string; created_at: string; duration_seconds: number | null; exit_type: string | null; device_id?: string | null };
@@ -145,6 +145,9 @@ const SpotifyCountdown = memo(function SpotifyCountdown({
   if (spotifyStatus?.status !== "rate_limited" || !countdown) return null;
   return <p style={{ fontSize: 12, color: "#f07070", margin: 0 }}>초기화까지 {countdown}</p>;
 });
+
+// 전환 소요 표시 — 1일 미만은 시간, 1일 이상은 일 (0.1일처럼 작은 값을 시간으로)
+const fmtConvDur = (days: number) => (days < 1 ? `${(days * 24).toFixed(1)}시간` : `${days.toFixed(1)}일`);
 
 function ConvCard({
   label, value, sub, accent = "#C4687A", tooltip, avg7d,
@@ -340,11 +343,6 @@ export default function AdminPage() {
   const [qualityMetrics, setQualityMetrics] = useState<QualityMetrics | null>(null);
   const [qualityLoading, setQualityLoading] = useState(false);
   const [qualityOpen, setQualityOpen] = useState(false);
-  // web→app 전환 (handoff 6/7) — analyze_logs 누적, 운영자 제외. /api/admin/web-to-app
-  const [webToApp, setWebToApp] = useState<{
-    web_users: number; app_users: number; both: number; web_then_app: number;
-    conversion_rate_pct: number; median_days_to_convert: number | null; app_only: number;
-  } | null>(null);
 
   // ── 텍스트로 곡 추가 state는 ./ImportTextSection.tsx 내부로 이전 (타이핑 지연 해결) ──
 
@@ -357,17 +355,16 @@ export default function AdminPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [photoRes, prefRes, analyzeRes, entriesRes, listenRes, viewRes, logRowsRes, saveRes, webToAppRes] = await Promise.all([
+    const [photoRes, prefRes, analyzeRes, entriesRes, listenRes, viewRes, logRowsRes, saveRes] = await Promise.all([
       supabase.from("photo_upload_logs").select("id, created_at, device_id").order("created_at", { ascending: false }),
       supabase.from("preference_logs").select("id, created_at, genre, energy, device_id").order("created_at", { ascending: false }),
-      supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, song, artist, device_id, utm_source, platform").order("created_at", { ascending: false }),
+      supabase.from("analyze_logs").select("id, created_at, status, response_time_ms, song, artist, device_id, utm_source, platform, user_id").order("created_at", { ascending: false }),
       supabase.from("entries").select("id, date, song, artist, genre, device_id").order("id", { ascending: false }),
       supabase.from("listen_logs").select("id, created_at, device_id, platform").order("created_at", { ascending: false }),
       supabase.from("result_view_logs").select("id, created_at, duration_seconds, exit_type, device_id").order("created_at", { ascending: false }),
       // RLS 켜진 테이블 — supabaseAdmin 경유 서버 API 사용 (share_views, try_click, itunes, story_save_logs, share_logs, preview_logs)
       fetch("/api/admin/log-rows", { credentials: "same-origin" }).then(r => r.json()) as Promise<{ shareViews: LogRow[]; tryClicks: LogRow[]; itunes: ItunesCacheRow[]; storySaveLogs: StorySaveLog[]; shareLogs: LogRow[]; previewLogs: PreviewLog[]; authLogs: AuthLog[] }>,
       supabase.from("save_logs").select("id, created_at, entry_id, device_id, platform").order("created_at", { ascending: false }),
-      fetch("/api/admin/web-to-app", { credentials: "same-origin" }).then(r => r.json()),
     ]);
 
     if (!photoRes.error) setPhotoLogs(photoRes.data ?? []);
@@ -387,7 +384,6 @@ export default function AdminPage() {
     setAuthLogs(logRowsRes.authLogs ?? []);
     if (!saveRes.error) setSaveLogs(saveRes.data ?? []);
     else console.error("[admin] save_logs 로드 실패:", saveRes.error.message);
-    setWebToApp(webToAppRes?.error ? null : webToAppRes);
 
     setLastRefresh(new Date());
     setLoading(false);
@@ -702,14 +698,48 @@ export default function AdminPage() {
   // device 중복 회피 위해 유저 기준 아닌 건수 기준 (채널별 행동 강도 비교용).
   const isAppRow = (l: { platform?: string | null }) => l.platform === "app";
   const platRate = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) + "%" : "—");
-  // result 웹→앱 전환 유도 모달 추가(2026-05-23, 커밋 7dc7d63) 이후만 집계 — 모달 이전 자연 전환은 제외.
-  // 앱 표본이 작아 날짜로 쪼개면 의미 없어 모달 이후 전체로 보되, 기간 탭과는 무관. internal device 제외(filterDevice).
+  // result 웹→앱 전환 유도 모달 추가(2026-05-23, 커밋 7dc7d63)를 cutoff 하한으로. 그 이전 자연 전환은 제외.
   const MODAL_START_MS = new Date("2026-05-23T10:13:00Z").getTime();
   const afterModal = (l: { created_at: string }) => new Date(l.created_at).getTime() >= MODAL_START_MS;
-  const platAnalyze = analyzeLogs.filter(l => filterDevice(l) && afterModal(l));
-  const platSave = saveLogs.filter(l => filterDevice(l) && afterModal(l));
-  const platListen = listenLogs.filter(l => filterDevice(l) && afterModal(l));
-  const platShare = recoveredShareLogs.filter(l => filterDevice(l) && afterModal(l));
+
+  // web→app 전환 (handoff 6/7) — analyze_logs를 user_id 기준으로 클라이언트 집계.
+  // 기간탭(filterTs) + 5/23 cutoff(afterModal) 반영. 운영자(internal device에 연결된 user_id) 제외.
+  const webToApp = (() => {
+    const internalUserIds = new Set<string>();
+    for (const l of analyzeLogs) {
+      if (l.device_id && INTERNAL_DEVICE_IDS.has(l.device_id) && l.user_id) internalUserIds.add(l.user_id);
+    }
+    const rows = analyzeLogs.filter(l => l.user_id && !internalUserIds.has(l.user_id) && afterModal(l) && filterTs(l.created_at));
+    const byU = new Map<string, { fw: number | null; fa: number | null }>();
+    for (const l of rows) {
+      const t = new Date(l.created_at).getTime();
+      const u = byU.get(l.user_id!) ?? { fw: null, fa: null };
+      if (l.platform === "app") { if (u.fa === null || t < u.fa) u.fa = t; }
+      else { if (u.fw === null || t < u.fw) u.fw = t; }
+      byU.set(l.user_id!, u);
+    }
+    let web_users = 0, app_users = 0, both = 0, web_then_app = 0;
+    const days: number[] = [];
+    for (const u of byU.values()) {
+      if (u.fw !== null) web_users++;
+      if (u.fa !== null) app_users++;
+      if (u.fw !== null && u.fa !== null) { both++; if (u.fw <= u.fa) { web_then_app++; days.push((u.fa - u.fw) / 86400000); } }
+    }
+    let med: number | null = null;
+    if (days.length) { const s = [...days].sort((a, b) => a - b); const m = Math.floor(s.length / 2); med = s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
+    return {
+      web_users, app_users, both, web_then_app,
+      conversion_rate_pct: web_users > 0 ? Math.round((web_then_app * 1000) / web_users) / 10 : 0,
+      median_days_to_convert: med === null ? null : Math.round(med * 10) / 10,
+      app_only: app_users - both,
+    };
+  })();
+
+  // 플랫폼별 (웹 vs 앱) — 기간탭(filtered*) + 5/23 cutoff(afterModal) 반영, 건수 기준
+  const platAnalyze = filteredAnalyze.filter(afterModal);
+  const platSave = filteredSaveLogs.filter(afterModal);
+  const platListen = filteredListens.filter(afterModal);
+  const platShare = filteredShares.filter(afterModal);
   const analyzeSuccessWeb = platAnalyze.filter(l => l.status === "success" && !isAppRow(l)).length;
   const analyzeSuccessApp = platAnalyze.filter(l => l.status === "success" && isAppRow(l)).length;
   const saveWeb = platSave.filter(l => !isAppRow(l)).length;
@@ -1618,10 +1648,10 @@ export default function AdminPage() {
         />
       </div>
 
-      {/* ── 섹션: WEB→APP 전환 (handoff 6/7) — analyze_logs · result 모달(5/23) 이후, 운영자 제외, 기간탭 무관 ──
-          소스: /api/admin/web-to-app. 웹·앱이 같은 Supabase user_id 공유 → 단일 테이블(analyze_logs.platform)로 측정.
-          앱 출시 초기라 전환 표본 작음(추세용 인프라). 분모(웹유저)는 충분. */}
-      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>WEB→APP 전환 (5/23 모달 이후 · 운영자 제외)</p>
+      {/* ── 섹션: WEB→APP 전환 (handoff 6/7) — analyze_logs를 user_id 기준 클라이언트 집계, 운영자 제외 ──
+          기간탭(filterTs) + 5/23 모달 cutoff 반영. 웹·앱이 같은 Supabase user_id 공유 → analyze_logs.platform으로 측정.
+          전환은 코호트 지표라 today/yesterday는 표본 작음 — 추세는 넓은 기간(all/custom)으로 볼 것. */}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>WEB→APP 전환 (선택 기간 · 5/23↑ · 운영자 제외)</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
         <ConvCard
           label="웹→앱 전환율"
@@ -1632,10 +1662,10 @@ export default function AdminPage() {
         />
         <ConvCard
           label="전환 소요 (중앙값)"
-          value={webToApp && webToApp.median_days_to_convert != null ? `${webToApp.median_days_to_convert}일` : "—"}
+          value={webToApp && webToApp.median_days_to_convert != null ? fmtConvDur(webToApp.median_days_to_convert) : "—"}
           sub="웹 첫 분석 → 앱 첫 분석"
           accent={C.white}
-          tooltip="웹에서 처음 분석한 날부터 앱에서 처음 분석하기까지 걸린 일수의 중앙값. 짧을수록 앱 유도 동선이 빠르게 작동"
+          tooltip="웹에서 처음 분석한 시점부터 앱에서 처음 분석하기까지 걸린 시간의 중앙값 (1일 이상은 일 단위). 짧을수록 앱 유도 동선이 빠르게 작동"
         />
         <ConvCard
           label="앱 분석 유저"
@@ -1654,7 +1684,7 @@ export default function AdminPage() {
       </div>
 
       {/* ── 섹션: 플랫폼별 비교 (웹 vs 앱) — handoff 6/8, log-* platform 컬럼 활용, 건수 기준 ── */}
-      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>플랫폼별 (웹 vs 앱 · 5/23 이후 · 건수 기준)</p>
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>플랫폼별 (웹 vs 앱 · 선택 기간 · 건수)</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
         <ConvCard
           label="분석 성공"
