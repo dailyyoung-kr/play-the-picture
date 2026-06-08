@@ -1,11 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getCurrentUserId } from "@/lib/auth/server";
 
 // 공유 페이지에서 entry를 id로 조회 — supabaseAdmin으로 RLS 우회
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+// 본인 기록 검증용 device_id 집합 결정 (수정·삭제 공통).
+// 로그인 유저(Bearer/쿠키): profiles.device_ids 전체 + 현재 device_id → cross-device 지원 (journal 조회 로직과 동일 기준)
+// 비로그인: 현재 device_id만.
+async function resolveDeviceIds(req: NextRequest, deviceId: string): Promise<string[]> {
+  const deviceIds = deviceId ? [deviceId] : [];
+  const userId = await getCurrentUserId(req);
+  if (userId) {
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("device_ids")
+      .eq("id", userId)
+      .single();
+    const ids = ((profile as { device_ids?: string[] } | null)?.device_ids as string[] | null) ?? [];
+    return [...new Set([...ids, ...deviceIds])];
+  }
+  return deviceIds;
+}
 
 export async function GET(
   req: NextRequest,
@@ -63,16 +82,22 @@ export async function DELETE(
   const { id } = await params;
   const deviceId = req.headers.get("x-device-id") ?? "";
 
-  if (!id || !deviceId) {
+  if (!id) {
+    return NextResponse.json({ error: "id 필요" }, { status: 400 });
+  }
+
+  // 본인 기록만 삭제 — 로그인 유저는 모든 기기(device_ids), 비로그인은 현재 device_id (조회 로직과 동일 기준)
+  const deviceIds = await resolveDeviceIds(req, deviceId);
+  if (deviceIds.length === 0) {
     return NextResponse.json({ error: "id, device_id 필요" }, { status: 400 });
   }
 
-  // device_id가 일치하는 본인 기록만 삭제 (supabaseAdmin으로 RLS 우회하되 서버에서 직접 검증)
+  // supabaseAdmin으로 RLS 우회하되 서버에서 직접 소유권 검증
   const { error, count } = await supabaseAdmin
     .from("entries")
     .delete({ count: "exact" })
     .eq("id", id)
-    .eq("device_id", deviceId);
+    .in("device_id", deviceIds);
 
   if (error) {
     console.error("[entries DELETE] 오류:", error.message);
@@ -99,8 +124,8 @@ export async function PATCH(
   const { id } = await params;
   const deviceId = req.headers.get("x-device-id") ?? "";
 
-  if (!id || !deviceId) {
-    return NextResponse.json({ error: "id, device_id 필요" }, { status: 400 });
+  if (!id) {
+    return NextResponse.json({ error: "id 필요" }, { status: 400 });
   }
 
   let body: { user_note?: unknown };
@@ -120,11 +145,17 @@ export async function PATCH(
     return NextResponse.json({ error: "수정할 필드 없음" }, { status: 400 });
   }
 
+  // 본인 기록만 수정 — 로그인 유저는 모든 기기(device_ids), 비로그인은 현재 device_id (조회 로직과 동일 기준)
+  const deviceIds = await resolveDeviceIds(req, deviceId);
+  if (deviceIds.length === 0) {
+    return NextResponse.json({ error: "id, device_id 필요" }, { status: 400 });
+  }
+
   const { error, count } = await supabaseAdmin
     .from("entries")
     .update(update, { count: "exact" })
     .eq("id", id)
-    .eq("device_id", deviceId);
+    .in("device_id", deviceIds);
 
   if (error) {
     console.error("[entries PATCH] 오류:", error.message);
