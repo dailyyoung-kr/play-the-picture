@@ -15,6 +15,10 @@ const INTERNAL_DEVICE_IDS = new Set(
     .filter(Boolean)
 );
 
+// result 페이지 웹→앱 전환 유도 모달(AppInstallSheet) 추가 시점 — 커밋 7dc7d63, 2026-05-23 19:13 KST.
+// 이전 데이터는 모달 없이 일어난 자연 전환이라 모달 효과 측정을 흐림 → 이 시점 이후만 집계.
+const MODAL_START_ISO = "2026-05-23T10:13:00Z";
+
 // web→app 전환 측정 (handoff 6/7 §다음세션 4)
 // analyze_logs는 web/app 분석을 같은 user_id로 모두 기록(platform 컬럼) → 단일 테이블로 측정.
 // 전환 = 같은 user_id가 웹 분석(platform='web'/null) 후 앱 분석(platform='app')도 한 경우(웹이 먼저).
@@ -41,6 +45,7 @@ export async function GET(req: NextRequest) {
         .from("analyze_logs")
         .select("user_id, device_id, platform, created_at")
         .not("user_id", "is", null)
+        .gte("created_at", MODAL_START_ISO)
         .order("created_at", { ascending: true })
         .range(from, from + pageSize - 1);
       if (error) {

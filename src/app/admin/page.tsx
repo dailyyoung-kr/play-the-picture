@@ -702,11 +702,14 @@ export default function AdminPage() {
   // device 중복 회피 위해 유저 기준 아닌 건수 기준 (채널별 행동 강도 비교용).
   const isAppRow = (l: { platform?: string | null }) => l.platform === "app";
   const platRate = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) + "%" : "—");
-  // 누적 기준 (기간 탭 무관) — 앱 표본이 작아 날짜로 쪼개면 의미 없음. internal device만 제외 (filterDevice).
-  const platAnalyze = analyzeLogs.filter(filterDevice);
-  const platSave = saveLogs.filter(filterDevice);
-  const platListen = listenLogs.filter(filterDevice);
-  const platShare = recoveredShareLogs.filter(filterDevice);
+  // result 웹→앱 전환 유도 모달 추가(2026-05-23, 커밋 7dc7d63) 이후만 집계 — 모달 이전 자연 전환은 제외.
+  // 앱 표본이 작아 날짜로 쪼개면 의미 없어 모달 이후 전체로 보되, 기간 탭과는 무관. internal device 제외(filterDevice).
+  const MODAL_START_MS = new Date("2026-05-23T10:13:00Z").getTime();
+  const afterModal = (l: { created_at: string }) => new Date(l.created_at).getTime() >= MODAL_START_MS;
+  const platAnalyze = analyzeLogs.filter(l => filterDevice(l) && afterModal(l));
+  const platSave = saveLogs.filter(l => filterDevice(l) && afterModal(l));
+  const platListen = listenLogs.filter(l => filterDevice(l) && afterModal(l));
+  const platShare = recoveredShareLogs.filter(l => filterDevice(l) && afterModal(l));
   const analyzeSuccessWeb = platAnalyze.filter(l => l.status === "success" && !isAppRow(l)).length;
   const analyzeSuccessApp = platAnalyze.filter(l => l.status === "success" && isAppRow(l)).length;
   const saveWeb = platSave.filter(l => !isAppRow(l)).length;
@@ -1615,10 +1618,10 @@ export default function AdminPage() {
         />
       </div>
 
-      {/* ── 섹션: WEB→APP 전환 (handoff 6/7) — analyze_logs 누적, 운영자 제외, 기간탭 무관 all-time ──
+      {/* ── 섹션: WEB→APP 전환 (handoff 6/7) — analyze_logs · result 모달(5/23) 이후, 운영자 제외, 기간탭 무관 ──
           소스: /api/admin/web-to-app. 웹·앱이 같은 Supabase user_id 공유 → 단일 테이블(analyze_logs.platform)로 측정.
           앱 출시 초기라 전환 표본 작음(추세용 인프라). 분모(웹유저)는 충분. */}
-      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>WEB→APP 전환 (누적 · 운영자 제외)</p>
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>WEB→APP 전환 (5/23 모달 이후 · 운영자 제외)</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
         <ConvCard
           label="웹→앱 전환율"
@@ -1651,7 +1654,7 @@ export default function AdminPage() {
       </div>
 
       {/* ── 섹션: 플랫폼별 비교 (웹 vs 앱) — handoff 6/8, log-* platform 컬럼 활용, 건수 기준 ── */}
-      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>플랫폼별 (웹 vs 앱 · 누적 · 건수 기준)</p>
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 10 }}>플랫폼별 (웹 vs 앱 · 5/23 이후 · 건수 기준)</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
         <ConvCard
           label="분석 성공"
