@@ -44,41 +44,74 @@ function shuffleAndSlice(arr: SongRow[], n: number): SongRow[] {
   return copy.slice(0, n);
 }
 
+// ── Supabase(PostgREST) 행수 절단 대응 (range 페이지네이션) ──
+// PostgREST는 요청 limit과 무관하게 서버 'Max rows' 설정으로 응답을 절단함.
+// 이 프로젝트는 2026-05-03에 1000→10000 상향했으나, 대시보드 설정에 의존하지 않도록
+// 페이지네이션으로 전량 수집 (2026-06-10 admin 1000-row 버그와 동일 계열 심층 방어).
+// 전제: PAGE_SIZE ≤ 서버 max-rows. max-rows를 1000 미만으로 낮추면 종료 판정(data.length < PAGE_SIZE)이 깨짐.
+const PAGE_SIZE = 1000;
+const MAX_PAGES = 20; // 안전 상한 2만 행 — 도달 시 경고 후 누적분 사용
+
+async function fetchAllRows<T>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  buildPage: (from: number, to: number) => any,
+  label: string
+): Promise<{ rows: T[]; hadError: boolean }> {
+  const rows: T[] = [];
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const from = page * PAGE_SIZE;
+    const { data, error } = await buildPage(from, from + PAGE_SIZE - 1);
+    if (error) {
+      console.error(`[new] ${label} 조회 실패 (page=${page}):`, error.message);
+      return { rows, hadError: true }; // 누적분이라도 반환 (fail-safe)
+    }
+    rows.push(...((data ?? []) as T[]));
+    if (!data || data.length < PAGE_SIZE) return { rows, hadError: false };
+  }
+  console.warn(`[new] ${label}: MAX_PAGES(${MAX_PAGES}) 도달 — ${rows.length}행에서 중단`);
+  return { rows, hadError: false };
+}
+
 // ── 글로벌 7일 카운트 캐시 (편향 방지 가중치용) ──
 // Module-level memory cache. 5분 TTL.
 // - cache hit (99% 호출): 1ms — 사용자 체감 0
-// - cache miss (5분에 1번): ~15ms (700 rows GROUP BY)
+// - cache miss (5분에 1번): ~15ms (700행 기준, 1000행 초과 시 페이지당 +1 round trip)
 // - 5분 stale OK: 7일 평균에 영향 0.05% 미만
 const GLOBAL_COUNTS_TTL_MS = 5 * 60 * 1000;
 let globalCountsCache: { counts: Map<string, number>; fetchedAt: number } | null = null;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getGlobal7dCounts(supabase: any): Promise<Map<string, number>> {
+// supabaseAdmin 사용 — RLS는 에러가 아닌 빈 200을 반환하므로 anon이면 RLS 도입 시 가중치가 무음 사망
+async function getGlobal7dCounts(): Promise<Map<string, number>> {
   if (globalCountsCache && Date.now() - globalCountsCache.fetchedAt < GLOBAL_COUNTS_TTL_MS) {
     return globalCountsCache.counts;
   }
 
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await supabase
-    .from("recommendation_logs")
-    .select("song_id")
-    .gte("created_at", since);
-
-  if (error) {
-    console.error("[new] global 7d counts fetch 실패:", error.message);
-    // 실패 시 빈 Map 반환 — weight = 1.0 (페널티 없음, fail-safe)
-    return new Map();
-  }
+  const { rows, hadError } = await fetchAllRows<{ song_id: string }>(
+    (from, to) =>
+      supabaseAdmin
+        .from("recommendation_logs")
+        .select("song_id")
+        .gte("created_at", since)
+        .order("created_at", { ascending: true }) // 페이지 경계 안정화 (+id 2차 정렬로 동률 시 중복/누락 방지)
+        .order("id", { ascending: true })
+        .range(from, to),
+    "global 7d counts"
+  );
 
   const counts = new Map<string, number>();
-  for (const row of (data ?? []) as { song_id: string }[]) {
+  for (const row of rows) {
     if (row.song_id) {
       counts.set(row.song_id, (counts.get(row.song_id) ?? 0) + 1);
     }
   }
 
-  globalCountsCache = { counts, fetchedAt: Date.now() };
-  console.log(`[new] global 7d counts cached: ${counts.size}곡, ${data?.length ?? 0}건`);
+  // 에러 시: 누적분으로 진행하되 캐시하지 않음 → 다음 호출 때 재시도 (부분 데이터 5분 고착 방지)
+  // 전부 실패면 빈 Map = weight 1.0 (페널티 없음, 기존 fail-safe 동일)
+  if (!hadError) {
+    globalCountsCache = { counts, fetchedAt: Date.now() };
+    console.log(`[new] global 7d counts cached: ${counts.size}곡, ${rows.length}건`);
+  }
   return counts;
 }
 
@@ -288,11 +321,22 @@ export async function newRecommend(
 
   let excludedIds: string[] = [];
   if (deviceId) {
-    const { data: recData } = await supabase
-      .from("recommendation_logs")
-      .select("song_id")
-      .eq("device_id", deviceId);
-    excludedIds = (recData ?? []).map((r: { song_id: string }) => r.song_id).filter(Boolean);
+    // 페이지네이션: max-rows 초과 헤비 디바이스에서도 전량 수집 (절단 시 "평생 차단" 약속이 무음으로 깨짐)
+    // supabaseAdmin 사용 — RLS는 에러가 아닌 빈 200을 반환하므로(STEP 0-B 주석 참고)
+    // anon 클라이언트면 recommendation_logs RLS 도입 시 중복 방지가 무음 사망함
+    // .order id 2차 정렬: created_at 동률이 페이지 경계에 걸릴 때 행 중복/누락 방지
+    const { rows: recRows } = await fetchAllRows<{ song_id: string }>(
+      (from, to) =>
+        supabaseAdmin
+          .from("recommendation_logs")
+          .select("song_id")
+          .eq("device_id", deviceId)
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true })
+          .range(from, to),
+      "device 평생 추천 이력"
+    );
+    excludedIds = recRows.map((r) => r.song_id).filter(Boolean);
     console.log(`[new] device 평생 추천 제외: ${excludedIds.length}곡`);
   }
 
@@ -332,6 +376,9 @@ export async function newRecommend(
   const excludedSet = new Set(excludedIds);
 
   let candidates: SongRow[] = [];
+  // 폴백 쿼리 에러 추적 — 에러 시 직전 단계 후보 유지(부분 성공 진행),
+  // 최종 0곡이 DB 에러 탓이면 no_candidates가 아닌 db_error로 정확히 분류
+  let hadDbError = false;
 
   console.log("[PERF] 후보곡 필터링 시작");
   const t1 = Date.now();
@@ -345,8 +392,13 @@ export async function newRecommend(
     }
     candidates = (data ?? []) as SongRow[];
     if (candidates.length < 10) {
-      const { data: fallback } = await supabase.from("songs").select("*").eq("active", true);
-      candidates = (fallback ?? []) as SongRow[];
+      const { data: fallback, error: fbErr } = await supabase.from("songs").select("*").eq("active", true);
+      if (fbErr) {
+        hadDbError = true;
+        console.error("[new] discover fallback 조회 오류 (직전 후보 유지):", fbErr.message);
+      } else {
+        candidates = (fallback ?? []) as SongRow[];
+      }
     }
     console.log(`[new] discover 후보: ${candidates.length}곡`);
   } else {
@@ -359,18 +411,30 @@ export async function newRecommend(
     candidates = (exact ?? []) as SongRow[];
     console.log(`[new] 1차 정확매칭: ${candidates.length}곡 (genre=${genre}, energy=${energy})`);
 
-    // 2차: genre + energy ±1
+    // 2차: genre + energy ±1 (1차의 상위집합 — 성공 시 교체)
     if (candidates.length < 30) {
-      const { data: expanded } = await supabase.from("songs").select("*").eq("active", true).eq("genre", genre).gte("energy", energyMin).lte("energy", energyMax);
-      candidates = (expanded ?? []) as SongRow[];
-      console.log(`[new] 2차 확장: ${candidates.length}곡 (energy=${energyMin}~${energyMax})`);
+      const { data: expanded, error: expErr } = await supabase.from("songs").select("*").eq("active", true).eq("genre", genre).gte("energy", energyMin).lte("energy", energyMax);
+      if (expErr) {
+        hadDbError = true;
+        console.error("[new] 2차 확장 조회 오류 (직전 후보 유지):", expErr.message);
+      } else {
+        candidates = (expanded ?? []) as SongRow[];
+        console.log(`[new] 2차 확장: ${candidates.length}곡 (energy=${energyMin}~${energyMax})`);
+      }
     }
 
     // 3차: genre 전체 (energy 제한 없음)
     if (candidates.length < 10) {
-      const { data: fallback } = await supabase.from("songs").select("*").eq("active", true).eq("genre", genre);
-      candidates = (fallback ?? []) as SongRow[];
-      console.log(`[new] 3차 fallback: ${candidates.length}곡 (energy 제한 없음)`);
+      const { data: fallback, error: fbErr } = await supabase.from("songs").select("*").eq("active", true).eq("genre", genre);
+      if (fbErr) {
+        hadDbError = true;
+        console.error("[new] 3차 fallback 조회 오류 (직전 후보 유지):", fbErr.message);
+      } else {
+        candidates = (fallback ?? []) as SongRow[];
+        // 3차(장르 전체)는 2차의 상위집합 — 성공했으면 0곡이어도 진짜 빈 풀이므로 no_candidates가 정확
+        hadDbError = false;
+        console.log(`[new] 3차 fallback: ${candidates.length}곡 (energy 제한 없음)`);
+      }
     }
   }
 
@@ -378,6 +442,9 @@ export async function newRecommend(
   perf("후보곡 필터링 완료", t1);
 
   if (candidates.length === 0) {
+    if (hadDbError) {
+      return NextResponse.json({ error: "곡 데이터를 불러오지 못했어요.", error_code: "db_error" }, { status: 500 });
+    }
     return NextResponse.json({ error: "해당 조건의 곡이 없어요. 다른 장르나 분위기를 선택해주세요.", error_code: "no_candidates" }, { status: 404 });
   }
 
@@ -403,7 +470,7 @@ export async function newRecommend(
 
   // 2026-05-09 추가: 7일 글로벌 카운트 기반 가중 샘플링 (편향 방지)
   // 캐시(5분 TTL) — cache hit 시 ~1ms, miss 시 ~15ms
-  const global7dCounts = await getGlobal7dCounts(supabase);
+  const global7dCounts = await getGlobal7dCounts();
 
   let finalCandidates: SongRow[];
   if (isDiscover) {
@@ -485,8 +552,19 @@ export async function newRecommend(
   console.log("[PERF] 결과 조합 시작");
   const t3 = Date.now();
 
-  const selectedIndex = (result.selectedIndex as number) ?? 1;
-  const selectedSong = finalCandidates[selectedIndex - 1] ?? finalCandidates[0];
+  // selectedIndex 런타임 검증 — 범위 밖·비정수면 reason이 다른 곡 기준으로 쓰였을 수 있음.
+  // 무음 폴백 대신 [SELECTION_FALLBACK] 계측 (빈도 관찰 후 재요청 로직 필요 여부 판단)
+  // number/숫자문자열만 허용 — Number(true)=1, Number([3])=3 같은 우연 통과 차단
+  const rawIndex =
+    typeof result.selectedIndex === "number" || typeof result.selectedIndex === "string"
+      ? Number(result.selectedIndex)
+      : NaN;
+  const isValidIndex = Number.isInteger(rawIndex) && rawIndex >= 1 && rawIndex <= finalCandidates.length;
+  if (!isValidIndex) {
+    console.error(`[SELECTION_FALLBACK] selectedIndex 비정상: raw=${JSON.stringify(result.selectedIndex)}, 후보=${finalCandidates.length}곡 → 1번 곡으로 폴백`);
+  }
+  const selectedIndex = isValidIndex ? rawIndex : 1;
+  const selectedSong = finalCandidates[selectedIndex - 1];
 
   if (!selectedSong) {
     return NextResponse.json({ error: "곡 선택 중 오류가 발생했어요.", error_code: "selection_error" }, { status: 500 });
